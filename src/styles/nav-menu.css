@@ -12,6 +12,8 @@
   --nav-bg: #fff;
   --nav-fb-bg: var(--nav-ink);
   --nav-fb-ink: #fff;
+  --nav-track: #ECEEF4;
+  --nav-knob: #fff;
   --nav-h: var(--header-height);
   /* 다크 모드 값은 src/styles/dark.css 에서 custom-nav 에 넣음 (바깥 규칙이 :host 보다 우선) */
 }
@@ -88,20 +90,47 @@
 
 .bar__end { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 
-/* 다크/라이트 전환 버튼: 라이트에서는 달, 다크에서는 해 아이콘 */
+/* 화면 모드 고르기: 트랙 안에 해·달·모니터 세 칸, 동그라미(knob)가 고른 칸으로 미끄러짐 */
 .bar__theme {
-  width: 34px;
-  height: 34px;
+  position: relative;
+  flex: none;
+  display: flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--nav-track);
+  box-shadow: inset 0 0 0 1px var(--nav-line);
+}
+.bar__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 28px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--nav-knob);
+  box-shadow: 0 1px 3px rgba(16, 20, 30, 0.25);
+  transition: transform 0.2s ease;
+}
+.bar__theme[data-mode="dark"] .bar__knob { transform: translateX(28px); }
+.bar__theme[data-mode="system"] .bar__knob { transform: translateX(56px); }
+.bar__theme button {
+  position: relative; /* 동그라미 위에 아이콘이 보이게 */
+  width: 28px;
+  height: 24px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
-  color: var(--nav-muted) !important;
+  border-radius: 999px;
+  color: var(--nav-muted);
+  transition: color 0.2s;
 }
-.bar__theme:hover { background: var(--nav-paper) !important; color: var(--nav-ink) !important; }
-.bar__theme svg { width: 20px; height: 20px; }
-.bar__theme .sun,
-.bar__theme[aria-pressed="true"] .moon { display: none; }
-.bar__theme[aria-pressed="true"] .sun { display: block; }
+.bar__theme button:hover { color: var(--nav-ink); }
+.bar__theme svg { width: 16px; height: 16px; }
+.bar__theme [data-mode="light"][aria-checked="true"] { color: #D98B0B; }
+.bar__theme [data-mode="system"][aria-checked="true"] { color: var(--nav-ink); }
+.bar__theme [data-mode="dark"][aria-checked="true"] { color: #F2D27A; }
+@media (prefers-reduced-motion: reduce) {
+  .bar__knob, .bar__theme button { transition: none; }
+}
 
 .bar__menu {
   padding: 5px 12px;
