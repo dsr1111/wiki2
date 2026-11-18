@@ -177,5 +177,43 @@ const shadowCss = baseCss.replace(/@import[^;]+;/g, '') + navCss;
       const a = linkOf(e);
       if (a) prefetch(a.getAttribute('href')!, { ignoreSlowConnection: true });
     }, { passive: true });
+
+    // 첫 화면이 다 뜨고 한가할 때 메뉴의 모든 페이지를 미리 받아 둠 (전부 합쳐 압축 80KB 정도).
+    // 마우스를 올리자마자 바로 누르거나 모바일에서 누를 때도 기다림 없이 바로 넘어가게 하려는 것.
+    // 각 페이지의 CSS 도 같이 받아 둠 (페이지를 옮길 때 CSS 를 기다리는 시간이 가장 컸음).
+    // 데이터 절약 모드·느린 회선(2g)에서는 하지 않음. 브라우저 캐시에 들어가므로 같은 파일은 다시 안 받음.
+    const prefetchMenu = async () => {
+      const conn = (navigator as any).connection;
+      if (conn?.saveData || /2g/.test(conn?.effectiveType ?? '')) return;
+      const css = new Set<string>();
+      const hrefs = [...root.querySelectorAll<HTMLAnchorElement>('a[href^="/"]')]
+        .map((a) => a.getAttribute('href')!)
+        .filter((h) => h !== location.pathname);
+      await Promise.all(hrefs.map(async (href) => {
+        try {
+          const html = await (await fetch(href)).text();
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          doc.querySelectorAll('head link[rel="stylesheet"]').forEach((l) => css.add(l.getAttribute('href')!));
+        } catch {}
+      }));
+      // CSS 안의 @import 파일도 (예: 맵 main.css → utils.css). 같은 사이트 파일만, 한 단계만.
+      const warm = async (href: string) => {
+        try {
+          const url = new URL(href, location.href);
+          const text = await (await fetch(url)).text();
+          for (const m of text.matchAll(/@import\s+(?:url\()?\s*['"]?([^'")\s;]+)/g)) {
+            const sub = new URL(m[1], url);
+            if (sub.origin === location.origin) fetch(sub).catch(() => {});
+          }
+        } catch {}
+      };
+      for (const href of css) {
+        if (!document.querySelector(`link[rel="stylesheet"][href="${href}"]`)) warm(href);
+      }
+    };
+    const idle = (fn: () => void) =>
+      'requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: 4000 }) : setTimeout(fn, 2000);
+    if (document.readyState === 'complete') idle(prefetchMenu);
+    else window.addEventListener('load', () => idle(prefetchMenu), { once: true });
   }
 </script>

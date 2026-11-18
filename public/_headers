@@ -7,3 +7,38 @@
 # Astro 가 만든 JS/CSS: 파일 이름에 내용 해시가 들어가서 바뀌면 이름도 바뀜 → 1년
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
+
+# 페이지 CSS·JS (/assets) 와 공통 글꼴 CSS (/web): 10분은 다시 묻지 않고 바로 씀, 그 뒤 하루까지는 일단 쓰고 뒤에서 새로 확인.
+# 원래는 매번 서버에 "바뀌었나?" 물어봐서(304) 페이지를 옮길 때마다 CSS 개수만큼 기다렸음.
+# 대신 CSS 를 고쳐 배포하면 이미 본 사람에겐 최대 10분(+한 번) 늦게 보일 수 있음.
+/assets/*
+  Cache-Control: public, max-age=600, stale-while-revalidate=86400
+/web/*
+  Cache-Control: public, max-age=600, stale-while-revalidate=86400
+
+# 페이지 HTML: 1분 동안은 미리 받아 둔 것을 그대로 씀 (메뉴에 마우스 올림/한가할 때 미리 받기가 실제로 쓰이게).
+# 배포 직후 1분 안에는 이전 HTML 이 보일 수 있음.
+/
+  Cache-Control: public, max-age=60
+/calculator
+  Cache-Control: public, max-age=60
+/costume-slot
+  Cache-Control: public, max-age=60
+/deck
+  Cache-Control: public, max-age=60
+/detail
+  Cache-Control: public, max-age=60
+/detector
+  Cache-Control: public, max-age=60
+/digimon
+  Cache-Control: public, max-age=60
+/evolution
+  Cache-Control: public, max-age=60
+/exp
+  Cache-Control: public, max-age=60
+/gacha
+  Cache-Control: public, max-age=60
+/map
+  Cache-Control: public, max-age=60
+/overflow
+  Cache-Control: public, max-age=60
