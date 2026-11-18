@@ -3,7 +3,7 @@
 (function () {
   if (window.DSRDigimonAdmin) return;
 
-  const API = "/.netlify/functions/digimon-admin";
+  const API = "/api/digimon-admin";
   const MEDIA = "https://media.dsrwiki.com/dsrwiki/digimon/";
 
   const STAGES = ["성장기", "성숙기", "완전체", "궁극체"];
@@ -196,7 +196,10 @@
     if (expired === true) alert("관리자 로그인이 만료되었습니다. 다시 로그인하려면 주소 끝에 #admin 을 붙여 접속하세요.");
   }
 
-  document.addEventListener("digimon:rendered", decorateRows);
+  // (Astro) 이 페이지를 떠나면 멈춤 — 다시 오면 이 파일이 다시 실행되며 새로 등록되므로 겹치지 않게
+  const leave = new AbortController();
+  document.addEventListener("astro:before-swap", () => leave.abort(), { once: true });
+  document.addEventListener("digimon:rendered", decorateRows, { signal: leave.signal });
 
   // ---------- 이미지 ----------
   const folderOf = (name) => (name === "폼몬" ? "포무몬" : name).replace(/:/g, "_");
@@ -524,5 +527,8 @@
     if (getToken()) { clearHash(); enterAdmin(); } else if (location.hash === "#admin" || location.hash === "#coupon-admin") showLogin();
   }
   window.DSRDigimonAdmin = { open };
+  // (Astro) 다른 페이지로 옮기면 화면이 통째로 바뀌므로(관리자 버튼·창도 사라짐), 이 페이지로 다시 오면
+  // 이 파일이 새 화면 기준으로 다시 실행되게 지워 둠
+  document.addEventListener("astro:before-swap", () => { delete window.DSRDigimonAdmin; }, { once: true });
   open();
 })();

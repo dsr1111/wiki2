@@ -6,7 +6,7 @@
 (function () {
   if (window.DSREvolutionAdmin) return;
 
-  const API = "/.netlify/functions/evolution-admin";
+  const API = "/api/evolution-admin";
   const MEDIA = "https://media.dsrwiki.com/dsrwiki/";
   const STAGES = [["1", "유년기1"], ["2", "유년기2"], ["3", "성장기"], ["4", "성숙기"], ["5", "완전체"], ["6", "궁극체"]];
   const stageName = (s) => (STAGES.find(([v]) => v === String(s)) || [null, `단계 ${s}`])[1];
@@ -530,6 +530,9 @@
     if (getToken()) { clearHash(); enterAdmin(); } else if (location.hash === "#admin" || location.hash === "#coupon-admin") showLogin();
   }
   window.DSREvolutionAdmin = { open };
+  // (Astro) 다른 페이지로 옮기면 화면이 통째로 바뀌므로(관리자 버튼·창도 사라짐), 이 페이지로 다시 오면
+  // 이 파일이 새 화면 기준으로 다시 실행되게 지워 둠
+  document.addEventListener("astro:before-swap", () => { delete window.DSREvolutionAdmin; }, { once: true });
   if (document.querySelector(".search-container")) open();
   else document.addEventListener("DOMContentLoaded", open);
 })();

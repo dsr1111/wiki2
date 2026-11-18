@@ -4,7 +4,7 @@
   const C = window.DSRCoupons;
   if (!C || window.DSRSiteAdmin) return;
 
-  const API = "/.netlify/functions/site-admin";
+  const API = "/api/site-admin";
   const GRADES = [1, 2, 3, 4];
   const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
   const RAID_TYPES = [
@@ -148,7 +148,7 @@
   }
 
   // ---------- 아이템 이미지 ----------
-  const ITEM_IMAGE_API = "/.netlify/functions/item-image";
+  const ITEM_IMAGE_API = "/api/item-image";
   async function uploadItemImage(name, image) {
     const token = getToken();
     let res;
@@ -737,5 +737,8 @@
   }
 
   window.DSRSiteAdmin = { open };
+  // (Astro) 다른 페이지로 옮기면 화면이 통째로 바뀌므로(관리자 버튼·창도 사라짐), 이 페이지로 다시 오면
+  // 이 파일이 새 화면 기준으로 다시 실행되게 지워 둠
+  document.addEventListener("astro:before-swap", () => { delete window.DSRSiteAdmin; }, { once: true });
   open();
 })();

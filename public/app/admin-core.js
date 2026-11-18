@@ -5,7 +5,7 @@
   if (window.DSRAdminCore) return;
 
   const TOKEN_KEY = "dsrCouponAdminToken";
-  const LOGIN_API = "/.netlify/functions/site-admin";
+  const LOGIN_API = "/api/site-admin";
   const ADMIN_HASHES = ["#admin", "#coupon-admin"];
 
   // ---------- 화면 요소 ----------
@@ -93,6 +93,8 @@
     if (e.key === "Escape" && modalStack.length) modalStack[modalStack.length - 1].tryClose();
   });
   const closeAllModals = () => [...modalStack].reverse().forEach((m) => m.close());
+  // (Astro) 페이지를 옮기면 열려 있던 창은 화면과 함께 사라지므로 목록도 비움 (Esc 가 사라진 창을 닫으려 하지 않게)
+  document.addEventListener("astro:before-swap", closeAllModals);
 
   /**
    * 페이지별 디자인(CSS 클래스 접두어)에 맞춘 도구 모음.

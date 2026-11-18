@@ -52,7 +52,7 @@ onReady(function () {
 // 데이터는 위키 전용 Supabase에서 읽습니다.
 // 아래 두 값은 Supabase Dashboard → Project Settings → API 에서 복사합니다.
 // (Project URL, 그리고 publishable 키 또는 anon 키 — 공개용 읽기 키라 노출되어도 괜찮습니다)
-// 비워두면 DB 대신 예전 JSON 파일을 보여줍니다. 쓰기는 /.netlify/functions/site-admin (관리자 로그인 필요)만 가능합니다.
+// 비워두면 DB 대신 예전 JSON 파일을 보여줍니다. 쓰기는 /api/site-admin (관리자 로그인 필요)만 가능합니다.
 const COUPON_SUPABASE_URL = "https://mkytwqzrznusjwmcgpgw.supabase.co";
 const COUPON_SUPABASE_ANON_KEY = "sb_publishable_DTiYb2mYuQCeJalBTlT_aA_9aukhrHV";
 const COUPON_FALLBACK_URL = "https://media.dsrwiki.com/data/csv/coupon.json";

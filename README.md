@@ -18,6 +18,10 @@ npm run deploy   # 빌드 후 Cloudflare 에 바로 배포 (처음 한 번 npx w
 - 설정: `wrangler.jsonc` (정적 사이트, 이름 `dsrwiki` → 임시 주소 `https://dsrwiki.s97716.workers.dev`)
 - 주소 규칙: `public/_redirects` (예전 .html 주소 → 확장자 없는 주소로 301)
 - 캐시: `public/_headers`
+- 관리자 저장 API: `worker/` (기존 Netlify 함수를 옮긴 것, 주소 `/api/<이름>`)
+  - R2 는 바인딩 `MEDIA` 로 접근 (`wrangler.jsonc` 의 `bucket_name` = media.dsrwiki.com 버킷 이름)
+  - 비밀값 `COUPON_ADMIN_PASSWORD`, `SUPABASE_SECRET_KEY` 는 Cloudflare 대시보드에 직접 넣음 (코드에 넣지 않음)
+  - 임시 주소(*.workers.dev)는 `/robots.txt` 로 검색 엔진 수집을 막음
 - GitHub 저장소를 Cloudflare 에 연결해 두면 커밋할 때마다 자동 배포됩니다
   (빌드 명령 `npm run build`, 배포 명령 `npx wrangler deploy`, Node 버전은 `.node-version`)
 
@@ -25,6 +29,7 @@ npm run deploy   # 빌드 후 Cloudflare 에 바로 배포 (처음 한 번 npx w
 
 - `src/pages/` — 페이지 (`digimon.astro` → `/digimon`)
 - `src/layouts/` — 모든 페이지가 같이 쓰는 틀 (메뉴, 폰트, 메타 태그)
+- `worker/` — 관리자 저장 API (Cloudflare Worker)
 - `public/` — 그대로 복사되는 파일 (이미지, 기존 CSS/JS). 기존 위키에서 git 에 올라가 있던 파일을 복사해 왔습니다.
 
 ## 진행 단계
@@ -32,9 +37,18 @@ npm run deploy   # 빌드 후 Cloudflare 에 바로 배포 (처음 한 번 npx w
 0. 뼈대 ✔
 1. 공통 레이아웃 (메뉴, 페이지 전환) ✔
 2. 페이지 옮기기 (12개 전부) ✔
-3. 관리자 기능 + 저장 API (기존 Netlify 함수 → Cloudflare Workers)
+3. 관리자 기능 + 저장 API (기존 Netlify 함수 → Cloudflare Workers) ✔ (버킷 이름·비밀값 설정 필요)
 4. 기존 사이트와 같은지 확인
 5. dsrwiki.com 연결 전환 (기존 Netlify 사이트는 되돌리기용으로 유지)
+
+## 관리자 기능 로컬 시험
+
+진짜 데이터를 건드리지 않도록 로컬의 가짜 R2 에 공개 데이터 사본을 넣고 시험합니다.
+
+1. `.dev.vars` 에 시험용 값: `COUPON_ADMIN_PASSWORD=test-pass`, `SUPABASE_SECRET_KEY=아무 값`
+2. 데이터 사본 넣기 (파일마다): `npx wrangler r2 object put <버킷 이름>/data/csv/digimon.json --file digimon.json --local`
+3. `npm run cf:dev` 후 `http://localhost:8787/digimon#admin` 에서 test-pass 로 로그인
+   (메인 페이지 쿠폰·레이드·이벤트는 Supabase 를 쓰므로 로컬에서는 저장 안 됨)
 
 ## 페이지를 옮기는 방식
 

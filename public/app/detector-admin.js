@@ -3,7 +3,7 @@
 (function () {
   if (window.DSRDetectorAdmin) return;
 
-  const API = "/.netlify/functions/detector-admin";
+  const API = "/api/detector-admin";
   const MEDIA = "https://media.dsrwiki.com/dsrwiki/";
   const MONSTERS = "악역 디지몬";
   const TRADE = ["거래가능", "거래불가"];
@@ -690,6 +690,9 @@
     if (getToken()) { clearHash(); enterAdmin(); } else if (location.hash === "#admin" || location.hash === "#coupon-admin") showLogin();
   }
   window.DSRDetectorAdmin = { open };
+  // (Astro) 다른 페이지로 옮기면 화면이 통째로 바뀌므로(관리자 버튼·창도 사라짐), 이 페이지로 다시 오면
+  // 이 파일이 새 화면 기준으로 다시 실행되게 지워 둠
+  document.addEventListener("astro:before-swap", () => { delete window.DSRDetectorAdmin; }, { once: true });
   if (document.getElementById("detectorGrid")) open();
   else document.addEventListener("DOMContentLoaded", open);
 })();
