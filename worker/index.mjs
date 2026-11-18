@@ -8,6 +8,15 @@ import detectorAdmin from './functions/detector-admin.mjs';
 import evolutionAdmin from './functions/evolution-admin.mjs';
 import itemImage from './functions/item-image.mjs';
 import { json } from './lib/admin-auth.mjs';
+import process from 'node:process';
+
+/** 대시보드의 비밀값·wrangler.jsonc 의 vars 를 process.env 에도 넣음
+ *  (옮겨 온 함수들이 process.env 로 읽음. 자동으로 채워지지 않는 경우가 있어 직접 채움) */
+function fillProcessEnv(env) {
+  for (const [key, value] of Object.entries(env)) {
+    if (typeof value === 'string' && !process.env[key]) process.env[key] = value;
+  }
+}
 
 const API = {
   'site-admin': siteAdmin,
@@ -22,6 +31,7 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname.startsWith('/api/')) {
+      fillProcessEnv(env);
       const handler = Object.hasOwn(API, url.pathname.slice(5)) ? API[url.pathname.slice(5)] : null;
       if (!handler) return json({ error: '없는 주소입니다.' }, 404);
       try {
