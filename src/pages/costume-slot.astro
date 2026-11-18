@@ -1,13 +1,12 @@
 ---
 // 기존 costume-slot.html 을 옮긴 페이지
 import Layout from '../layouts/Layout.astro';
+// CSS 는 빌드할 때 압축해서 페이지 안에 넣음 (순서 = 예전 <link> 순서 그대로)
+import '../styles/styles1.css';
+import '../styles/pages/costume-slot/main.css';
+import '../styles/tw/costume-slot.css';
 ---
 <Layout title="코스튬 슬롯 각인 시뮬레이터" bodyClass="bg-gray-100" bodyStyle="font-family: 'Pretendard', sans-serif;">
-  <Fragment slot="head">
-    <link rel="stylesheet" href="/assets/css/styles1.css?p=costume-slot" />
-    <link rel="stylesheet" href="/assets/css/pages/costume-slot/main.css" />
-    <link rel="stylesheet" href="/assets/css/tw/costume-slot.css" />
-  </Fragment>
 
     <div class="mt-20 md:mt-28">
         <div class="container mx-auto px-4">

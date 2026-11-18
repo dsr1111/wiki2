@@ -1,7 +1,7 @@
 // 도감 필터 — 필터 화면만 새로 만들고, 걸러내는 판단은 기존 도감 코드(digimon.js)를 그대로 씀.
 //
-// 기존 필터 버튼들은 페이지에 숨겨 둔 채로 두고(목록·켜짐 상태의 원본), 새 화면은 그 버튼들을 읽어서 만든다.
-// → 나중에 아이콘이 늘어나도 기존 HTML 만 고치면 새 필터도 따라감.
+// 고를 수 있는 항목(진화·타입·속성·효과·필드)은 아래 목록에 있음 → 아이콘을 늘릴 땐 여기에 이름만 추가
+// (이미지는 media.dsrwiki.com 의 같은 이름 파일을 씀)
 //
 // 구성
 //  - 늘 보이는 줄: 이름 검색 + 진화 단계 + 타입 + [상세 필터 (n)]
@@ -11,47 +11,36 @@
 //  - 모바일: 검색 + [필터 (n)] 버튼만, 누르면 아래에서 올라오는 창
 //  - 기존 위키(dsr/frontend/app/digimon-filter.js)에도 같은 내용이 들어 있음 → 고칠 땐 둘 다
 
+// ---------- 고를 수 있는 항목 ----------
+const IMG = 'https://media.dsrwiki.com/dsrwiki/';
+const EVOLUTIONS = ['성장기', '성숙기', '완전체', '궁극체'];
+const TYPES = ['백신', '데이터', '바이러스', '프리', '언노운', 'NO DATA'];
+const ATTRS = ['강철', '나무', '흙', '물', '물리', '바람', '불', '빛', '어둠', '얼음', '천둥'];
+// 도트·CC 는 "효과" 줄의 [도트] [CC] 버튼 하나로 모두 찾음 → 여기엔 버프·디버프만 (이름 = 데이터의 효과 이름)
+const EFFECT_GROUPS = {
+  버프: ['공격력 증가', '방어력 증가', '속도 증가', '치명타율 증가', '회피율 증가', '안개 장벽', '만개'],
+  디버프: ['방어력 감소', '속도 감소', '연소'],
+};
+const FIELDS = ['DA', 'UK', 'DR', 'DS', 'JT', 'ME', 'NSo', 'NSp', 'VB', 'WG'];
+
 export function initFilter(signal) {
-  const old = document.querySelector('.filters');
   const D = window.DSRDigimon;
-  if (!old || !D) return;
-
-  // ---------- 기존 버튼 읽기 ----------
-  const parseCall = (s) => {
-    const m = /(\w+)\('([^']*)'\)/.exec(s || '');
-    return m ? { fn: m[1], arg: m[2] } : null;
-  };
-  const items = [...old.querySelectorAll('button[onclick^="toggle"]')]
-    .map((btn) => {
-      const call = parseCall(btn.getAttribute('onclick'));
-      if (!call || call.fn === 'toggleFilters') return null;
-      const label = parseCall(btn.getAttribute('onmouseenter'))?.arg
-        || /showCustomTooltip\(event,\s*'([^']*)'/.exec(btn.getAttribute('onmouseenter') || '')?.[1]
-        || btn.querySelector('img')?.alt || call.arg;
-      const group = btn.closest('.effect-subgroup')?.querySelector('span')?.textContent.trim() || '';
-      return { btn, ...call, label, img: btn.querySelector('img')?.getAttribute('src') || '', group };
-    })
-    .filter(Boolean);
-  const byFn = (fn) => items.filter((i) => i.fn === fn);
-  const evolutions = byFn('toggleEvolution');
-  const types = byFn('toggleType');
-  const attrs = byFn('toggleSkill1').map((i) => i.arg); // 11개 속성 이름
-  const attrImg = (fn, attr) => {
-    const map = { skill: 'toggleSkill1', strong: 'toggleSkillStrong', weak: 'toggleSkillWeak' };
-    const hit = items.find((i) => i.fn === map[fn] && (i.arg === attr || i.arg.endsWith(`_${attr}`)));
-    return hit?.img || `https://media.dsrwiki.com/dsrwiki/${attr}.webp`;
-  };
-  // 도트·CC 는 위 "스킬" 줄의 [도트] [CC] 버튼 하나로 모든 도트·CC 를 찾음 → 여기엔 버프·디버프만
-  const effects = byFn('toggleEffect')
-    .map((i) => ({ ...i, name: i.arg.replace(/^effect_/, ''), group: i.group || '기타' }))
-    .filter((e) => e.group !== '도트' && e.group !== 'CC');
-  const effectGroups = [...new Set(effects.map((e) => e.group))];
-  const fields = byFn('toggleField');
-
-  // ---------- 상태 읽기/바꾸기 (기존 함수를 그대로 부름 → 기존 버튼 켜짐 표시도 같이 맞음) ----------
+  const mount = document.querySelector('.container1');
+  if (!mount || !D) return;
   const F = D.filters;
-  const call = (fn, arg) => window[fn]?.(arg);
-  const slotFn = { 1: 'toggleSkill1', 2: 'toggleSkill2', 3: 'toggleSkill3' };
+
+  // 각 항목: key/arg = D.toggle(key, arg) 로 켜고 끄는 조건, on() = 지금 켜져 있는지
+  const item = (key, v, extra) => ({ key, arg: v, label: v, on: () => F[key].includes(v), ...extra });
+  const evolutions = EVOLUTIONS.map((v) => item('evolution', v, { img: `${IMG}${v}.webp` }));
+  const types = TYPES.map((v) => item('type', v, { img: `${IMG}${v}.webp` }));
+  const attrs = ATTRS;
+  const attrImg = (_tab, attr) => `${IMG}${attr}.webp`;
+  const effects = Object.entries(EFFECT_GROUPS).flatMap(([group, names]) => names.map((v) => item('effect', v, { group, img: `${IMG}debuff/${v}.webp` })));
+  const effectGroups = Object.keys(EFFECT_GROUPS);
+  const fields = FIELDS.map((v) => item('field', v, { img: `${IMG}field/${v}.webp` }));
+
+  // ---------- 상태 바꾸기 (digimon.js 의 D.toggle 을 부름) ----------
+  const flip = (i) => D.toggle(i.key, i.arg);
   const ui = {
     open: false, // 상세 필터 펼침
     attrTab: 'skill', // skill | strong | weak
@@ -64,10 +53,8 @@ export function initFilter(signal) {
     return slot === 'any' ? F.skillAny.includes(attr) : F[`skill${slot}`].includes(attr);
   };
   const toggleAttr = (tab, slot, attr) => {
-    if (tab === 'strong') return call('toggleSkillStrong', `strong_${attr}`);
-    if (tab === 'weak') return call('toggleSkillWeak', `weak_${attr}`);
-    if (slot === 'any') return D.toggleSkillAny(attr);
-    return call(slotFn[slot], attr);
+    if (tab === 'strong' || tab === 'weak') return D.toggle(tab, attr);
+    return D.toggle(slot === 'any' ? 'skillAny' : `skill${slot}`, attr);
   };
   const skillCount = () => F.skillAny.length + F.skill1.length + F.skill2.length + F.skill3.length;
   // 스킬 종류 — 표의 스킬 칸 배경색(전체 공격·캐스팅·HP 소모)과 같은 색 견본을 씀
@@ -98,9 +85,9 @@ export function initFilter(signal) {
     return n;
   };
   const tip = (el, label) => {
-    el.addEventListener('mouseenter', (e) => window.showCustomTooltip?.(e, label));
-    el.addEventListener('mousemove', (e) => window.showCustomTooltip?.(e, label));
-    el.addEventListener('mouseleave', () => window.hideCustomTooltip?.());
+    el.addEventListener('mouseenter', (e) => D.showTooltip(e, label));
+    el.addEventListener('mousemove', (e) => D.showTooltip(e, label));
+    el.addEventListener('mouseleave', () => D.hideTooltip());
     el.setAttribute('aria-label', label);
   };
   // kind: 기존 버튼 모양을 그대로 따름 (skill/strong/weak = 배경 이미지, effect = 동그란 아이콘)
@@ -120,17 +107,14 @@ export function initFilter(signal) {
 
   // ---------- 틀 ----------
   const root = h('section', { class: 'fv', 'aria-label': '도감 필터' });
-  old.before(root);
+  mount.prepend(root);
   const backdrop = h('div', { class: 'fv-backdrop', onclick: () => setOpen(false) });
   document.body.append(backdrop);
   signal.addEventListener('abort', () => { root.remove(); backdrop.remove(); document.documentElement.classList.remove('fv-lock'); });
 
-  const oldSearch = document.getElementById('search');
-  const search = h('input', { type: 'search', class: 'fv-search', placeholder: '디지몬 이름 (쉼표로 여러 개)', 'aria-label': '디지몬 이름 검색', value: oldSearch?.value || '' });
+  const search = h('input', { type: 'search', class: 'fv-search', placeholder: '디지몬 이름 (쉼표로 여러 개)', 'aria-label': '디지몬 이름 검색' });
   search.addEventListener('input', () => {
-    if (!oldSearch) return;
-    oldSearch.value = search.value;
-    oldSearch.dispatchEvent(new Event('input', { bubbles: true }));
+    D.searchByName(search.value);
     renderStatus();
   });
 
@@ -156,7 +140,7 @@ export function initFilter(signal) {
   // ---------- 그리기 ----------
   const quickGroup = (title, list) => h('div', { class: 'fv-quick-group' }, [
     h('span', { class: 'fv-quick-title', text: title }),
-    h('div', { class: 'fv-icons' }, list.map((i) => iconBtn({ img: i.img, label: i.label, active: i.btn.classList.contains('active'), onClick: () => { call(i.fn, i.arg); render(); } }))),
+    h('div', { class: 'fv-icons' }, list.map((i) => iconBtn({ img: i.img, label: i.label, active: i.on(), onClick: () => { flip(i); render(); } }))),
   ]);
 
   function renderBar() {
@@ -182,15 +166,15 @@ export function initFilter(signal) {
   function chipsList() {
     const chips = [];
     const add = (text, img, remove, kind = 'plain') => chips.push({ text, img, remove, kind });
-    evolutions.filter((i) => F.evolution.includes(i.arg)).forEach((i) => add(i.label, i.img, () => call(i.fn, i.arg)));
-    types.filter((i) => F.type.includes(i.arg)).forEach((i) => add(i.label, i.img, () => call(i.fn, i.arg)));
-    F.skillAny.forEach((a) => add(`${a} 스킬`, attrImg('skill', a), () => D.toggleSkillAny(a), 'skill'));
-    [1, 2, 3].forEach((s) => F[`skill${s}`].forEach((a) => add(`${s}스킬 ${a}`, attrImg('skill', a), () => call(slotFn[s], a), 'skill')));
-    F.strong.forEach((a) => add(`강점 ${a}`, attrImg('strong', a), () => call('toggleSkillStrong', `strong_${a}`), 'strong'));
-    F.weak.forEach((a) => add(`약점 ${a}`, attrImg('weak', a), () => call('toggleSkillWeak', `weak_${a}`), 'weak'));
-    F.skillKind.forEach((k) => add(`${kindName(k)} 스킬`, KINDS.find((x) => x[0] === k)?.[3] || null, () => D.toggleSkillKind(k)));
-    effects.filter((e) => e.btn.classList.contains('active')).forEach((e) => add(e.label, e.img, () => call(e.fn, e.arg), 'effect'));
-    fields.filter((f) => f.btn.classList.contains('active')).forEach((f) => add(f.label, f.img, () => call(f.fn, f.arg)));
+    evolutions.filter((i) => i.on()).forEach((i) => add(i.label, i.img, () => flip(i)));
+    types.filter((i) => i.on()).forEach((i) => add(i.label, i.img, () => flip(i)));
+    F.skillAny.forEach((a) => add(`${a} 스킬`, attrImg('skill', a), () => D.toggle('skillAny', a), 'skill'));
+    [1, 2, 3].forEach((s) => F[`skill${s}`].forEach((a) => add(`${s}스킬 ${a}`, attrImg('skill', a), () => D.toggle(`skill${s}`, a), 'skill')));
+    F.strong.forEach((a) => add(`강점 ${a}`, attrImg('strong', a), () => D.toggle('strong', a), 'strong'));
+    F.weak.forEach((a) => add(`약점 ${a}`, attrImg('weak', a), () => D.toggle('weak', a), 'weak'));
+    F.skillKind.forEach((k) => add(`${kindName(k)} 스킬`, KINDS.find((x) => x[0] === k)?.[3] || null, () => D.toggle('skillKind', k)));
+    effects.filter((e) => e.on()).forEach((e) => add(e.label, e.img, () => flip(e), 'effect'));
+    fields.filter((f) => f.on()).forEach((f) => add(f.label, f.img, () => flip(f)));
     return chips;
   }
 
@@ -205,7 +189,7 @@ export function initFilter(signal) {
         searching && chips.length ? h('span', { class: 'fv-note', text: '이름 검색 중에는 조건이 잠시 꺼집니다' }) : null,
       ]),
       h('div', { class: 'fv-count' }, [
-        chips.length || searching ? h('button', { type: 'button', class: 'fv-clear', text: '전체 해제', onclick: () => { window.resetFilters?.(); D.setEffectMatchAll(false); search.value = ''; if (oldSearch) { oldSearch.value = ''; } D.filterTable(); render(); } }) : null,
+        chips.length || searching ? h('button', { type: 'button', class: 'fv-clear', text: '전체 해제', onclick: () => { search.value = ''; D.reset(); render(); } }) : null,
       ]),
     );
     status.hidden = !chips.length && !searching;
@@ -257,7 +241,7 @@ export function initFilter(signal) {
     const EFFECT_KINDS = ['dot', 'cc', 'heal'];
     const kindButtons = (list) => h('div', { class: 'fv-kinds' }, list.map(([k, label, color, img]) => {
       const on = F.skillKind.includes(k);
-      return h('button', { type: 'button', class: `fv-kind${on ? ' is-on' : ''}`, 'aria-pressed': String(on), onclick: () => { D.toggleSkillKind(k); render(); } }, [
+      return h('button', { type: 'button', class: `fv-kind${on ? ' is-on' : ''}`, 'aria-pressed': String(on), onclick: () => { D.toggle('skillKind', k); render(); } }, [
         img ? h('img', { src: img, alt: '', class: 'fv-kind-img' }) : color ? h('span', { class: 'fv-kind-swatch', style: `background:${color}` }) : null,
         label,
       ]);
@@ -276,7 +260,7 @@ export function initFilter(signal) {
     ]);
 
     // 효과
-    const effCount = (g) => effects.filter((e) => e.group === g && e.btn.classList.contains('active')).length;
+    const effCount = (g) => effects.filter((e) => e.group === g && e.on()).length;
     const shownEffects = effects.filter((e) => e.group === ui.effectTab);
     const all = D.getEffectMatchAll();
     const effectRow = h('div', { class: 'fv-row' }, [
@@ -288,9 +272,9 @@ export function initFilter(signal) {
       h('div', { class: 'fv-row-head fv-sub-head' }, [
         segmented(effectGroups.map((g) => [g, g, effCount(g)]), ui.effectTab, (v) => { ui.effectTab = v; renderPanel(); }, { label: '효과 분류' }),
       ]),
-      h('div', { class: 'fv-icons fv-effects' }, shownEffects.map((e) => iconBtn({ img: e.img, label: e.label, active: e.btn.classList.contains('active'), showLabel: true, size: 'sm', kind: 'effect', onClick: () => { call(e.fn, e.arg); render(); } }))),
+      h('div', { class: 'fv-icons fv-effects' }, shownEffects.map((e) => iconBtn({ img: e.img, label: e.label, active: e.on(), showLabel: true, size: 'sm', kind: 'effect', onClick: () => { flip(e); render(); } }))),
       F.effect.length > 1 ? h('div', { class: 'fv-mode' }, [
-        pickedNames(effects.filter((e) => e.btn.classList.contains('active')).map((e) => e.label)),
+        pickedNames(effects.filter((e) => e.on()).map((e) => e.label)),
         segmented([['any', '하나라도 있으면'], ['all', '모두 가진 디지몬만']], all ? 'all' : 'any', (v) => { D.setEffectMatchAll(v === 'all'); render(); }, { small: true, label: '효과 조합 방식' }),
       ]) : null,
     ]);
@@ -298,9 +282,9 @@ export function initFilter(signal) {
     // 필드
     const fieldRow = h('div', { class: 'fv-row' }, [
       h('div', { class: 'fv-row-head' }, [h('h4', { text: '필드' })]),
-      h('div', { class: 'fv-icons' }, fields.map((f) => iconBtn({ img: f.img, label: f.label, active: f.btn.classList.contains('active'), showLabel: true, size: 'sm', onClick: () => { call(f.fn, f.arg); render(); } }))),
+      h('div', { class: 'fv-icons' }, fields.map((f) => iconBtn({ img: f.img, label: f.label, active: f.on(), showLabel: true, size: 'sm', onClick: () => { flip(f); render(); } }))),
       F.field.length > 1 ? h('div', { class: 'fv-mode' }, [
-        pickedNames(fields.filter((f) => f.btn.classList.contains('active')).map((f) => f.label)),
+        pickedNames(fields.filter((f) => f.on()).map((f) => f.label)),
         segmented([['any', '하나라도 있으면'], ['all', '모두 가진 디지몬만']], D.getFieldMatchAll() ? 'all' : 'any', (v) => { D.setFieldMatchAll(v === 'all'); render(); }, { small: true, label: '필드 조합 방식' }),
       ]) : null,
     ]);
@@ -310,7 +294,7 @@ export function initFilter(signal) {
       h('button', { type: 'button', class: 'fv-sheet-close', 'aria-label': '닫기', text: '×', onclick: () => setOpen(false) }),
     ]);
     const sheetFoot = h('div', { class: 'fv-sheet-foot fv-only-mo' }, [
-      h('button', { type: 'button', class: 'fv-clear', text: '전체 해제', onclick: () => { window.resetFilters?.(); D.setEffectMatchAll(false); render(); } }),
+      h('button', { type: 'button', class: 'fv-clear', text: '전체 해제', onclick: () => { D.reset(); render(); } }),
       h('button', { type: 'button', class: 'fv-apply', onclick: () => setOpen(false) }),
     ]);
     panel.replaceChildren(sheetHead, h('div', { class: 'fv-panel-body' }, [mobileQuick, attrRow, kindRow, effectRow, fieldRow]), sheetFoot);

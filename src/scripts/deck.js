@@ -27,31 +27,42 @@ onReady(() => {
     });
 });
 
+// 덱 카드는 처음에 한 번만 만들고, 검색할 때는 맞는 카드만 보이게 함.
+// (예전엔 글자를 칠 때마다 카드와 이미지 수백 개를 지우고 새로 만들었음)
+let cards = []; // { info, el, terms }
+let noResults = null;
+
 // 모든 덱 렌더링 함수
 function renderAllDecks() {
   const deckContainer = document.getElementById('deck-container');
   deckContainer.innerHTML = '';
-  Object.entries(deckData).forEach(([deckName, deckInfo]) => {
-    deckContainer.appendChild(createDeckCard(deckName, deckInfo));
+  cards = Object.entries(deckData).map(([deckName, deckInfo]) => {
+    const el = createDeckCard(deckName, deckInfo);
+    deckContainer.appendChild(el);
+    return { info: deckInfo, el, terms: '' };
   });
+  noResults = document.createElement('div');
+  noResults.className = 'no-results';
+  noResults.textContent = '검색 결과가 없습니다.';
 }
 
-// 필터링된 덱만 deck-container에 렌더링
-function renderFilteredDecks(filtered, highlightTerms = []) {
+// 조건에 맞는 덱만 보이고, 검색어를 강조 (matches 가 없으면 전부 보임)
+function showDecks(matches, highlightTerms = []) {
+  let shown = 0;
+  cards.forEach((card) => {
+    const visible = !matches || matches(card.info);
+    card.el.style.display = visible ? '' : 'none';
+    if (!visible) return;
+    shown++;
+    const key = highlightTerms.join(',');
+    if (card.terms !== key) {
+      card.terms = key;
+      applyHighlights(card.el, card.info, highlightTerms);
+    }
+  });
   const container = document.getElementById('deck-container');
-  container.innerHTML = '';
-
-  if (Object.keys(filtered).length === 0) {
-    const no = document.createElement('div');
-    no.className = 'no-results';
-    no.textContent = '검색 결과가 없습니다.';
-    container.appendChild(no);
-  } else {
-    Object.entries(filtered).forEach(([name, info]) => {
-      // highlightTerm 를 그대로 넘겨줍니다
-      container.appendChild(createDeckCard(name, info, highlightTerms));
-    });
-  }
+  if (shown === 0) container.appendChild(noResults);
+  else noResults.remove();
 }
 
 function escapeRegExp(str) {
@@ -75,10 +86,10 @@ function createDeckCard(deckName, deckInfo, highlightTerms = []) {
   deckInfo.digimon.forEach(d => {
     const avatar = document.createElement('div');
     avatar.className = 'digimon-avatar-box';
-    if (highlightTerms.some(term => d.name.toLowerCase().includes(term))) {
-      avatar.classList.add('digimon-avatar-highlight');
-    }
+    avatar.dataset.name = d.name.toLowerCase();
     const img = document.createElement('img');
+    img.loading = 'lazy'; // 화면에 가까워질 때 받음 (목록이 길어서 처음에 전부 받지 않게)
+    img.decoding = 'async';
     img.className = 'digimon-avatar-img';
     const safeName = d.name.replace(/:/g, '_');
     img.src = `https://media.dsrwiki.com/dsrwiki/digimon/${safeName}/${safeName}.webp`;
@@ -110,31 +121,35 @@ function createDeckCard(deckName, deckInfo, highlightTerms = []) {
   // 설명
   const desc = document.createElement('div');
   desc.className = 'deck-description';
-  let descHTML = deckInfo.description;
-  highlightTerms.forEach(term => {
-    const re = new RegExp(`(${escapeRegExp(term)})`, 'gi');
-    descHTML = descHTML.replace(re, '<span class="highlight">$1</span>');
-  });
-  desc.innerHTML = descHTML;
   deckCard.appendChild(desc);
 
   const effectsContainer = document.createElement('div');
   effectsContainer.className = 'effects-container';
-  effectsContainer.innerHTML = deckInfo.effects
-    .map(e => {
-      // 숫자 강조
-      let html = e.replace(/(\+\s*[\d\.]+%?)/g, '<span class="effect-value">$1</span>');
-      // 다중 키워드 하이라이트
-      highlightTerms.forEach(term => {
-        const re = new RegExp(`(${escapeRegExp(term)})`, 'gi');
-        html = html.replace(re, '<span class="highlight">$1</span>');
-      });
-      return html;
-    })
-    .join(' / ');
   deckCard.appendChild(effectsContainer);
 
+  applyHighlights(deckCard, deckInfo, highlightTerms);
   return deckCard;
+}
+
+// 검색어 강조: 디지몬 테두리, 설명, 효과 글자
+function highlightText(html, highlightTerms) {
+  highlightTerms.forEach(term => {
+    const re = new RegExp(`(${escapeRegExp(term)})`, 'gi');
+    html = html.replace(re, '<span class="highlight">$1</span>');
+  });
+  return html;
+}
+
+function applyHighlights(deckCard, deckInfo, highlightTerms) {
+  deckCard.querySelectorAll('.digimon-avatar-box').forEach(avatar => {
+    avatar.classList.toggle('digimon-avatar-highlight',
+      highlightTerms.some(term => avatar.dataset.name.includes(term)));
+  });
+  deckCard.querySelector('.deck-description').innerHTML = highlightText(deckInfo.description, highlightTerms);
+  deckCard.querySelector('.effects-container').innerHTML = deckInfo.effects
+    // 숫자 강조 + 다중 키워드 하이라이트
+    .map(e => highlightText(e.replace(/(\+\s*[\d\.]+%?)/g, '<span class="effect-value">$1</span>'), highlightTerms))
+    .join(' / ');
 }
 
 function setupEventListeners() {
@@ -143,45 +158,25 @@ function setupEventListeners() {
 
   digimonSearch.addEventListener('input', () => {
     const terms = parseTerms(digimonSearch.value);
-    if (terms.length === 0) return renderAllDecks();
+    if (terms.length === 0) return showDecks(null);
 
-    // 디지몬 이름 필터
-    const results = {};
-    Object.entries(deckData).forEach(([name, info]) => {
-      // 디지몬 목록 중 하나라도 키워드를 포함하면 매칭
-      if (info.digimon.some(d =>
-        terms.some(term => d.name.toLowerCase().includes(term))
-      )) {
-        results[name] = info;
-      }
-    });
+    // 디지몬 목록 중 하나라도 키워드를 포함하면 매칭
     effectSearch.value = '';
-    renderFilteredDecks(results, terms);
+    showDecks(info => info.digimon.some(d =>
+      terms.some(term => d.name.toLowerCase().includes(term))
+    ), terms);
   });
 
   effectSearch.addEventListener('input', () => {
     const terms = parseTerms(effectSearch.value);
-    if (terms.length === 0) return renderAllDecks();
+    if (terms.length === 0) return showDecks(null);
 
-    const results = {};
-    Object.entries(deckData).forEach(([name, info]) => {
-      // 효과 목록 중 하나라도 키워드를 포함하면 매칭
-      if (info.effects.some(e =>
-        terms.some(term => e.toLowerCase().includes(term))
-      )) {
-        results[name] = info;
-      }
-    });
-
+    // 효과 목록 중 하나라도 키워드를 포함하면 매칭
     digimonSearch.value = '';
-    renderFilteredDecks(results, terms);
+    showDecks(info => info.effects.some(e =>
+      terms.some(term => e.toLowerCase().includes(term))
+    ), terms);
   });
-}
-
-function showAllDecks() {
-  document.getElementById('search-results').style.display = 'none';
-  document.getElementById('deck-container').style.display = 'flex';
-  renderAllDecks();
 }
 
 function parseTerms(input) {

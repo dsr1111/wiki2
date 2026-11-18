@@ -3,6 +3,10 @@
 // (여러 파일은 기존처럼 같은 범위를 쓰도록 실행 순서대로 이어 붙임)
 // onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
+// 메뉴(shadow DOM) 보정 CSS: 예전엔 파일을 따로 받아왔으나 이제 JS 안에 같이 들어감 (요청 1개 줄임)
+import navFixCss from '../styles/pages/calculator/nav.css?raw';
+
+import { getDigimonData } from './page.js';
 export function init(signal, onReady) {
 // ===== 기존 app/calculator-math.js =====
 // Damage and probability calculation, preserving the existing wiki formula.
@@ -418,9 +422,8 @@ async function calculateProbability(value) {
 {
   const root = document.querySelector('custom-nav')?.shadowRoot;
   if (root && !root.querySelector('[data-calculator-navigation]')) {
-    const stylesheet = document.createElement('link');
-    stylesheet.rel = 'stylesheet';
-    stylesheet.href = '/assets/css/pages/calculator/nav.css?v=20260929';
+    const stylesheet = document.createElement('style');
+    stylesheet.textContent = navFixCss;
     stylesheet.dataset.calculatorNavigation = '';
     root.appendChild(stylesheet);
     signal.addEventListener('abort', () => stylesheet.remove());
@@ -542,9 +545,9 @@ function setDefaults() {
 }
 async function load() {
   try {
-    const [json,csv] = await Promise.all([fetch('https://media.dsrwiki.com/data/csv/digimon.json'),fetch('https://media.dsrwiki.com/data/csv/mob.csv')]);
-    if (!json.ok || !csv.ok) throw new Error('데이터 파일을 찾을 수 없습니다.');
-    digimonData = await json.json();
+    const [json,csv] = await Promise.all([getDigimonData(),fetch('https://media.dsrwiki.com/data/csv/mob.csv')]);
+    if (!csv.ok) throw new Error('데이터 파일을 찾을 수 없습니다.');
+    digimonData = json;
     mobData = (await csv.text()).trim().split(/\r?\n/).slice(1).map(row=>row.split(',').map(cell=>cell.trim())).filter(row=>row.length>=9 && row[2]);
     if (!Object.keys(digimonData).length || !mobData.length) throw new Error('계산 데이터가 비어 있습니다.');
     options('skilllevel-select', Array.from({length:10},(_,i)=>`${i+1}레벨`));

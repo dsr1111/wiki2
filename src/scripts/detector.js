@@ -3,6 +3,7 @@
 // (여러 파일은 기존처럼 같은 범위를 쓰도록 실행 순서대로 이어 붙임)
 // onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
+import { getDigimonData, initAdminLoader } from './page.js';
 export function init(signal, onReady) {
 // ===== 기존 app/detector.js =====
 
@@ -23,7 +24,7 @@ const detectorEvolutions = {
 const DETECTOR_JSON_URL = 'https://media.dsrwiki.com/data/csv/detector.json';
 Promise.all([
     fetch(DETECTOR_JSON_URL).then(res => res.json()),
-    fetch('https://media.dsrwiki.com/data/csv/digimon.json').then(res => res.json())
+    getDigimonData()
 ]).then(([detector, digimon]) => {
     detectorData = detector;
     digimonGlobalData = digimon;
@@ -50,32 +51,9 @@ window.DSRDetector = {
     },
 };
 
-// 관리자 도구: 주소 끝에 #admin 을 붙이거나 이미 로그인했으면 불러옵니다 (일반 방문자는 다운로드하지 않음)
-(function initDetectorAdminLoader() {
-    let hasToken = false;
-    try { hasToken = !!sessionStorage.getItem('dsrCouponAdminToken'); } catch (e) { /* 저장소 차단 */ }
-    const wantsAdmin = () => location.hash === '#admin' || location.hash === '#coupon-admin';
-    const load = () => {
-        if (window.DSRDetectorAdmin) return window.DSRDetectorAdmin.open();
-        if (document.querySelector('script[data-detector-admin]')) return;
-        if (!window.DSRAdminCore && !document.querySelector('script[data-admin-core]')) {
-          const core = document.createElement('script');
-          core.src = 'app/admin-core.js';
-          core.dataset.adminCore = '1';
-          core.async = false;
-          document.head.appendChild(core);
-        }
-        const script = document.createElement('script');
-        script.src = 'app/detector-admin.js';
-        script.dataset.detectorAdmin = '1';
-        script.async = false;
-        document.head.appendChild(script);
-    };
-    window.addEventListener('hashchange', () => { if (wantsAdmin()) load(); }, { signal });
-    const start = () => { if (wantsAdmin() || hasToken) load(); };
-    if (document.readyState === 'loading') onReady(start);
-    else start();
-})();
+// 관리자 도구 (page.js 의 initAdminLoader)
+if (document.readyState === 'loading') onReady(() => initAdminLoader(signal, 'detector-admin', 'DSRDetectorAdmin'));
+else initAdminLoader(signal, 'detector-admin', 'DSRDetectorAdmin');
 
 // 탐지기 버튼 그리드 생성
 function populateDetectorGrid() {

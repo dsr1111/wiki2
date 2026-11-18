@@ -1,12 +1,11 @@
 ---
 // 기존 evolution.html 을 옮긴 페이지
 import Layout from '../layouts/Layout.astro';
+// CSS 는 빌드할 때 압축해서 페이지 안에 넣음 (순서 = 예전 <link> 순서 그대로)
+import '../styles/pages/evolution/main.css';
+import '../styles/styles1.css';
 ---
 <Layout title="진화트리">
-  <Fragment slot="head">
-    <link rel="stylesheet" href="/assets/css/pages/evolution/main.css" />
-    <link rel="stylesheet" href="/assets/css/styles1.css?p=evolution" />
-  </Fragment>
 
   <div class="container1">
     <p class="notice-text">진화 조건 %가 미기입된 디지몬의 수치 피드백으로 제보받습니다.</p>

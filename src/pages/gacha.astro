@@ -1,14 +1,13 @@
 ---
 // 기존 gacha.html 을 옮긴 페이지
 import Layout from '../layouts/Layout.astro';
+// CSS 는 빌드할 때 압축해서 페이지 안에 넣음 (순서 = 예전 <link> 순서 그대로)
+import '../styles/styles1.css';
+import '../styles/pages/gacha/main.css';
+import '../styles/pages/gacha/presentation.css';
+import '../styles/tw/gacha.css';
 ---
 <Layout title="가챠 시뮬레이터" bodyClass="bg-[#f4f4f9] font-['Pretendard']">
-  <Fragment slot="head">
-    <link rel="stylesheet" href="/assets/css/styles1.css?p=gacha" />
-    <link rel="stylesheet" href="/assets/css/pages/gacha/main.css" />
-    <link rel="stylesheet" href="/assets/css/pages/gacha/presentation.css" />
-    <link rel="stylesheet" href="/assets/css/tw/gacha.css" />
-  </Fragment>
 
   <div class="mt-[80px] md:mt-[100px] pb-16 md:pb-12">
     <div class="w-[90%] max-w-[1000px] mx-auto mt-8 md:mt-12">

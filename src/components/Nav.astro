@@ -4,8 +4,9 @@
 //   다만 JS 로 그리던 것을 HTML 에 바로 넣어서(Declarative Shadow DOM) 처음부터 완성된 메뉴가 보임
 // - 메뉴 CSS 를 HTML 안에 넣어 두므로, CSS 를 기다리느라 메뉴를 숨겨 두던 처리도 필요 없음
 // - transition:persist: 페이지를 옮겨도 메뉴는 그대로 두고 본문만 바뀜
-import baseCss from '../../public/assets/css/styles1.css?raw';
-import navCss from '../../public/assets/css/nav-custom.css?raw';
+import baseCss from '../styles/styles1.css?raw';
+import navCss from '../styles/nav-menu.css?raw'; // 메뉴 전용 규칙 (페이지에는 안 들어감)
+import iconCss from '../styles/icons.css?raw';
 
 type Item = { label: string; href: string; target?: string };
 type Menu = { type: 'link'; label: string; href: string } | { type: 'dropdown'; label: string; items: Item[] };
@@ -50,11 +51,18 @@ const MENU_ITEMS: Menu[] = [
 ];
 
 // styles1.css 맨 위의 글꼴 @import 는 페이지에서 이미 불러오므로 메뉴 안에서는 뺌
-const shadowCss = baseCss.replace(/@import[^;]+;/g, '') + navCss;
+// 아이콘: 메뉴에서 쓰는 3개(메뉴·닫기·아래 화살표)만. @font-face 는 shadow DOM 안에서 무시되므로 빼고, 페이지의 icons.css 것을 씀
+const NAV_ICONS = ['menu-line', 'close-line', 'arrow-down-s-line'];
+const navIconCss = iconCss
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/@font-face\s*\{[^}]*\}/, '')
+  .split('\n')
+  .filter((line) => !line.startsWith('.ri-') || NAV_ICONS.some((n) => line.startsWith(`.ri-${n} `)))
+  .join('\n');
+const shadowCss = baseCss.replace(/@import[^;]+;/g, '') + navCss + navIconCss;
 ---
 <custom-nav transition:persist="site-nav">
   <template shadowrootmode="open">
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.2.0/fonts/remixicon.css" rel="stylesheet" />
     <style set:html={shadowCss}></style>
 
     <header class="header">
@@ -180,36 +188,18 @@ const shadowCss = baseCss.replace(/@import[^;]+;/g, '') + navCss;
 
     // 첫 화면이 다 뜨고 한가할 때 메뉴의 모든 페이지를 미리 받아 둠 (전부 합쳐 압축 80KB 정도).
     // 마우스를 올리자마자 바로 누르거나 모바일에서 누를 때도 기다림 없이 바로 넘어가게 하려는 것.
-    // 각 페이지의 CSS 도 같이 받아 둠 (페이지를 옮길 때 CSS 를 기다리는 시간이 가장 컸음).
-    // 데이터 절약 모드·느린 회선(2g)에서는 하지 않음. 브라우저 캐시에 들어가므로 같은 파일은 다시 안 받음.
-    const prefetchMenu = async () => {
+    // CSS 는 각 페이지 HTML 안에 들어 있으므로 HTML 만 받으면 됨.
+    // 데이터 절약 모드·느린 회선(2g)에서는 하지 않음. Astro 의 prefetch 라 같은 페이지는 다시 안 받음.
+    // 터치 기기(폰·태블릿)에서도 하지 않음: 11개 페이지(압축 약 120KB)를 매번 받게 되어 모바일 데이터 부담.
+    //   대신 위의 touchstart 미리 받기가 누르는 순간 그 페이지만 받음.
+    const prefetchMenu = () => {
       const conn = (navigator as any).connection;
       if (conn?.saveData || /2g/.test(conn?.effectiveType ?? '')) return;
-      const css = new Set<string>();
-      const hrefs = [...root.querySelectorAll<HTMLAnchorElement>('a[href^="/"]')]
-        .map((a) => a.getAttribute('href')!)
-        .filter((h) => h !== location.pathname);
-      await Promise.all(hrefs.map(async (href) => {
-        try {
-          const html = await (await fetch(href)).text();
-          const doc = new DOMParser().parseFromString(html, 'text/html');
-          doc.querySelectorAll('head link[rel="stylesheet"]').forEach((l) => css.add(l.getAttribute('href')!));
-        } catch {}
-      }));
-      // CSS 안의 @import 파일도 (예: 맵 main.css → utils.css). 같은 사이트 파일만, 한 단계만.
-      const warm = async (href: string) => {
-        try {
-          const url = new URL(href, location.href);
-          const text = await (await fetch(url)).text();
-          for (const m of text.matchAll(/@import\s+(?:url\()?\s*['"]?([^'")\s;]+)/g)) {
-            const sub = new URL(m[1], url);
-            if (sub.origin === location.origin) fetch(sub).catch(() => {});
-          }
-        } catch {}
-      };
-      for (const href of css) {
-        if (!document.querySelector(`link[rel="stylesheet"][href="${href}"]`)) warm(href);
-      }
+      if (!matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+      root.querySelectorAll<HTMLAnchorElement>('a[href^="/"]').forEach((a) => {
+        const href = a.getAttribute('href')!;
+        if (href !== location.pathname) prefetch(href, { ignoreSlowConnection: true });
+      });
     };
     const idle = (fn: () => void) =>
       'requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: 4000 }) : setTimeout(fn, 2000);

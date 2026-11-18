@@ -1,8 +1,10 @@
 ---
 // 모든 페이지가 같이 쓰는 틀 — 기존 HTML 페이지들의 <head> 공통 부분 + 상단 메뉴
-// 페이지마다 다른 CSS·스크립트는 <Fragment slot="head"> 로 넣습니다.
+// 페이지 CSS 는 각 페이지 맨 위에서 import (빌드 때 압축되어 페이지 HTML 안에 들어감).
+// 외부 CSS·스크립트 등 그 밖의 것은 <Fragment slot="head"> 로 넣습니다.
 import { ClientRouter } from 'astro:transitions';
 import Nav from '../components/Nav.astro';
+import '../styles/icons.css';
 
 interface Props {
   /** 탭 제목. 비우면 'DSR WIKI', 넣으면 '덱 | DSR WIKI' 처럼 붙음 */
@@ -34,12 +36,6 @@ const pageName = path.replace(/^\/|\.html$|\/$/g, '') || 'index';
     <link rel="stylesheet" href="/web/static/pretendard.css" />
     <link rel="icon" href="https://media.dsrwiki.com/dsrwiki/icon.webp" type="image/x-icon" />
     <title>{fullTitle}</title>
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.2.0/fonts/remixicon.css" rel="stylesheet" />
-    <!--
-      페이지별 CSS. 공통 CSS(styles1.css)도 기존 페이지마다 위치가 달라서 각 페이지에서
-      원래 순서대로 넣습니다. 주소 끝에 ?p=페이지 를 붙이는 이유: 페이지를 옮길 때 Astro 는
-      같은 주소의 CSS 는 그대로 두고 새 CSS 만 뒤에 붙이므로, 그러면 CSS 순서가 원래와 달라짐.
-    -->
     <slot name="head" />
     <!--
       PC 스크롤바를 메뉴 아래에서부터 시작하게 그림 (메뉴 옆 칸은 메뉴 색으로 채움).
@@ -62,7 +58,8 @@ const pageName = path.replace(/^\/|\.html$|\/$/g, '') || 'index';
         :is(html, body)::-webkit-scrollbar-thumb:hover { background: #9aa1ab; background-clip: padding-box; }
         /* 계산기: 내용이 화면에 딱 맞으면 원래 페이지 스크롤을 껐는데(스크롤바 칸까지 사라져 메뉴가 밀림),
            PC 에서는 스크롤바 칸을 그대로 둠. 넘치는 게 없으니 손잡이는 안 보이고 스크롤도 안 됨 */
-        html.calculator-fits-viewport { overflow-y: scroll; }
+        /* 페이지 CSS 가 이 블록보다 뒤에 들어가므로(빌드 때 HTML 에 넣는 위치) :root 로 우선순위를 높여 둠 */
+        :root.calculator-fits-viewport { overflow-y: scroll; }
       }
       @media (hover: hover) and (pointer: fine) and (min-width: 1118px) {
         html { --nav-h: 4.75rem; }

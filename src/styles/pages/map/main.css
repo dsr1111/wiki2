@@ -1,0 +1,380 @@
+@import url("./utils.css");
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 글꼴 GongGothicMedium (예전: 외부 CDN 의 .woff 한 파일 약 610KB)
+   자주 쓰는 글자(영문·숫자·기호 + 한글 2350자)만 담은 조각(155KB)을 먼저 쓰고,
+   그 밖의 드문 한글이 화면에 나올 때만 나머지 조각을 받음. 나머지 조각을 위에 둬야 함(아래 것을 먼저 씀). */
+@font-face {
+  font-family: 'GongGothicMedium';
+  src: url('/fonts/GongGothicMedium-rest.woff2') format('woff2');
+  unicode-range: U+AC00-D7A3;
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'GongGothicMedium';
+  src: url('/fonts/GongGothicMedium-common.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+body {
+  font-family: "GongGothicMedium", sans-serif;
+  font-weight: normal;
+  background-color: #f4f4f9;
+}
+
+.container1 {
+  width: 100%;
+  max-width: 740px;
+  margin: 20px auto;
+  margin-top: 90px;
+}
+
+.maps {
+  background-color: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.main {
+  background-color: #0d0f1f;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  height: 828px;
+  width: 740px;
+}
+
+.main>p {
+  color: #12aaf7;
+  font-size: 29px;
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+#image-container {
+  position: absolute;
+  top: 109px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 700px;
+  background-size: cover;
+  border-radius: 10px;
+  overflow: hidden;
+  z-index: 1;
+}
+
+@media screen and (max-width: 768px) {
+  #image-container {
+    left: 95%;
+  }
+}
+
+.portal-image,
+.warp-image,
+.shop-image,
+.overflows-image,
+.dungeon-image {
+  width: 41px;
+  height: 41px;
+}
+
+.datacube-image {
+  width: 14px;
+  height: 14px;
+}
+
+.mob-image {
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  background-color: #000000;
+  z-index: 999;
+}
+
+.portal-image {
+  position: absolute;
+  display: none;
+  z-index: 1;
+}
+
+.warp-image {
+  position: absolute;
+  display: none;
+  z-index: 2;
+}
+
+.shop-image {
+  position: absolute;
+  display: none;
+}
+
+.datacube-image {
+  position: absolute;
+  display: none;
+  z-index: 3;
+}
+
+.mob-image {
+  position: absolute;
+  display: none;
+}
+
+.tooltip {
+  background-color: rgba(0, 0, 0, 0.75);
+  color: rgb(187, 186, 186);
+  padding: 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 50;
+  max-width: 200px;
+  text-align: center;
+  line-height: 1.4;
+  white-space: normal;
+  z-index: 1000;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  overflow: visible;
+}
+
+@media screen and (max-width: 768px) {
+  .tooltip {
+    width: max-content;
+    box-sizing: border-box;
+  }
+}
+
+
+.special-tooltip {
+  background-color: rgba(0, 0, 0, 0.9);
+  color: rgb(187, 186, 186);
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 14px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+}
+
+@media screen and (max-width: 768px) {
+  .special-tooltip {
+    width: max-content;
+    box-sizing: border-box;
+  }
+}
+
+.dropdown-icon {
+  font-family: "GongGothicMedium", sans-serif;
+  position: absolute;
+  top: 64px;
+  left: 600px;
+  z-index: 10;
+  background-color: #060a15;
+  color: white;
+  width: 120px;
+  height: 33px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 7px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  border: none;
+  box-shadow: 0 0 1px rgba(48, 164, 199, 0.3), 0 0 2px rgba(48, 164, 199, 0.2),
+    0 0 3px rgba(48, 164, 199, 0.1), 0 0 5px rgba(48, 164, 199, 0.1);
+}
+
+.dropdown-con {
+  position: absolute;
+  top: 64px;
+  left: 20px;
+  background-color: #060a15;
+  color: white;
+  width: 120px;
+  height: 33px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 7px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  border: none;
+  box-shadow: 0 0 1px rgba(48, 164, 199, 0.3), 0 0 2px rgba(48, 164, 199, 0.2),
+    0 0 3px rgba(48, 164, 199, 0.1), 0 0 5px rgba(48, 164, 199, 0.1);
+}
+
+.dropdown-con select {
+  font-family: "GongGothicMedium", sans-serif;
+  width: 120px;
+  height: 33px;
+  font-size: 13px;
+  text-align: center;
+  border-radius: 7px;
+  background-color: #060a15;
+  color: white;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dropdown-con::after {
+  content: "▼";
+  color: white;
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: transform 0.3s;
+  pointer-events: none;
+}
+
+.dropdown-con.open::after {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.dropdown-map {
+  position: absolute;
+  top: 64px;
+  left: 150px;
+  background-color: #060a15;
+  color: white;
+  width: 120px;
+  height: 33px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 7px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  border: none;
+  box-shadow: 0 0 1px rgba(48, 164, 199, 0.3), 0 0 2px rgba(48, 164, 199, 0.2),
+    0 0 3px rgba(48, 164, 199, 0.1), 0 0 5px rgba(48, 164, 199, 0.1);
+}
+
+.dropdown-map select {
+  font-family: "GongGothicMedium", sans-serif;
+  width: 120px;
+  height: 33px;
+  font-size: 13px;
+  text-align: center;
+  border-radius: 7px;
+  background-color: #060a15;
+  color: white;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dropdown-map::after {
+  content: "▼";
+  color: white;
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: transform 0.3s;
+  pointer-events: none;
+}
+
+.dropdown-map.open::after {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.dropdown-icon:hover,
+.dropdown-con:hover,
+.dropdown-map:hover {
+  border-color: #2b9df4;
+  box-shadow: 0 0 4px rgb(0, 217, 255), 0 0 4px rgba(0, 217, 255),
+    0 0 4px rgba(0, 217, 255), 0 0 4px rgba(0, 217, 255);
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  top: 99px;
+  left: 600px;
+  background-color: #060a15;
+  color: white;
+  z-index: 10;
+  font-size: 13px;
+  width: 120px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  margin-top: 5px;
+  border: none;
+  box-shadow: 0 0 1px rgba(48, 164, 199, 0.3), 0 0 2px rgba(48, 164, 199, 0.2),
+    0 0 3px rgba(48, 164, 199, 0.1), 0 0 5px rgba(48, 164, 199, 0.1);
+}
+
+.dropdown-content div {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.dropdown-content input[type="checkbox"] {
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.dropdown-content label {
+  line-height: 1.5;
+  vertical-align: middle;
+}
+
+.map-dropdown select {
+  font-family: "GongGothicMedium", sans-serif;
+  width: 306px;
+  height: 40px;
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+  border-radius: 10px;
+  appearance: none;
+  background-color: #0d0f1f;
+  color: white;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.arrow {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.arrow.rotate {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.show {
+  display: block;
+}
+

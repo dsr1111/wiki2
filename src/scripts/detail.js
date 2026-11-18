@@ -3,6 +3,7 @@
 // (여러 파일은 기존처럼 같은 범위를 쓰도록 실행 순서대로 이어 붙임)
 // onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
+import { getDigimonData } from './page.js';
 export function init(signal, onReady) {
 // ===== 기존 app/detail.js =====
 function getQueryParam(param) {
@@ -68,8 +69,7 @@ onReady(() => {
   const sanitizedCharacterName = (characterName === "폼몬" ? "포무몬" : characterName).replace(/:/g, "_");
 
   // 디지몬 데이터 가져오기
-  fetch("https://media.dsrwiki.com/data/csv/digimon.json")
-    .then((response) => response.json())
+  getDigimonData()
     .then((data) => {
       const character = data[characterName];
 

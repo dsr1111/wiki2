@@ -1,12 +1,11 @@
 ---
 // 기존 map.html 을 옮긴 페이지
 import Layout from '../layouts/Layout.astro';
+// CSS 는 빌드할 때 압축해서 페이지 안에 넣음 (순서 = 예전 <link> 순서 그대로)
+import '../styles/pages/map/main.css';
+import '../styles/styles1.css';
 ---
 <Layout title="맵">
-  <Fragment slot="head">
-    <link rel="stylesheet" href="/assets/css/pages/map/main.css" />
-    <link rel="stylesheet" href="/assets/css/styles1.css?p=map" />
-  </Fragment>
 
   <div class="container1" style="position: relative" ;>
     <div class="main">

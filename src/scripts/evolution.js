@@ -3,6 +3,7 @@
 // (여러 파일은 기존처럼 같은 범위를 쓰도록 실행 순서대로 이어 붙임)
 // onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
+import { initAdminLoader } from './page.js';
 export function init(signal, onReady) {
 // ===== 기존 app/evolution.js =====
 (() => {
@@ -272,6 +273,8 @@ export function init(signal, onReady) {
         imgContainer.classList.add("digimon-image-container");
 
         const img = document.createElement("img");
+        img.loading = 'lazy'; // 화면에 가까워질 때 받음 (목록이 길어서 처음에 전부 받지 않게)
+        img.decoding = 'async';
         img.src = `https://media.dsrwiki.com/dsrwiki/digimon/${safeName}/${safeName}.webp`;
         img.alt = digimon.name;
         img.dataset.evoType = "normal";
@@ -328,6 +331,8 @@ export function init(signal, onReady) {
         const imgContainer = document.createElement("div");
         imgContainer.classList.add("digimon-image-container");
         const img = document.createElement("img");
+        img.loading = 'lazy'; // 화면에 가까워질 때 받음 (목록이 길어서 처음에 전부 받지 않게)
+        img.decoding = 'async';
 
         if (name === "유대감") {
           img.src = `https://media.dsrwiki.com/dsrwiki/item/%EC%9C%A0%EB%8C%80%EA%B0%90%201%5E%20%EC%A6%9D%EA%B0%80%20%EB%AC%BC%EC%95%BD.webp`;
@@ -495,33 +500,6 @@ export function init(signal, onReady) {
         tooltip.classList.remove('visible-tooltip');
       }
     },
-    showEvolutionTooltip(event, digimonName) {
-      let tooltip = document.querySelector('.tooltip');
-      if (!tooltip) {
-        tooltip = document.createElement('div');
-        tooltip.className = 'tooltip';
-        document.body.appendChild(tooltip);
-      }
-      tooltip.textContent = digimonName;
-      tooltip.classList.add('visible-tooltip');
-      if (window.innerWidth > 1024) {
-        tooltip.style.left = `${event.clientX + 12}px`;
-        tooltip.style.top = `${event.clientY - 20}px`;
-        tooltip.style.bottom = '';
-        tooltip.style.transform = '';
-      } else {
-        tooltip.style.left = '50%';
-        tooltip.style.top = 'auto';
-        tooltip.style.bottom = '20px';
-        tooltip.style.transform = 'translateX(-50%)';
-      }
-    },
-    hideEvolutionTooltip() {
-      const tooltip = document.querySelector('.tooltip');
-      if (tooltip) {
-        tooltip.classList.remove('visible-tooltip');
-      }
-    },
     showDigimonTooltip(event, digimonName, evoType = "normal") {
       const currentDigimon = DataModule.allData.find(d => d.name === digimonName);
       if (!currentDigimon) return;
@@ -598,42 +576,7 @@ export function init(signal, onReady) {
       tooltip.innerHTML = tableHtml;
       tooltip.classList.add('visible-tooltip');
 
-      // 툴팁 위치 계산
-      const tooltipRect = tooltip.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-      const nameTooltip = document.querySelector('.name-tooltip');
-      let tooltipTop;
-
-      if (window.innerWidth > 1024) {
-        if (nameTooltip && nameTooltip.classList.contains('visible-tooltip')) {
-          const nameTooltipRect = nameTooltip.getBoundingClientRect();
-          tooltipTop = nameTooltipRect.bottom + 5;
-
-          // 이름 툴팁이 화면 아래쪽에 있는 경우, 이름 툴팁을 위로 이동
-          if (nameTooltipRect.bottom + tooltipRect.height > windowHeight) {
-            const newNameTooltipTop = windowHeight - nameTooltipRect.height - tooltipRect.height - 15; // 15px 여백
-            nameTooltip.style.top = `${newNameTooltipTop}px`;
-            tooltipTop = newNameTooltipTop + nameTooltipRect.height + 5;
-          }
-        } else {
-          tooltipTop = event.clientY - 20;
-        }
-
-        // 툴팁이 화면 아래로 넘어가는지 확인
-        if (tooltipTop + tooltipRect.height > windowHeight) {
-          tooltipTop = windowHeight - tooltipRect.height - 10; // 10px 여백
-        }
-
-        tooltip.style.left = `${event.clientX + 12}px`;
-        tooltip.style.top = `${tooltipTop}px`;
-        tooltip.style.bottom = '';
-        tooltip.style.transform = '';
-      } else {
-        tooltip.style.left = '50%';
-        tooltip.style.top = 'auto';
-        tooltip.style.bottom = '20px';
-        tooltip.style.transform = 'translateX(-50%)';
-      }
+      this.placeBelowName(event, tooltip);
 
       this.observeNodeChanges(event.target, tooltip);
     },
@@ -678,42 +621,7 @@ export function init(signal, onReady) {
       tableHtml += `</table>`;
       tooltip.innerHTML = tableHtml;
 
-      // 툴팁 위치 계산
-      const tooltipRect = tooltip.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-      const nameTooltip = document.querySelector('.name-tooltip');
-      let tooltipTop;
-
-      if (window.innerWidth > 1024) {
-        if (nameTooltip && nameTooltip.classList.contains('visible-tooltip')) {
-          const nameTooltipRect = nameTooltip.getBoundingClientRect();
-          tooltipTop = nameTooltipRect.bottom + 5;
-
-          // 이름 툴팁이 화면 아래쪽에 있는 경우, 이름 툴팁을 위로 이동
-          if (nameTooltipRect.bottom + tooltipRect.height > windowHeight) {
-            const newNameTooltipTop = windowHeight - nameTooltipRect.height - tooltipRect.height - 15; // 15px 여백
-            nameTooltip.style.top = `${newNameTooltipTop}px`;
-            tooltipTop = newNameTooltipTop + nameTooltipRect.height + 5;
-          }
-        } else {
-          tooltipTop = event.clientY - 20;
-        }
-
-        // 툴팁이 화면 아래로 넘어가는지 확인
-        if (tooltipTop + tooltipRect.height > windowHeight) {
-          tooltipTop = windowHeight - tooltipRect.height - 10; // 10px 여백
-        }
-
-        tooltip.style.left = `${event.clientX + 12}px`;
-        tooltip.style.top = `${tooltipTop}px`;
-        tooltip.style.bottom = '';
-        tooltip.style.transform = '';
-      } else {
-        tooltip.style.left = '50%';
-        tooltip.style.top = 'auto';
-        tooltip.style.bottom = '20px';
-        tooltip.style.transform = 'translateX(-50%)';
-      }
+      this.placeBelowName(event, tooltip);
 
       tooltip.classList.add("visible-tooltip");
       tooltip.classList.add("jogress-tooltip");
@@ -755,7 +663,45 @@ export function init(signal, onReady) {
     },
     hideTooltip() {
       document.querySelector('.tooltip').classList.remove('visible-tooltip');
-    }
+    },
+    // 진화 조건 툴팁 위치: PC 는 이름 툴팁 바로 아래(화면 밖으로 나가면 둘 다 위로), 좁은 화면은 아래 가운데
+    placeBelowName(event, tooltip) {
+      const tooltipRect = tooltip.getBoundingClientRect();
+      const windowHeight = window.innerHeight;
+      const nameTooltip = document.querySelector('.name-tooltip');
+      let tooltipTop;
+
+      if (window.innerWidth > 1024) {
+        if (nameTooltip && nameTooltip.classList.contains('visible-tooltip')) {
+          const nameTooltipRect = nameTooltip.getBoundingClientRect();
+          tooltipTop = nameTooltipRect.bottom + 5;
+
+          // 이름 툴팁이 화면 아래쪽에 있는 경우, 이름 툴팁을 위로 이동
+          if (nameTooltipRect.bottom + tooltipRect.height > windowHeight) {
+            const newNameTooltipTop = windowHeight - nameTooltipRect.height - tooltipRect.height - 15; // 15px 여백
+            nameTooltip.style.top = `${newNameTooltipTop}px`;
+            tooltipTop = newNameTooltipTop + nameTooltipRect.height + 5;
+          }
+        } else {
+          tooltipTop = event.clientY - 20;
+        }
+
+        // 툴팁이 화면 아래로 넘어가는지 확인
+        if (tooltipTop + tooltipRect.height > windowHeight) {
+          tooltipTop = windowHeight - tooltipRect.height - 10; // 10px 여백
+        }
+
+        tooltip.style.left = `${event.clientX + 12}px`;
+        tooltip.style.top = `${tooltipTop}px`;
+        tooltip.style.bottom = '';
+        tooltip.style.transform = '';
+      } else {
+        tooltip.style.left = '50%';
+        tooltip.style.top = 'auto';
+        tooltip.style.bottom = '20px';
+        tooltip.style.transform = 'translateX(-50%)';
+      }
+    },
   };
 
   // ===============================
@@ -1349,35 +1295,11 @@ export function init(signal, onReady) {
     stageName: (s) => UIManager.getStageName(String(s)),
   };
 
-  // 관리자 도구: 주소 끝에 #admin 을 붙이거나 이미 로그인했으면 불러옵니다 (일반 방문자는 다운로드하지 않음)
-  function initEvolutionAdminLoader() {
-    let hasToken = false;
-    try { hasToken = !!sessionStorage.getItem("dsrCouponAdminToken"); } catch (e) { /* 저장소 차단 */ }
-    const wantsAdmin = () => location.hash === "#admin" || location.hash === "#coupon-admin";
-    const load = () => {
-      if (window.DSREvolutionAdmin) return window.DSREvolutionAdmin.open();
-      if (document.querySelector("script[data-evolution-admin]")) return;
-      if (!window.DSRAdminCore && !document.querySelector("script[data-admin-core]")) {
-        const core = document.createElement("script");
-        core.src = "app/admin-core.js";
-        core.dataset.adminCore = "1";
-        core.async = false;
-        document.head.appendChild(core);
-      }
-      const script = document.createElement("script");
-      script.src = "app/evolution-admin.js";
-      script.dataset.evolutionAdmin = "1";
-      script.async = false;
-      document.head.appendChild(script);
-    };
-    window.addEventListener("hashchange", () => { if (wantsAdmin()) load(); }, { signal });
-    if (wantsAdmin() || hasToken) load();
-  }
 
   onReady(() => {
     UIManager.init();
     DataModule.loadCSVFiles();
-    initEvolutionAdminLoader();
+    initAdminLoader(signal, 'evolution-admin', 'DSREvolutionAdmin');
     const tree = document.getElementById('evolution-tree');
     const pathResizeObserver = new ResizeObserver(() => EvolutionPathRenderer.schedule());
     pathResizeObserver.observe(tree);

@@ -62,3 +62,50 @@ export function loadScript(src) {
   }
   return loaded.get(src);
 }
+
+// 디지몬 데이터(digimon.json, 약 670KB)를 페이지끼리 같이 씀.
+// 이 파일은 CDN 설정이 no-cache 라서, 도감 → 상세 → 맵처럼 옮길 때마다 서버에 다시 확인하고 JSON 을 다시 읽었음.
+// 한 번 받은 것을 10분 동안 그대로 씀. fresh: 관리자가 저장한 직후처럼 브라우저 캐시를 건너뛰고 새로 받음.
+// 받은 데이터는 여러 페이지가 같이 보므로 고치지 말고 읽기만 할 것.
+const DIGIMON_JSON_URL = 'https://media.dsrwiki.com/data/csv/digimon.json';
+const DIGIMON_TTL = 10 * 60 * 1000;
+let digimonCache = null; // { at, promise }
+export function getDigimonData({ fresh = false } = {}) {
+  if (fresh || !digimonCache || Date.now() - digimonCache.at > DIGIMON_TTL) {
+    const url = DIGIMON_JSON_URL + (fresh ? `?t=${Date.now()}` : '');
+    const promise = fetch(url, fresh ? { cache: 'no-store' } : undefined).then((res) => {
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      return res.json();
+    });
+    const entry = { at: Date.now(), promise };
+    digimonCache = entry;
+    // 실패하면 다음에 다시 받게 비워 둠
+    promise.catch(() => { if (digimonCache === entry) digimonCache = null; });
+  }
+  return digimonCache.promise;
+}
+
+// 관리자 도구: 주소 끝에 #admin(#coupon-admin) 을 붙이거나 이미 로그인했으면 불러옴 (일반 방문자는 다운로드하지 않음)
+// 페이지마다 같은 코드가 복사되어 있던 것을 합침.
+//   initAdminLoader(signal, 'digimon-admin', 'DSRDigimonAdmin')
+//   → public/app/admin-core.js 와 public/app/digimon-admin.js 를 순서대로 불러오고, 이미 불러왔으면 창만 다시 엶
+export function initAdminLoader(signal, file, globalName) {
+  let hasToken = false;
+  try { hasToken = !!sessionStorage.getItem('dsrCouponAdminToken'); } catch (e) { /* 저장소 차단 */ }
+  const wantsAdmin = () => location.hash === '#admin' || location.hash === '#coupon-admin';
+  const addScript = (name) => {
+    const s = document.createElement('script');
+    s.src = `/app/${name}.js`;
+    s.dataset.admin = name;
+    s.async = false; // 넣은 순서대로 실행 (admin-core 가 먼저)
+    document.head.appendChild(s);
+  };
+  const load = () => {
+    if (window[globalName]) return window[globalName].open();
+    if (document.querySelector(`script[data-admin="${file}"]`)) return;
+    if (!window.DSRAdminCore && !document.querySelector('script[data-admin="admin-core"]')) addScript('admin-core');
+    addScript(file);
+  };
+  window.addEventListener('hashchange', () => { if (wantsAdmin()) load(); }, { signal });
+  if (wantsAdmin() || hasToken) load();
+}
