@@ -57,8 +57,10 @@ const shadowCss = baseCss.replace(/@import[^;]+;/g, '') + navCss;
 
     <header class="bar">
       <div class="bar__in">
+        <!-- 로고: 디지바이스(탭 아이콘과 같은 그림, public/logo-digivice.png) + 글자. 예전 게임 로고 이미지는 media.dsrwiki.com/dsrwiki/logo2.webp -->
         <a href="/" class="bar__home">
-          <img src="https://media.dsrwiki.com/dsrwiki/logo2.webp" class="bar__logo" alt="DSR WIKI" fetchpriority="high" />
+          <img src="/logo-digivice.png" class="bar__logo" alt="" width="34" height="34" fetchpriority="high" />
+          <span class="bar__name">DSR WIKI</span>
         </a>
 
         <nav class="bar__nav" aria-label="주 메뉴">

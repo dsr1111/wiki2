@@ -1,0 +1,72 @@
+/* 메인 페이지 카드(오버플로우·크라운-비트 환산·레이드 타이머·쿠폰)와 캘린더 위 버튼 디자인.
+   흰 카드 + 얇은 선 + 둥근 모서리, 제목은 굵은 글자와 밑줄 (상단 메뉴와 같은 결).
+   coupon.css 등의 예전 색 위에 덮어씀: 카드 위치·폭·여백은 그대로 두고 색·선·모서리만 바꿈.
+   다크 모드 색도 여기서 직접 정함 → 자동 변환에서 빠짐 (astro.config.mjs 의 SKIP_DARK).
+   :root body.page-index 를 앞에 붙여 자동 변환된 다크 규칙보다 우선하게 함. */
+
+:root body.page-index {
+  --h-card:#fff; --h-line:#DCDEE8; --h-border:1px; --h-radius:12px; --h-ink:#1D2433; --h-muted:#6B7385;
+  --h-title-bg:transparent; --h-title-ink:#1D2433; --h-title-size:16px; --h-title-rule: inset 0 -1px 0 #DCDEE8;
+  --h-field:#F4F4F9; --h-accent:#2F8FCB; --h-warn:#A07818; --h-tile:#1D2433;
+  --h-chip:#E6F2FA; --h-chip-ink:#1E6E9E;
+  --h-btn:#fff; --h-btn-line:#DCDEE8; --h-btn-hover:#F4F4F9; --h-btn-ink:#1D2433; --h-btn-radius:8px;
+}
+:root[data-theme="dark"] body.page-index {
+  --h-card:#1B1E25; --h-line:#2C313C; --h-ink:#E6E8EE; --h-muted:#9AA1B2;
+  --h-title-ink:#E6E8EE; --h-title-rule: inset 0 -1px 0 #2C313C;
+  --h-field:#23272F; --h-accent:#5FB3E6; --h-warn:#D4B25A; --h-tile:#0F1218;
+  --h-chip:#1C3344; --h-chip-ink:#8FCAF0;
+  --h-btn:#1B1E25; --h-btn-line:#2C313C; --h-btn-hover:#23272F; --h-btn-ink:#E6E8EE;
+}
+
+:root body.page-index .overflow,
+:root body.page-index .crown,
+:root body.page-index .coupon {
+  background: var(--h-card); border: var(--h-border) solid var(--h-line); border-radius: var(--h-radius);
+  color: var(--h-ink);
+}
+:root body.page-index .index-title {
+  background: var(--h-title-bg); color: var(--h-title-ink); font-size: var(--h-title-size); font-weight: 800;
+  letter-spacing: -0.02em; border-radius: calc(var(--h-radius) - 1px) calc(var(--h-radius) - 1px) 0 0;
+  box-shadow: var(--h-title-rule);
+}
+:root body.page-index .overflow a,
+:root body.page-index .overflow a:visited { color: var(--h-ink); font-weight: 600; }
+:root body.page-index .overflow a:hover { color: var(--h-accent); }
+:root body.page-index .crown label,
+:root body.page-index .exchange-rate,
+:root body.page-index .crown span { color: var(--h-ink); }
+:root body.page-index .crown select,
+:root body.page-index .crown input[type="number"] {
+  background: var(--h-field); color: var(--h-ink); border: 1px solid var(--h-line); border-radius: 8px;
+}
+:root body.page-index .result-display p { color: var(--h-ink); }
+:root body.page-index #conversion-result { color: var(--h-accent); font-variant-numeric: tabular-nums; }
+
+/* 레이드 타이머 (JS 가 style 로 넣은 색은 속성 선택자로 덮음) */
+:root body.page-index #raid-timers [style*="background:#0B0E1A"] { background: var(--h-tile) !important; border-radius: 8px !important; }
+:root body.page-index #raid-timers [style*="color:#666"] { color: var(--h-muted) !important; }
+:root body.page-index #raid-timers [style*="color:#007bff"] { color: var(--h-accent) !important; }
+:root body.page-index #raid-timers [style*="color:#8a6d1f"] { color: var(--h-warn) !important; }
+:root body.page-index #raid-timers strong { color: var(--h-ink); }
+:root body.page-index #raid-timers .remain { color: var(--h-ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+:root body.page-index .raid-timer-controls [style*="color:#888"] { color: var(--h-muted) !important; }
+:root body.page-index #notification-time { color: var(--h-accent) !important; border-color: var(--h-accent) !important; }
+:root body.page-index .settings-button { color: var(--h-muted); }
+
+/* 쿠폰 */
+:root body.page-index .coupon-list::after { background: var(--h-line); }
+:root body.page-index .coupon-name { color: var(--h-ink); }
+:root body.page-index .coupon-period { color: var(--h-muted); }
+:root body.page-index .show-items { background: var(--h-chip); color: var(--h-chip-ink); border-radius: 999px; padding: 2px 9px; font-weight: 700; font-size: 12px; }
+:root body.page-index .coupon-number p { font-weight: 800; letter-spacing: 0.03em; color: var(--h-ink); }
+:root body.page-index .coupon-container > p { color: var(--h-muted); }
+
+/* 캘린더 위 버튼(오늘·이전·다음·이벤트 캘린더·연월)도 같은 색으로 */
+:root body.page-index .fc {
+  --fc-button-bg-color: var(--h-btn); --fc-button-border-color: var(--h-btn-line);
+  --fc-button-hover-bg-color: var(--h-btn-hover); --fc-button-hover-border-color: var(--h-btn-line);
+  --fc-button-active-bg-color: var(--h-btn-hover); --fc-button-active-border-color: var(--h-btn-line);
+  --fc-button-text-color: var(--h-btn-ink);
+}
+:root body.page-index .fc .fc-button { border-radius: var(--h-btn-radius); font-weight: 700; }

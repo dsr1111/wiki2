@@ -46,16 +46,11 @@
   gap: 32px;
 }
 
-.bar__home { display: block; flex: none; }
+.bar__home { display: flex; align-items: center; gap: 7px; flex: none; }
 
-/* 로고 파일은 정사각형이고 위아래가 비어 있어서, 그림 부분만 보이게 잘라서 크게 보여 줌 */
-.bar__logo {
-  display: block;
-  width: 72px;
-  height: 40px;
-  object-fit: cover;
-  object-position: 50% 55%;
-}
+/* 로고: 디지바이스 그림 + 굵은 글자 (색은 메뉴 글자색이라 다크 모드에서도 맞음) */
+.bar__logo { display: block; width: 26px; height: 26px; }
+.bar__name { font-size: 16px; font-weight: 800; letter-spacing: -0.03em; white-space: nowrap; }
 
 .bar__nav { display: none; flex: 1; height: 100%; gap: 2px; }
 
@@ -191,7 +186,9 @@
 @media screen and (min-width: 1118px) {
   :host { --nav-h: calc(var(--header-height) + 2rem); }
 
-  .bar__logo { width: 104px; height: 60px; }
+  .bar__home { gap: 8px; }
+  .bar__logo { width: 34px; height: 34px; }
+  .bar__name { font-size: 19px; }
   .bar__nav { display: flex; }
   .bar__fb { display: block; }
   .bar__menu,

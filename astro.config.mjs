@@ -27,7 +27,7 @@ const preloadPageImports = (pages) => ({
 });
 
 // 다크 모드 자동 변환에서 뺄 CSS: 직접 고친 파일, 원래부터 어두운 화면(코스튬 각인 창, 가챠 연출)
-const SKIP_DARK = ['/src/styles/dark.css', '/pages/costume-slot/main.css', '/pages/gacha/presentation.css'];
+const SKIP_DARK = ['/src/styles/dark.css', '/src/styles/home-cards.css', '/pages/costume-slot/main.css', '/pages/gacha/presentation.css'];
 
 export default defineConfig({
   integrations: [preloadPageImports(['index'])],
