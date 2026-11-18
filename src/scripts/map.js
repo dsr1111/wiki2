@@ -1,0 +1,671 @@
+// 기존 app/map.js 를 옮긴 것
+// 파일 전체를 init() 안에 넣어, 이 페이지에 들어올 때마다 처음 상태로 다시 시작합니다.
+// (여러 파일은 기존처럼 같은 범위를 쓰도록 실행 순서대로 이어 붙임)
+// onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
+// signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
+export function init(signal, onReady) {
+// ===== 기존 app/map.js =====
+const selectElement = document.getElementById("con-dropdown");
+const selectContainer = document.querySelector(".dropdown-con");
+
+const mapSelectElement = document.getElementById("map-dropdown");
+const mapSelectContainer = document.querySelector(".dropdown-map");
+
+selectElement.addEventListener("click", function () {
+  selectContainer.classList.toggle("open");
+});
+
+selectElement.addEventListener("blur", function () {
+  selectContainer.classList.remove("open");
+});
+
+mapSelectElement.addEventListener("click", function () {
+  mapSelectContainer.classList.toggle("open");
+});
+
+mapSelectElement.addEventListener("blur", function () {
+  mapSelectContainer.classList.remove("open");
+});
+
+const conDropdown = document.getElementById("con-dropdown");
+const mapDropdown = document.getElementById("map-dropdown");
+const mapSelect = document.getElementById("map-dropdown");
+
+// 각 지역에 대한 맵 옵션 데이터
+const mapOptions = {
+  파일섬: ["용의 눈 호수", "기어 사바나", "시작의 마을", "무한 산"],
+  서버대륙: [
+    "사막 지대",
+    "어둠성 계곡",
+    "개굴몬 성 1F",
+    "개굴몬 성 2F",
+    "어둠성 내부",
+  ],
+  "현실 세계": [
+    "캠핑장",
+    "빛의 언덕",
+    "지하철 역",
+    "오다이바 입구",
+    "오다이바 북부",
+    "시부야",
+    "오다이바 남부",
+    "국제 전시장",
+  ],
+  "스파이럴 마운틴": [
+    "네트워크 바다",
+    "수목 지구",
+    "강철 도시",
+    "강철 도시 지하",
+    "어둠의 권역",
+    "스파이럴 마운틴 정상",
+    "???",
+  ],
+  "데이터 세계": [
+    "테이머의 집",
+    "빛의 언덕 과거(밤)",
+    "네트워크"
+  ],
+};
+
+// 이미지 업데이트 함수
+function updateImage(selectedMap) {
+  let imagePath;
+  if (selectedMap === "???.webp") {
+    imagePath = "https://media.dsrwiki.com/dsrwiki/map/ApocalymonArea.webp";
+  } else {
+    imagePath = `https://media.dsrwiki.com/dsrwiki/map/${selectedMap.replace(/\s+/g,)}.webp`;
+  }
+
+  // 이미지 요소를 700x700 크기로 업데이트
+  imageContainer.innerHTML = `<img loading="lazy" src="${imagePath}"  alt="${selectedMap}" width="700" height="700">`;
+}
+
+// 데이터 로딩 전 임시 표시와 로딩 후 지도 표시를 한 곳에서 처리
+conDropdown.addEventListener("change", function () {
+  const selectedRegion = conDropdown.value;
+  const options = mapOptions[selectedRegion];
+
+  // map-dropdown 옵션을 업데이트
+  mapSelect.innerHTML = "";
+  options.forEach((option) => {
+    const opt = document.createElement("option");
+    opt.value = option;
+    opt.textContent = option;
+    mapSelect.appendChild(opt);
+  });
+
+  // 로딩 완료 후에는 기존과 동일하게 첫 번째 지도를 선택
+  mapSelect.value = mapDataLoaded ? options[0] : options[1];
+  renderSelectedMap();
+});
+
+// 지도 선택 이벤트는 최초 한 번만 등록
+mapSelect.addEventListener("change", renderSelectedMap);
+
+// 페이지 로드 시 초기 이미지 설정
+// (Astro) 기존 window.onload → onReady
+onReady(function () {
+  if (!mapDataLoaded) {
+    conDropdown.dispatchEvent(new Event("change"));
+  }
+});
+
+let maps = {};
+let digimonData = {};
+let mapDataLoaded = false;
+
+// JSON 데이터 처리
+Promise.all([
+  fetch("https://media.dsrwiki.com/data/csv/map.json").then(response => response.json()),
+  fetch("https://media.dsrwiki.com/data/csv/digimon.json").then(response => response.json())
+])
+  .then(([mapData, digimonData]) => {
+    maps = mapData;
+    window.digimonData = digimonData; // 전역 변수로 저장
+    initializeDropdownOptions(); // 드롭다운 옵션 초기화
+  })
+  .catch((error) => console.error("Error loading JSON data:", error));
+
+function initializeDropdownOptions() {
+  mapDataLoaded = true;
+  // 데이터 준비 시 한 번만 초기 지도 표시
+  conDropdown.dispatchEvent(new Event("change"));
+}
+
+const imageContainer = document.getElementById("image-container");
+const dropdownContent = document.querySelector(".dropdown-content");
+
+let currentPortals = [];
+let currentWarps = [];
+let currentShops = [];
+let currentOverflows = [];
+let currentDungeons = [];
+let currentDatacube = [];
+let currentMobs = [];
+
+function addTooltipToImage(imageElement, tooltipText) {
+  imageElement.addEventListener("mouseenter", function (event) {
+    // 데이터 큐브인 경우 특별한 툴팁 표시
+    if (imageElement.classList.contains("datacube-image")) {
+      showDatacubeTooltip(event, imageElement, tooltipText);
+    } else {
+      showTooltipAtImageBottomRight(event, imageElement, tooltipText);
+    }
+  });
+  imageElement.addEventListener("mouseleave", hideTooltip);
+}
+
+function showTooltipAtImageBottomRight(event, imageElement, text) {
+  let tooltip = document.createElement("div");
+  tooltip.className = "tooltip";
+  tooltip.innerHTML = text;
+
+  const rect = imageElement.getBoundingClientRect();
+  const imageBottomRightX = rect.right + window.pageXOffset;
+  const imageBottomRightY = rect.bottom + window.pageYOffset;
+
+  tooltip.style.position = "absolute";
+  tooltip.style.left = `${imageBottomRightX - 10}px`;
+  tooltip.style.top = `${imageBottomRightY}px`;
+
+  document.body.appendChild(tooltip);
+}
+
+function hideTooltip() {
+  const tooltip = document.querySelector(".tooltip");
+  const imageContainer = document.querySelector(".datacube-image-container");
+  if (tooltip) {
+    tooltip.remove();
+  }
+  if (imageContainer) {
+    imageContainer.remove();
+  }
+}
+
+function preloadDatacubeImages(datacubeItems) {
+  datacubeItems.forEach(item => {
+    const tooltipText = item.tooltip;
+    const imageName = tooltipText.startsWith('#') ? tooltipText.substring(1) : tooltipText;
+    const datacubeImagePath = `https://media.dsrwiki.com/dsrwiki/map/datacube/${encodeURIComponent(imageName)}.webp`;
+    const img = new Image();
+    img.src = datacubeImagePath;
+  });
+}
+
+function renderSelectedMap() {
+    const selectedMap = maps[mapDropdown.value];
+    if (!mapDataLoaded || !selectedMap) {
+      updateImage(mapDropdown.value);
+      return;
+    }
+    if (selectedMap) {
+      // 배경 이미지 설정 및 현재 아이콘 목록 초기화
+      imageContainer.style.backgroundImage = `url(${selectedMap.backgroundImage})`;
+      imageContainer.innerHTML = "";
+      currentPortals = [];
+      currentWarps = [];
+      currentShops = [];
+      currentOverflows = [];
+      currentDungeons = [];
+      currentDatacube = [];
+      currentMobs = [];
+      dropdownContent.innerHTML = "";
+
+      if (selectedMap.datacube && selectedMap.datacube.length > 0) {
+        preloadDatacubeImages(selectedMap.datacube);
+      }
+
+      // 카테고리별로 체크박스를 생성
+      if (selectedMap.portals && selectedMap.portals.length > 0) {
+        createCheckbox(
+          "포탈",
+          "toggle-portals",
+          "포탈 아이콘",
+          selectedMap.portals,
+          currentPortals
+        );
+      }
+
+      if (selectedMap.warps && selectedMap.warps.length > 0) {
+        createCheckbox(
+          "워프 포인트",
+          "toggle-warps",
+          "워프포인트 아이콘",
+          selectedMap.warps,
+          currentWarps
+        );
+      }
+
+      if (selectedMap.shops && selectedMap.shops.length > 0) {
+        createCheckbox(
+          "상점",
+          "toggle-shops",
+          "상점 아이콘",
+          selectedMap.shops,
+          currentShops
+        );
+      }
+
+      if (selectedMap.overflows && selectedMap.overflows.length > 0) {
+        createCheckbox(
+          "오버플로우",
+          "toggle-overflows",
+          "오버플로우 아이콘",
+          selectedMap.overflows,
+          currentOverflows
+        );
+      }
+
+      if (selectedMap.dungeon && selectedMap.dungeon.length > 0) {
+        createCheckbox(
+          "던전",
+          "toggle-dungeons",
+          "던전 아이콘",
+          selectedMap.dungeon,
+          currentDungeons
+        );
+      }
+
+      if (selectedMap.datacube && selectedMap.datacube.length > 0) {
+        createCheckbox(
+          "데이터 큐브",
+          "toggle-datacube",
+          "데이터큐브 아이콘",
+          selectedMap.datacube,
+          currentDatacube
+        );
+      }
+
+      if (selectedMap.mobs && selectedMap.mobs.length > 0) {
+        createCheckbox(
+          "악역 디지몬",
+          "toggle-mob",
+          "몬스터 아이콘",
+          selectedMap.mobs,
+          currentMobs
+        );
+      }
+    }
+}
+
+function findDigimonInfo(mobId) {
+  if (!window.digimonData) return null;
+
+  // ID 값을 기준으로 데이터 조회
+  if (mobId && window.digimonData[mobId]) {
+    return window.digimonData[mobId];
+  }
+
+  return null;
+}
+
+function createCheckbox(
+  labelText,
+  checkboxId,
+  iconName,
+  mapData,
+  currentArray
+) {
+  const div = document.createElement("div");
+  const input = document.createElement("input");
+  const label = document.createElement("label");
+
+  input.type = "checkbox";
+  input.id = checkboxId;
+
+  // 기본 체크 상태 설정
+  if (checkboxId === "toggle-warps" || checkboxId === "toggle-portals" || checkboxId === "toggle-shops" || checkboxId === "toggle-overflows" || checkboxId === "toggle-dungeons" || checkboxId === "toggle-mob") {
+    input.checked = true; // 워프포인트는 체크된 상태로 로드
+  } else {
+    input.checked = false; // 나머지는 체크 해제된 상태로 로드
+  }
+
+  label.htmlFor = checkboxId;
+  label.textContent = labelText;
+
+  div.appendChild(input);
+  div.appendChild(label);
+  dropdownContent.appendChild(div);
+
+  input.addEventListener("change", function () {
+    const displayStyle = this.checked ? "block" : "none";
+    currentArray.forEach((item) => {
+      if (item.mobImage) {
+        item.mobImage.style.display = displayStyle;
+        item.typeImage.style.display = displayStyle;
+        if (item.evolIcon) {
+          item.evolIcon.style.display = displayStyle;
+        }
+      } else {
+        item.style.display = displayStyle;
+      }
+    });
+  });
+
+  mapData.forEach((item) => {
+    const imgElement = document.createElement("img");
+    imgElement.src = item.src;
+    imgElement.style.position = "absolute";
+    imgElement.style.top = `${item.top}px`;
+    imgElement.style.left = `${item.left}px`;
+    imgElement.style.display = input.checked ? "block" : "none";
+    imgElement.classList.add("map-marker");
+
+    if (item.isAggressive) {
+      imgElement.classList.add("map-marker-aggressive");
+    }
+
+    let evolIcon = null;
+    if (item.evol) {
+      evolIcon = document.createElement("img");
+      evolIcon.src = "https://media.dsrwiki.com/dsrwiki/icon.webp";
+      evolIcon.style.top = `${item.top + 20}px`;
+      evolIcon.style.left = `${item.left + 5}px`;
+      evolIcon.classList.add("evol-marker");
+      evolIcon.style.display = input.checked ? "block" : "none";
+      imageContainer.appendChild(evolIcon);
+    }
+
+    if (checkboxId === "toggle-portals") {
+      imgElement.classList.add("portal-image");
+    } else if (checkboxId === "toggle-warps") {
+      imgElement.classList.add("warp-image");
+    } else if (checkboxId === "toggle-shops") {
+      imgElement.classList.add("shop-image");
+    } else if (checkboxId === "toggle-overflows") {
+      imgElement.classList.add("overflows-image");
+    } else if (checkboxId === "toggle-datacube") {
+      imgElement.classList.add("datacube-image");
+    } else if (checkboxId === "toggle-dungeons") {
+      imgElement.classList.add("dungeon-image");
+    }
+
+    if (checkboxId === "toggle-mob") {
+      imgElement.classList.add("mob-image");
+
+      const digimonInfo = findDigimonInfo(item.id);
+      const typeValue = digimonInfo ? digimonInfo.type : item.type;
+      const strongValue = digimonInfo && digimonInfo.strengths
+        ? `${digimonInfo.strengths.attribute},${digimonInfo.strengths.effect}`
+        : item.강점;
+      const weakValue = digimonInfo && digimonInfo.weaknesses
+        ? `${digimonInfo.weaknesses.attribute},${digimonInfo.weaknesses.effect}`
+        : item.약점;
+
+      const typeElement = document.createElement("img");
+      typeElement.src = `https://media.dsrwiki.com/dsrwiki/${typeValue}.webp`;
+      typeElement.style.top = `${item.top - 5}px`;
+      typeElement.style.left = `${item.left - 5}px`;
+      typeElement.classList.add("type-marker");
+      typeElement.style.display = input.checked ? "block" : "none";
+
+      addSpecialTooltipToMobs(
+        imgElement,
+        item.name,
+        item.src,
+        item.level,
+        item.hp,
+        strongValue,
+        weakValue,
+        item.items,
+        item.evol
+      );
+
+      imageContainer.appendChild(imgElement);
+      imageContainer.appendChild(typeElement);
+
+      currentArray.push({
+        mobImage: imgElement,
+        typeImage: typeElement,
+        evolIcon: evolIcon,
+      });
+    } else {
+      addTooltipToImage(imgElement, item.tooltip);
+      imageContainer.appendChild(imgElement);
+      currentArray.push(imgElement);
+    }
+  });
+}
+
+function addSpecialTooltipToMobs(
+  imageElement,
+  name,
+  src,
+  level,
+  hp,
+  강점,
+  약점,
+  items,
+  evol
+) {
+  let tooltip = null;
+
+  imageElement.addEventListener("mouseenter", function (event) {
+    // 이전 툴팁이 있다면 제거
+    if (tooltip) {
+      tooltip.remove();
+    }
+    tooltip = showSpecialTooltipAtImage(
+      event,
+      imageElement,
+      name,
+      src,
+      level,
+      hp,
+      강점,
+      약점,
+      items,
+      evol
+    );
+  });
+
+  imageElement.addEventListener("mouseleave", function () {
+    if (tooltip) {
+      tooltip.remove();
+      tooltip = null;
+    }
+  });
+}
+
+function showSpecialTooltipAtImage(
+  event,
+  imageElement,
+  name,
+  src,
+  level,
+  hp,
+  강점,
+  약점,
+  items,
+  evol
+) {
+  let tooltip = document.createElement("div");
+  tooltip.className = "special-tooltip";
+
+  // 강점과 약점 정보 가져오기 (콤마 앞은 이미지, 뒤는 텍스트)
+  const 강점Parts = typeof 강점 === "string"
+    ? 강점.split(',').map(s => s.trim()).filter(Boolean)
+    : Array.isArray(강점) ? 강점 : [];
+  const 약점Parts = typeof 약점 === "string"
+    ? 약점.split(',').map(s => s.trim()).filter(Boolean)
+    : Array.isArray(약점) ? 약점 : [];
+
+  const 드랍아이템목록 = Array.isArray(items) ? items : [];
+
+  tooltip.innerHTML = `
+        <div class="tooltip-title">${name}</div>
+        <div class="tooltip-content">
+            <img loading="lazy" src="${src}" alt="${name}" class="tooltip-main-img">
+            <div class="tooltip-stats">
+                <div class="stat-row first"><span>레벨 :</span> ${level}</div>
+                <div class="stat-row"><span>체력 :</span> ${hp}</div>
+                <div class="stat-row"><span>강점 :</span>
+                  ${강점Parts.length ? `
+                      <div class="bg-icon-container bg-strong">
+                        <img loading="lazy" src=\"https://media.dsrwiki.com/dsrwiki/${강점Parts[0]}.webp\" alt=\" ${강점Parts[0]}\" class="small-icon">
+                      </div>
+                      <span>${강점Parts[1] ? 강점Parts[1] : ''}</span>
+                    ` : ''
+    }
+                </div>
+                <div class="stat-row"><span>약점 :</span>
+                  ${약점Parts.length ? `
+                      <div class="bg-icon-container bg-weak">
+                        <img loading="lazy" src=\"https://media.dsrwiki.com/dsrwiki/${약점Parts[0]}.webp\" alt=\" ${약점Parts[0]}\" class="small-icon">
+                      </div>
+                      <span>${약점Parts[1] ? 약점Parts[1] : ''}</span>
+                    ` : ''
+    }
+                </div>
+            </div>
+        </div>
+        <div class="drop-items-title"><strong>드랍 아이템</strong> 
+            <ul class="drop-items-list">
+                ${드랍아이템목록
+      .map((item) => {
+        const itemName = item.trim().replace(/^.*?시즌\s*-\s*(카드 상자 [A-Z])$/, "$1");
+        // 카드 표시는 시즌 공통 명칭, 이미지는 기존 등록 파일을 유지
+        const imageName = /^카드 상자 [A-Z]$/.test(itemName)
+          ? `악의 습격 시즌 - ${itemName}`
+          : itemName;
+        const itemImageSrc = itemName.includes("조합법")
+          ? "https://media.dsrwiki.com/dsrwiki/item/조합법.webp"
+          : `https://media.dsrwiki.com/dsrwiki/item/${imageName}.webp`;
+        return `
+                        <li class="drop-item">
+                            <img loading="lazy" src=\"${itemImageSrc}\"  alt=\" ${itemName}\" class="drop-item-img">
+                            ${itemName}
+                        </li>`;
+      })
+      .join("")}
+            </ul>
+        </div>
+        ${evol
+      ? `
+        <div class="condition-evol-title"><strong>조건 진화</strong></div>
+        <div class="condition-evol-wrapper">
+        <img loading="lazy" src=\"https://media.dsrwiki.com/dsrwiki/digimon/${evol}/${evol}.webp\"  alt=\" ${evol}\" class="condition-evol-img">
+         </div>
+        `
+      : ""
+    }
+    `;
+
+  document.body.appendChild(tooltip);
+
+  const rect = imageElement.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const imageBottomRightX = rect.right + window.pageXOffset;
+  const imageBottomRightY = rect.bottom + window.pageYOffset;
+
+  const containerRect = imageContainer.getBoundingClientRect();
+
+  let tooltipTop = imageBottomRightY;
+  if (
+    tooltipTop + tooltipRect.height >
+    containerRect.bottom + window.pageYOffset
+  ) {
+    tooltipTop =
+      containerRect.bottom + window.pageYOffset - tooltipRect.height - 10;
+  }
+  tooltip.style.position = "absolute";
+  tooltip.style.left = `${imageBottomRightX + 10}px`;
+  tooltip.style.top = `${tooltipTop}px`;
+
+  return tooltip;
+}
+
+function showDatacubeTooltip(event, imageElement, tooltipText) {
+  // 툴팁 생성
+  let tooltip = document.createElement("div");
+  tooltip.className = "tooltip";
+  tooltip.innerHTML = `<div class="datacube-tooltip-text">${tooltipText}</div>`;
+  tooltip.style.pointerEvents = "none";
+
+  // 데이터 큐브 이미지를 위한 별도의 컨테이너 생성
+  let imageContainer = document.createElement("div");
+  imageContainer.className = "datacube-image-container";
+
+  // 초기에 화면 밖에 위치시켜 로딩 중 보이지 않게 함
+  imageContainer.style.left = "-9999px";
+  imageContainer.style.top = "-9999px";
+
+
+  // 데이터 큐브 이미지 경로 생성
+  const imageName = tooltipText.startsWith('#') ? tooltipText.substring(1) : tooltipText;
+  const datacubeImagePath = `https://media.dsrwiki.com/dsrwiki/map/datacube/${encodeURIComponent(imageName)}.webp`;
+
+  // Create the image element
+  const datacubeImage = document.createElement('img');
+  datacubeImage.src = datacubeImagePath;
+  datacubeImage.alt = tooltipText;
+  datacubeImage.className = "datacube-main-img";
+
+  // Append the image to the image container
+  imageContainer.appendChild(datacubeImage);
+
+  // Append tooltip and imageContainer to body immediately for initial positioning and size calculation
+  document.body.appendChild(tooltip);
+  document.body.appendChild(imageContainer);
+
+  // Initial tooltip positioning (relative to the imageElement)
+  const rect = imageElement.getBoundingClientRect();
+  // Use rect.left and rect.top directly for viewport coordinates
+  // Then add window.pageXOffset/pageYOffset when setting style.left/top for document coordinates
+  const tooltipLeft = rect.right - 10; // 10px left from image right edge
+  const tooltipTop = rect.bottom; // At the bottom of the image element
+
+  tooltip.style.position = "absolute";
+  tooltip.style.left = `${tooltipLeft + window.pageXOffset}px`;
+  tooltip.style.top = `${tooltipTop + window.pageYOffset}px`;
+
+  // Wait for the image to load before calculating final position
+  datacubeImage.onload = () => {
+    requestAnimationFrame(() => {
+      const tooltipRect = tooltip.getBoundingClientRect(); // Get current viewport position of tooltip
+
+      // Set imageContainer dimensions based on loaded image dimensions + padding
+      imageContainer.style.width = `${datacubeImage.offsetWidth + 20}px`; // image width + 10px padding left/right
+      imageContainer.style.height = `${datacubeImage.offsetHeight + 20}px`; // image height + 10px padding top/bottom
+
+      const imageContainerRect = imageContainer.getBoundingClientRect(); // Recalculate after setting dimensions
+
+      let finalImageContainerViewportTop; // This will be a viewport coordinate
+
+      // Check if the image container would go off the bottom of the viewport
+      if (tooltipRect.bottom + 5 + imageContainerRect.height > window.innerHeight) {
+        // If it goes off, position it above the tooltip
+        finalImageContainerViewportTop = tooltipRect.top - imageContainerRect.height - 5;
+      } else {
+        // Otherwise, position it below the tooltip
+        finalImageContainerViewportTop = tooltipRect.bottom + 5;
+      }
+
+      // Set the final position using document coordinates
+      imageContainer.style.left = `${tooltipRect.left + window.pageXOffset}px`; // Same X as tooltip
+      imageContainer.style.top = `${finalImageContainerViewportTop + window.pageYOffset}px`;
+    });
+  };
+
+  // If image is already loaded (e.g., from cache), call onload manually
+  if (datacubeImage.complete) {
+    datacubeImage.onload();
+  }
+}
+
+function updateActiveButton(activeButton) {
+  mapButtons.forEach((button) => {
+    button.classList.remove("active");
+  });
+  activeButton.classList.add("active");
+}
+
+const dropdownButton = document.querySelector(".dropdown-icon");
+const arrow = document.querySelector(".arrow");
+
+dropdownButton.addEventListener("click", function () {
+  dropdownContent.classList.toggle("show");
+
+  arrow.classList.toggle("rotate");
+});
+}

@@ -1,0 +1,1450 @@
+// 기존 app/index.js, app/calendar.js, app/raid-timer.js 를 옮긴 것
+// 파일 전체를 init() 안에 넣어, 이 페이지에 들어올 때마다 처음 상태로 다시 시작합니다.
+// (여러 파일은 기존처럼 같은 범위를 쓰도록 실행 순서대로 이어 붙임)
+// onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
+// signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
+export function init(signal, onReady) {
+// ===== 기존 app/index.js =====
+// ===== 서버 시간 (한국 시간) =====
+// 보는 사람의 PC 시계가 틀려도 쿠폰 마감, 이벤트 캘린더, 오늘의 장소가 맞도록 서버 시각을 씁니다.
+// 메인 페이지의 쿠폰·캘린더·오늘의 장소·레이드 타이머가 모두 이 시계를 씁니다. 시간 API가 실패하면 이 사이트 응답의 Date 헤더, 그래도 안 되면 PC 시계를 씁니다.
+window.DSRTime = (() => {
+  const TIME_API = "https://dsr-time-api.s97716.workers.dev";
+  let offset = 0; // 서버 시각 - PC 시각 (ms)
+  let synced = false;
+  const ready = (async () => {
+    try {
+      const t0 = Date.now();
+      const res = await fetch(TIME_API, { cache: "no-store" });
+      const data = await res.json();
+      const t1 = Date.now();
+      const server = Number(data.timestamp) || new Date(data.utcTime || data.time).getTime();
+      if (Number.isFinite(server)) { offset = server - (t0 + t1) / 2; synced = true; return; }
+    } catch (e) { /* 다음 방법 */ }
+    try {
+      const t0 = Date.now();
+      const res = await fetch(`${location.origin}/?t=${t0}`, { method: "HEAD", cache: "no-store" });
+      const t1 = Date.now();
+      const server = new Date(res.headers.get("date")).getTime();
+      if (Number.isFinite(server)) { offset = server - (t0 + t1) / 2; synced = true; }
+    } catch (e) { /* PC 시계 사용 */ }
+  })();
+  const now = () => new Date(Date.now() + offset);
+  /** 한국 시간의 연/월/일/시/분/초/요일 */
+  const kst = (date = now()) => {
+    const d = new Date(date.getTime() + 9 * 3600 * 1000);
+    return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate(), hour: d.getUTCHours(), minute: d.getUTCMinutes(), second: d.getUTCSeconds(), weekday: d.getUTCDay() };
+  };
+  /** 한국 시간 벽시계 문자열 "YYYY-MM-DDTHH:mm:ss" */
+  const kstWall = (date = now()) => new Date(date.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 19);
+  /** 시간 동기화를 최대 ms 만큼만 기다림 (느려도 화면이 멈추지 않게) */
+  const readyWithin = (ms = 1500) => Promise.race([ready, new Promise((r) => setTimeout(r, ms))]);
+  return { ready, readyWithin, now, kst, kstWall, get offset() { return offset; }, get synced() { return synced; } };
+})();
+
+onReady(function () {
+  initCouponSystem();
+  initLocationSchedule();
+  initCalculator();
+});
+
+// ===== 위키 Supabase (쿠폰 / 이벤트 캘린더 / 레이드 타이머 공용) =====
+// 데이터는 위키 전용 Supabase에서 읽습니다.
+// 아래 두 값은 Supabase Dashboard → Project Settings → API 에서 복사합니다.
+// (Project URL, 그리고 publishable 키 또는 anon 키 — 공개용 읽기 키라 노출되어도 괜찮습니다)
+// 비워두면 DB 대신 예전 JSON 파일을 보여줍니다. 쓰기는 /.netlify/functions/site-admin (관리자 로그인 필요)만 가능합니다.
+const COUPON_SUPABASE_URL = "https://mkytwqzrznusjwmcgpgw.supabase.co";
+const COUPON_SUPABASE_ANON_KEY = "sb_publishable_DTiYb2mYuQCeJalBTlT_aA_9aukhrHV";
+const COUPON_FALLBACK_URL = "https://media.dsrwiki.com/data/csv/coupon.json";
+const COUPON_ADMIN_HASH = "#coupon-admin"; // "#admin" 도 가능
+const COUPON_ADMIN_TOKEN_KEY = "dsrCouponAdminToken";
+
+/** DB 행 → 화면용 쿠폰 { id, version, name, code, endsAt: Date|null, items: [{name, qty, grade}] } */
+function normalizeDbCoupon(row) {
+  return {
+    id: row.id,
+    version: row.version,
+    name: row.name,
+    code: row.code,
+    endsAt: row.ends_at ? new Date(row.ends_at) : null,
+    items: Array.isArray(row.items) ? row.items : [],
+  };
+}
+
+/** 예전 coupon.json 형식 → 화면용 쿠폰 (DB를 못 불러왔을 때만 사용) */
+function normalizeJsonCoupons(data) {
+  return Object.entries(data).map(([name, c]) => {
+    const endStr = String(c.period || "").split("~")[1]?.trim() || "";
+    const [datePart, timePart = "23:59"] = endStr.replace(/\./g, "/").split(" ");
+    const end = new Date(`${datePart} ${timePart}`);
+    const unknown = /\?/.test(endStr) || isNaN(end.getTime());
+    return {
+      name,
+      code: c.number,
+      endsAt: unknown ? null : end,
+      items: (c.items || []).map((s) => {
+        const parts = String(s).split("x");
+        const grade = Number(parts.pop());
+        const qty = Number(parts.pop());
+        return { name: parts.join("x").trim(), qty, grade };
+      }),
+    };
+  });
+}
+
+function isCouponActive(coupon, now = window.DSRTime.now()) {
+  return !coupon.endsAt || now <= coupon.endsAt;
+}
+
+/** 한국 시간 기준 "~2026.11.05 10:00" */
+function formatCouponPeriod(endsAt) {
+  if (!endsAt) return "~기한 미정";
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(endsAt).map((x) => [x.type, x.value])
+  );
+  return `~${p.year}.${p.month}.${p.day} ${p.hour}:${p.minute}`;
+}
+
+/** 예전 JWT 형식 anon 키는 Authorization도 필요하고, 새 sb_publishable_ 키는 apikey만 보냅니다. */
+function supabaseHeaders(key) {
+  return key.startsWith("eyJ") ? { apikey: key, Authorization: `Bearer ${key}` } : { apikey: key };
+}
+
+/** 공개 읽기 — calendar.js, raid-timer.js 에서도 사용합니다. query 예) "select=*&order=name.asc" */
+window.DSRSupabase = {
+  async select(table, query) {
+    if (!COUPON_SUPABASE_URL || !COUPON_SUPABASE_ANON_KEY) throw new Error("Supabase 설정 없음");
+    const res = await fetch(`${COUPON_SUPABASE_URL}/rest/v1/${table}?${query}`, {
+      headers: supabaseHeaders(COUPON_SUPABASE_ANON_KEY),
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  },
+};
+
+async function fetchPublicCoupons() {
+  await window.DSRTime.readyWithin(); // 마감 판단은 서버 시각으로
+  try {
+    const nowIso = window.DSRTime.now().toISOString();
+    const rows = await window.DSRSupabase.select("site_coupons",
+      "select=id,name,code,ends_at,items,version"
+      + `&or=(ends_at.is.null,ends_at.gte.${encodeURIComponent(nowIso)})`
+      + "&order=ends_at.asc.nullsfirst,created_at.asc");
+    return rows.map(normalizeDbCoupon);
+  } catch (error) {
+    console.warn("쿠폰 DB를 불러오지 못해 coupon.json을 사용합니다:", error);
+    const res = await fetch(COUPON_FALLBACK_URL);
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    return normalizeJsonCoupons(await res.json()).filter((c) => isCouponActive(c));
+  }
+}
+
+let couponTooltips = [];
+
+/**
+ * 쿠폰 목록을 그립니다.
+ * options.decorate(el, coupon): 관리자 모드에서 버튼 등을 붙일 때 사용
+ * options.emptyText: 목록이 비었을 때 문구
+ */
+function renderCoupons(coupons, options = {}) {
+  const container = document.querySelector(".coupon-container");
+  if (!container) return;
+  couponTooltips.forEach((t) => t.remove());
+  couponTooltips = [];
+  container.replaceChildren();
+
+  if (!coupons.length) {
+    const empty = document.createElement("p");
+    empty.textContent = options.emptyText || "현재 사용 가능한 쿠폰이 없습니다.";
+    empty.style.fontSize = "13px";
+    container.appendChild(empty);
+    return;
+  }
+  coupons.forEach((coupon) => {
+    const el = createCouponElement(coupon, container);
+    if (options.decorate) options.decorate(el, coupon);
+  });
+}
+
+function showCouponMessage(text) {
+  const container = document.querySelector(".coupon-container");
+  if (!container) return;
+  container.replaceChildren();
+  const el = document.createElement("p");
+  el.textContent = text;
+  el.style.fontSize = "13px";
+  container.appendChild(el);
+}
+
+async function initCouponSystem() {
+  // 관리자 도구는 필요할 때만 불러옵니다 (일반 방문자는 다운로드하지 않음)
+  let hasToken = false;
+  try { hasToken = !!sessionStorage.getItem(COUPON_ADMIN_TOKEN_KEY); } catch (e) { /* 저장소 차단 */ }
+  const wantsAdmin = () => location.hash === COUPON_ADMIN_HASH || location.hash === "#admin";
+  const loadAdmin = () => {
+    if (window.DSRSiteAdmin) return window.DSRSiteAdmin.open();
+    if (document.querySelector("script[data-site-admin]")) return;
+    if (!window.DSRAdminCore && !document.querySelector("script[data-admin-core]")) {
+      const core = document.createElement("script");
+      core.src = "app/admin-core.js";
+      core.dataset.adminCore = "1";
+      core.async = false;
+      document.head.appendChild(core);
+    }
+    const script = document.createElement("script");
+    script.src = "app/site-admin.js";
+    script.dataset.siteAdmin = "1";
+    script.async = false;
+    document.head.appendChild(script);
+  };
+  window.addEventListener("hashchange", () => { if (wantsAdmin()) loadAdmin(); }, { signal });
+  if (wantsAdmin() || hasToken) loadAdmin();
+
+  try {
+    const coupons = await fetchPublicCoupons();
+    if (window.DSRCoupons.adminActive) return; // 관리자 모드가 이미 목록을 그림
+    renderCoupons(coupons);
+  } catch (error) {
+    if (window.DSRCoupons.adminActive) return;
+    console.error("Error loading coupon data:", error);
+    showCouponMessage("쿠폰 정보를 불러올 수 없습니다.");
+  }
+}
+
+window.DSRCoupons = {
+  supabaseUrl: COUPON_SUPABASE_URL,
+  tokenKey: COUPON_ADMIN_TOKEN_KEY,
+  adminHash: COUPON_ADMIN_HASH,
+  normalizeDbCoupon,
+  isCouponActive,
+  formatCouponPeriod,
+  fetchPublicCoupons,
+  renderCoupons,
+  showCouponMessage,
+  itemImageUrl: couponItemImageUrl,
+  itemFrameUrl: couponItemFrameUrl,
+};
+
+function createCouponElement(coupon, container) {
+  const couponEl = document.createElement("div");
+  couponEl.classList.add("coupon-list");
+
+  const nameEl = document.createElement("div");
+  nameEl.classList.add("coupon-name");
+  const nameP = document.createElement("p");
+  nameP.textContent = coupon.name;
+  nameEl.appendChild(nameP);
+
+  const periodEl = document.createElement("div");
+  periodEl.classList.add("coupon-period");
+  const periodP = document.createElement("p");
+  periodP.textContent = formatCouponPeriod(coupon.endsAt);
+  periodEl.appendChild(periodP);
+
+  const showItemsText = document.createElement("span");
+  showItemsText.classList.add("show-items");
+  showItemsText.textContent = "구성품 확인";
+
+  const numberEl = document.createElement("div");
+  numberEl.classList.add("coupon-number");
+  const numberP = document.createElement("p");
+  numberP.textContent = coupon.code;
+  numberEl.appendChild(numberP);
+
+  const tooltip = createTooltip(coupon.items);
+  document.body.appendChild(tooltip);
+  couponTooltips.push(tooltip);
+  setupTooltipEvents(showItemsText, tooltip);
+
+  couponEl.appendChild(nameEl);
+  couponEl.appendChild(periodEl);
+  if (coupon.items.length) couponEl.appendChild(showItemsText);
+  couponEl.appendChild(numberEl);
+
+  container.appendChild(couponEl);
+
+  numberEl.addEventListener("click", function () {
+    navigator.clipboard
+      .writeText(coupon.code)
+      .then(() => alert(`쿠폰 번호가 복사되었습니다.`))
+      .catch((err) => console.error("복사 실패:", err));
+  });
+  return couponEl;
+}
+
+function couponItemImageUrl(name) {
+  const clean = String(name).trim().replace(/\s*\(\d+(일|시간)\)$/, "").replace(/^\[기간제\]\s*/, "");
+  return `https://media.dsrwiki.com/dsrwiki/item/${clean.replace(/%/g, "^").replace(/["\\]/g, "")}.webp`;
+}
+
+function couponItemFrameUrl(grade) {
+  return `https://media.dsrwiki.com/dsrwiki/item/item${Number(grade) || 1}.webp`;
+}
+
+function createTooltip(items) {
+  const tooltip = document.createElement("div");
+  tooltip.classList.add("tooltip-coupon");
+
+  items.forEach((item) => {
+    const itemElement = document.createElement("div");
+    itemElement.className = "tooltip-item";
+    itemElement.style.cssText = "display: flex; align-items: center; gap: 10px; margin-bottom: 10px;";
+
+    const icon = document.createElement("div");
+    icon.style.cssText = `
+      position: relative; display: inline-block; width: 45px; height: 45px;
+      background-color: #0a0e1a;
+      background-image: url("${couponItemFrameUrl(item.grade)}"), url("${couponItemImageUrl(item.name)}");
+      background-position: top left, center; background-repeat: no-repeat;
+      background-size: auto, contain; border-radius: 5px;`;
+
+    const qty = document.createElement("span");
+    qty.style.cssText = "position: absolute; bottom: 0px; right: 0px; color: white; font-size: 11px; padding: 1px 3px; text-shadow: -1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black, 1px 1px 0 black;";
+    qty.textContent = item.qty ?? "";
+    icon.appendChild(qty);
+
+    const label = document.createElement("span");
+    label.textContent = item.name;
+
+    itemElement.appendChild(icon);
+    itemElement.appendChild(label);
+    tooltip.appendChild(itemElement);
+  });
+  return tooltip;
+}
+
+function setupTooltipEvents(trigger, tooltip) {
+  trigger.addEventListener("mouseover", (e) => {
+    tooltip.style.display = "block";
+    moveTooltip(e, tooltip);
+  });
+
+  trigger.addEventListener("mousemove", (e) => {
+    moveTooltip(e, tooltip);
+  });
+
+  trigger.addEventListener("mouseout", () => {
+    tooltip.style.display = "none";
+  });
+}
+
+function moveTooltip(event, tooltip) {
+  const tooltipHeight = tooltip.offsetHeight;
+  const viewportHeight = window.innerHeight;
+  const tooltipWidth = tooltip.offsetWidth;
+  const viewportWidth = window.innerWidth;
+
+  let topPosition = event.pageY + 10;
+
+  // Check if tooltip goes below viewport
+  if (event.clientY + tooltipHeight + 20 > viewportHeight) {
+    topPosition = event.pageY - tooltipHeight - 10;
+  }
+
+  let leftPosition = event.pageX + 10;
+
+  // Check if tooltip goes right of viewport
+  if (event.clientX + tooltipWidth + 20 > viewportWidth) {
+    leftPosition = event.pageX - tooltipWidth - 10;
+  }
+
+  tooltip.style.top = `${Math.max(10, topPosition)}px`;
+  tooltip.style.left = `${Math.max(10, leftPosition)}px`;
+}
+
+async function initLocationSchedule() {
+  await window.DSRTime.readyWithin();
+  const schedule = {
+    "무한 산": ["수요일", "금요일", "일요일"],
+    "사막 지대": ["화요일", "목요일", "토요일"],
+    "어둠성 계곡": ["월요일", "금요일", "일요일"],
+    "현실 세계": ["월요일", "수요일", "토요일"],
+    "스파이럴 마운틴": ["월요일", "목요일", "일요일"],
+    "데이터 세계": ["화요일", "목요일", "토요일"]
+  };
+
+  const locationLinks = {
+    "무한 산": "/overflow?map=무한 산",
+    "사막 지대": "/overflow?map=사막 지대",
+    "어둠성 계곡": "/overflow?map=어둠성 계곡",
+    "현실 세계": "/overflow?map=현실 세계",
+    "스파이럴 마운틴": "/overflow?map=스파이럴 마운틴",
+    "데이터 세계": "/overflow?map=데이터 세계"
+  };
+
+  const days = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+  const todayDay = days[window.DSRTime.kst().weekday]; // 한국 시간 기준 요일
+
+  const locationsToday = [];
+  for (const location in schedule) {
+    if (schedule[location].includes(todayDay)) {
+      locationsToday.push(`<a href="${locationLinks[location]}">${location}</a>`);
+    }
+  }
+
+  const overflowContainer = document.querySelector(".overflow");
+  if (overflowContainer) {
+    const locationDiv = document.createElement("div");
+    locationDiv.classList.add("locations-today");
+    locationDiv.innerHTML = locationsToday.join("<br>");
+    overflowContainer.appendChild(locationDiv);
+  }
+}
+
+function initCalculator() {
+  const currencyInput = document.getElementById("currency-input");
+  const currencyType = document.getElementById("currency-type");
+  const exchangeRate = document.getElementById("exchange-rate");
+  const conversionResult = document.getElementById("conversion-result");
+
+  if (!currencyInput || !currencyType || !exchangeRate || !conversionResult) return;
+
+  function updateConversion() {
+    const rateInput = parseFloat(exchangeRate.value);
+    const inputValue = parseFloat(currencyInput.value);
+    const conversionTypeValue = currencyType.value;
+
+    if (isNaN(rateInput) || isNaN(inputValue)) {
+      conversionResult.textContent = "0";
+      return;
+    }
+
+    let result;
+    let unit;
+
+    if (conversionTypeValue === "crown-to-bit") {
+      result = inputValue * (rateInput / 100) * 10000;
+      unit = " 비트";
+    } else {
+      result = inputValue / ((rateInput * 10000) / 100);
+      unit = " 크라운";
+    }
+
+    conversionResult.textContent = Math.round(result).toLocaleString() + unit;
+  }
+
+  currencyInput.addEventListener("input", updateConversion);
+  currencyType.addEventListener("change", updateConversion);
+  exchangeRate.addEventListener("input", updateConversion);
+}
+
+// ===== 기존 app/calendar.js =====
+// 이벤트 캘린더 — 위키 Supabase(site_events)에서 읽고, 실패하면 calendar.json을 사용합니다.
+const CALENDAR_FALLBACK_URL = "https://media.dsrwiki.com/data/csv/calendar.json";
+window.DSRCalendar = { reload: async () => {} };
+
+function escapeCalendarHtml(text) {
+  return String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
+}
+
+// 캘린더는 한국 시간으로 표시합니다. FullCalendar 를 UTC 모드로 두고 모든 시각을
+// "한국 시간 벽시계 문자열"(시간대 표시 없음)로 넘기면, 보는 사람 PC의 시간대와 상관없이 그대로 보입니다.
+const serverNow = () => (window.DSRTime ? window.DSRTime.now() : new Date());
+const kstWallOf = (date) => new Date(date.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 19);
+/** "…+00:00" / "…Z" 처럼 시간대가 붙은 값은 한국 시간으로 바꾸고, 시간대 없는 값(calendar.json)은 이미 한국 시간으로 봄 */
+function toKstWall(value) {
+  if (!value) return value;
+  const s = String(value);
+  if (/([zZ]|[+-]\d{2}:?\d{2})$/.test(s)) {
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? s : kstWallOf(d);
+  }
+  return s;
+}
+/** 한국 시간 벽시계 문자열 → 비교용 Date (UTC 로 해석) */
+const wallToDate = (wall) => new Date(`${String(wall).slice(0, 19)}Z`);
+
+function toCalendarEvent(event) {
+  if (!event || !event.title || !event.start) return null;
+  const mapped = { title: event.title, start: toKstWall(event.start) };
+  if (event.id) mapped.id = event.id;
+  if (event.end) mapped.end = toKstWall(event.end);
+  if (event.backgroundColor) {
+    mapped.backgroundColor = event.backgroundColor;
+    mapped.borderColor = event.backgroundColor;
+  }
+  if (event.textColor) mapped.textColor = event.textColor;
+  return mapped;
+}
+
+async function loadCalendarEvents() {
+  try {
+    if (!window.DSRSupabase) throw new Error("Supabase 설정 없음");
+    // 너무 오래된 이벤트는 빼고 불러옵니다 (종료 후 120일까지)
+    const since = new Date(serverNow().getTime() - 120 * 864e5).toISOString();
+    const rows = await window.DSRSupabase.select("site_events",
+      "select=id,title,starts_at,ends_at,background_color,text_color"
+      + `&or=(ends_at.is.null,ends_at.gte.${encodeURIComponent(since)})`
+      + "&order=starts_at.asc");
+    return rows.map((r) => toCalendarEvent({
+      id: r.id, title: r.title, start: r.starts_at, end: r.ends_at,
+      backgroundColor: r.background_color, textColor: r.text_color,
+    })).filter(Boolean);
+  } catch (error) {
+    console.warn("이벤트 DB를 불러오지 못해 calendar.json을 사용합니다:", error);
+    const response = await fetch(CALENDAR_FALLBACK_URL, { cache: "no-cache" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return (await response.json()).map(toCalendarEvent).filter(Boolean);
+  }
+}
+
+onReady(async () => {
+  const calendarHost = document.getElementById("event-calendar");
+  const emptyMessageEl = document.getElementById("calendar-empty-message");
+
+  if (!calendarHost) {
+    return;
+  }
+
+  if (typeof FullCalendar === "undefined") {
+    console.error("FullCalendar 스크립트를 불러오지 못했습니다.");
+    if (emptyMessageEl) {
+      emptyMessageEl.textContent = "캘린더 스크립트를 불러오지 못했습니다.";
+      emptyMessageEl.hidden = false;
+    }
+    return;
+  }
+
+  const ensureTooltip = (() => {
+    let tooltip = document.querySelector(".custom-tooltip");
+    if (!tooltip) {
+      tooltip = document.createElement("div");
+      tooltip.className = "custom-tooltip";
+      tooltip.style.display = "none";
+      tooltip.innerHTML =
+        '<div class="tooltip-arrow"></div><div class="tooltip-content"></div>';
+      document.body.appendChild(tooltip);
+    }
+    const content = tooltip.querySelector(".tooltip-content");
+    return { tooltip, content };
+  })();
+
+  const { tooltip, content: tooltipContent } = ensureTooltip;
+  let pinnedEventEl = null;
+
+  const dateTimeFormatter = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "UTC",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const dateFormatter = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "UTC",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  });
+
+  const timeFormatter = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "UTC",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const extractClientPoint = (event) => {
+    if (!event) {
+      return { x: 0, y: 0 };
+    }
+
+    if (event.touches && event.touches.length > 0) {
+      return {
+        x: event.touches[0].clientX,
+        y: event.touches[0].clientY,
+      };
+    }
+
+    if (event.changedTouches && event.changedTouches.length > 0) {
+      return {
+        x: event.changedTouches[0].clientX,
+        y: event.changedTouches[0].clientY,
+      };
+    }
+
+    return {
+      x: event.clientX ?? 0,
+      y: event.clientY ?? 0,
+    };
+  };
+
+  const positionTooltip = (event) => {
+    const point = extractClientPoint(event);
+    const tooltipRect = tooltip.getBoundingClientRect();
+    let left = point.x - (tooltipRect.width / 2);
+    let top = point.y + 16;
+
+    if (left + tooltipRect.width > window.innerWidth - 12) {
+      left = window.innerWidth - tooltipRect.width - 12;
+    }
+    if (top + tooltipRect.height > window.innerHeight - 12) {
+      top = window.innerHeight - tooltipRect.height - 12;
+    }
+
+    tooltip.style.left = `${Math.max(12, left)}px`;
+    tooltip.style.top = `${Math.max(12, top)}px`;
+  };
+
+  const buildEventPeriod = (startDate, endDate) => {
+    if (!endDate) {
+      return dateTimeFormatter.format(startDate);
+    }
+
+    const sameDay =
+      startDate.getUTCFullYear() === endDate.getUTCFullYear() &&
+      startDate.getUTCMonth() === endDate.getUTCMonth() &&
+      startDate.getUTCDate() === endDate.getUTCDate();
+
+    if (sameDay) {
+      return `${dateFormatter.format(startDate)}\n${timeFormatter.format(
+        startDate
+      )} ~ ${timeFormatter.format(endDate)}`;
+    }
+
+    return `${dateTimeFormatter.format(startDate)} ~ ${dateTimeFormatter.format(
+      endDate
+    )}`;
+  };
+
+  const showTooltip = (event, info, options = {}) => {
+    if (!tooltipContent) return;
+    const { pin = false } = options;
+    pinnedEventEl = pin ? info.el : null;
+    const startDate = info.event.start;
+    const endDate = info.event.end;
+
+    tooltipContent.innerHTML = `
+      <strong>${escapeCalendarHtml(info.event.title)}</strong><br>
+      <span>${buildEventPeriod(startDate, endDate)}</span>
+    `;
+    tooltip.style.display = "block";
+    positionTooltip(event);
+  };
+
+  const hideTooltip = (force = false) => {
+    if (!force && pinnedEventEl) {
+      return;
+    }
+    tooltip.style.display = "none";
+    pinnedEventEl = null;
+  };
+
+  try {
+    const sanitizedEvents = await loadCalendarEvents();
+    const setEmptyMessage = (events) => {
+      if (!emptyMessageEl) return;
+      emptyMessageEl.textContent = "표시할 이벤트가 없습니다.";
+      emptyMessageEl.hidden = events.length > 0;
+    };
+
+    const getIsMobile = () => window.matchMedia("(max-width: 768px)").matches;
+
+    const buildToolbarConfig = () => ({
+      left: "prev,next today",
+      center: "customText",
+      right: "currentMonth",
+    });
+
+    if (window.DSRTime) await window.DSRTime.readyWithin();
+    const calendar = new FullCalendar.Calendar(calendarHost, {
+      locale: "ko",
+      timeZone: "UTC", // 이벤트 시각을 한국 시간 벽시계로 넘기므로 그대로 표시
+      now: () => kstWallOf(serverNow()), // "오늘"과 현재 시각 선은 서버 시각(한국 시간)
+      initialView: getIsMobile() ? "listWeek" : "dayGridMonth",
+      headerToolbar: buildToolbarConfig(),
+      buttonText: {
+        today: "오늘",
+        month: "월간",
+        week: "주간",
+        list: "목록",
+      },
+      customButtons: {
+        customText: {
+          text: "이벤트 캘린더",
+        },
+        currentMonth: {
+          text: "",
+        },
+      },
+      datesSet() {
+        updateCurrentMonthLabel();
+      },
+      nowIndicator: true,
+      navLinks: false,
+      dayMaxEvents: false,
+      displayEventTime: false,
+      height: "auto",
+      contentHeight: "auto",
+      expandRows: true,
+      events: sanitizedEvents,
+      eventDidMount(info) {
+        info.el.addEventListener("mouseenter", (evt) =>
+          showTooltip(evt, info)
+        );
+        info.el.addEventListener("mousemove", positionTooltip);
+        info.el.addEventListener("mouseleave", () => hideTooltip());
+        info.el.addEventListener("click", (evt) => {
+          if (pinnedEventEl === info.el && tooltip.style.display === "block") {
+            hideTooltip(true);
+            return;
+          }
+          showTooltip(evt, info, { pin: true });
+        });
+      },
+    });
+
+    const updateCurrentMonthLabel = () => {
+      const currentMonthButton = calendarHost.querySelector(
+        ".fc-currentMonth-button"
+      );
+      if (currentMonthButton) {
+        currentMonthButton.textContent = calendar.view?.title ?? "";
+      }
+    };
+
+    calendar.render();
+    updateCurrentMonthLabel();
+
+    const now = wallToDate(kstWallOf(serverNow()));
+    const upcoming = sanitizedEvents
+      .map((event) => {
+        const start = wallToDate(event.start);
+        const end = event.end ? wallToDate(event.end) : null;
+        return { event, start, end };
+      })
+      .filter(({ start }) => {
+        if (!(start instanceof Date) || Number.isNaN(start.getTime())) {
+          return false;
+        }
+        return start >= now;
+      })
+      .sort((a, b) => a.start - b.start)[0];
+
+    if (upcoming && upcoming.start) {
+      calendar.gotoDate(upcoming.start);
+    } else {
+      calendar.gotoDate(now);
+    }
+    updateCurrentMonthLabel();
+
+    const applyResponsiveOptions = () => {
+      const isMobile = getIsMobile();
+      const targetView = isMobile ? "listWeek" : "dayGridMonth";
+      const currentView = calendar.view?.type;
+      if (currentView !== targetView) {
+        calendar.changeView(targetView);
+      }
+      calendar.setOption("headerToolbar", buildToolbarConfig());
+      updateCurrentMonthLabel();
+    };
+
+    window.addEventListener("resize", applyResponsiveOptions, { signal });
+    document.addEventListener("click", (evt) => {
+      if (!pinnedEventEl) {
+        return;
+      }
+      if (!pinnedEventEl.contains(evt.target)) {
+        hideTooltip(true);
+      }
+    }, { signal });
+
+    setEmptyMessage(sanitizedEvents);
+
+    // 관리자 도구가 이벤트를 수정한 뒤 다시 불러올 때 사용
+    window.DSRCalendar.reload = async () => {
+      const events = await loadCalendarEvents();
+      hideTooltip(true);
+      calendar.removeAllEvents();
+      calendar.addEventSource(events);
+      setEmptyMessage(events);
+    };
+  } catch (error) {
+    console.error("이벤트 캘린더 데이터를 불러오는 중 오류가 발생했습니다.", error);
+    if (emptyMessageEl) {
+      emptyMessageEl.textContent = "캘린더 데이터를 불러오지 못했습니다.";
+      emptyMessageEl.hidden = false;
+    }
+  }
+});
+
+// ===== 기존 app/raid-timer.js =====
+function getImagePath(name) {
+  // :를 _로 대체
+  const safeName = String(name).replace(/:/g, '_');
+  return `https://media.dsrwiki.com/dsrwiki/digimon/${safeName}/${safeName}.webp`;
+}
+
+// 레이드 목록은 위키 Supabase(site_raids)에서 불러옵니다.
+// 아래 목록은 DB를 불러오지 못했을 때만 사용하는 기본값입니다.
+// type: daily | weekly(days: 0=일~6=토) | biweekly(baseDate) | custom_weekly(schedules) | rotation(baseTime, baseDate, stepMinutes)
+//       | respawn — 처치주기형: 등장 시각을 알 수 없어 "인게임 타이머 확인"으로 표시 (알림 없음)
+const FALLBACK_RAIDS = [
+  { name: '펌프몬', times: ['19:30'], type: 'daily', map: '시부야', mapImage: '1930' },
+  { name: '울퉁몬', times: ['21:30'], type: 'daily', map: '시부야', mapImage: '2130' },
+  { name: '블랙세라피몬', times: ['23:00'], type: 'biweekly', baseDate: '2025-05-31', map: '???', mapImage: 'weekend' },
+  { name: '오파니몬:폴다운모드', times: ['23:00'], type: 'biweekly', baseDate: '2025-06-07', map: '???', mapImage: 'weekend' },
+  { name: '메기드라몬', times: ['22:00'], type: 'biweekly', baseDate: '2025-06-08', map: '???', mapImage: 'weekend' },
+  { name: '오메가몬', times: ['22:00'], type: 'biweekly', baseDate: '2025-06-01', map: '어둠성 계곡', mapImage: 'omega' },
+  { name: '주작몬', times: ['22:00'], type: 'weekly', days: [2], map: '기어 사바나', mapImage: '주작몬' },
+  { name: '현무몬', times: ['22:00'], type: 'weekly', days: [3], map: '용의 눈 호수', mapImage: '현무몬' },
+  { name: '청룡몬', times: ['22:00'], type: 'weekly', days: [4], map: '어둠성 계곡', mapImage: '청룡몬' },
+  { name: '백호몬', times: ['22:00'], type: 'weekly', days: [5], map: '사막 지대', mapImage: '백호몬' },
+  { name: '엑자몬', times: ['00:30'], type: 'biweekly', baseDate: '2026-04-26', map: '어둠성 계곡', mapImage: '엑자몬' },
+  {
+    name: '알파몬',
+    type: 'custom_weekly',
+    schedules: [
+      { day: 5, time: '21:00' }, { day: 6, time: '09:00' }, { day: 6, time: '21:00' },
+      { day: 0, time: '09:00' }, { day: 0, time: '21:00' }, { day: 1, time: '09:00' },
+    ],
+    activeFrom: '2026-09-10T15:00:00+09:00',
+    activeUntil: '2026-10-08T10:00:00+09:00',
+    map: '오다이바 입구',
+  },
+  { name: '왕개굴몬', type: 'rotation', baseTime: '19:00', baseDate: '2026-10-22', stepMinutes: 25, map: '어둠성 계곡' },
+].map((raid) => ({ ...raid, image: getImagePath(raid.name) }));
+
+let raids = FALLBACK_RAIDS;
+
+/** DB 행 → 타이머용 레이드 */
+function normalizeDbRaid(row) {
+  const schedule = row.schedule || {};
+  return {
+    id: row.id,
+    version: row.version,
+    name: row.name,
+    imageName: row.image_name || null,
+    image: getImagePath(row.image_name || row.name),
+    map: row.map || '',
+    mapImage: row.map_image || null,
+    type: schedule.type,
+    times: schedule.times || [],
+    days: schedule.days || [],
+    baseDate: schedule.baseDate,
+    schedules: schedule.schedules || [],
+    baseTime: schedule.baseTime,
+    stepMinutes: schedule.stepMinutes ?? 25,
+    activeFrom: row.active_from || null,
+    activeUntil: row.active_until || null,
+  };
+}
+
+async function loadRaids() {
+  try {
+    if (!window.DSRSupabase) throw new Error('Supabase 설정 없음');
+    const rows = await window.DSRSupabase.select('site_raids',
+      'select=id,name,image_name,map,map_image,schedule,active_from,active_until,version&order=created_at.asc');
+    return rows.map(normalizeDbRaid);
+  } catch (error) {
+    console.warn('레이드 DB를 불러오지 못해 기본 목록을 사용합니다:', error);
+    return FALLBACK_RAIDS;
+  }
+}
+
+function escapeRaidHtml(text) {
+  return String(text ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// 관리자 도구가 레이드를 수정한 뒤 다시 불러올 때 사용
+window.DSRRaids = {
+  normalizeDbRaid,
+  getImagePath,
+  async reload() {
+    raids = await loadRaids();
+    renderRaids();
+  },
+};
+
+// 서버 시각은 index.js 의 DSRTime 을 같이 씁니다 (쿠폰·캘린더와 같은 시계).
+function getCurrentKST() {
+  return window.DSRTime ? window.DSRTime.now() : new Date();
+}
+
+// KST 유틸리티 함수들: Date 객체의 타임스탬프를 KST 기준으로 변환
+// Date 객체는 내부적으로 UTC 타임스탬프를 저장하므로, KST 오프셋(+9시간)을 더한 후 UTC 메서드 사용
+function getKSTYear(date) {
+  const ts = date.getTime();
+  const kstTs = ts + (9 * 60 * 60 * 1000);
+  return new Date(kstTs).getUTCFullYear();
+}
+
+function getKSTMonth(date) {
+  const ts = date.getTime();
+  const kstTs = ts + (9 * 60 * 60 * 1000);
+  return new Date(kstTs).getUTCMonth() + 1; // 0-based to 1-based
+}
+
+function getKSTDate(date) {
+  const ts = date.getTime();
+  const kstTs = ts + (9 * 60 * 60 * 1000);
+  return new Date(kstTs).getUTCDate();
+}
+
+function getKSTHours(date) {
+  const ts = date.getTime();
+  const kstTs = ts + (9 * 60 * 60 * 1000);
+  return new Date(kstTs).getUTCHours();
+}
+
+function getKSTMinutes(date) {
+  const ts = date.getTime();
+  const kstTs = ts + (9 * 60 * 60 * 1000);
+  return new Date(kstTs).getUTCMinutes();
+}
+
+function getKSTDay(date) {
+  const ts = date.getTime();
+  const kstTs = ts + (9 * 60 * 60 * 1000);
+  return new Date(kstTs).getUTCDay();
+}
+
+// KST 날짜 문자열 생성 (YYYY-MM-DD)
+function getKSTDateString(date) {
+  const year = getKSTYear(date);
+  const month = getKSTMonth(date);
+  const day = getKSTDate(date);
+  return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+}
+
+function getNextDailyTime(timeStr) {
+  const now = getCurrentKST();
+
+  // 현재 KST 날짜 문자열 구하기
+  const kstDateString = getKSTDateString(now);
+
+  // 오늘 해당 시간의 KST 타임스탬프 계산 (+09:00 오프셋 명시)
+  let next = new Date(`${kstDateString}T${timeStr}:00+09:00`);
+
+  if (next <= now) {
+    // 다음 날로 설정 (24시간을 더함)
+    next = new Date(next.getTime() + 24 * 60 * 60 * 1000);
+  }
+  return next;
+}
+
+function getNextBiweeklyTime(timeStr, baseDateStr) {
+  const now = getCurrentKST();
+  const base = new Date(baseDateStr + 'T00:00:00+09:00');
+
+  // KST 자정 기준으로 날짜 차이 계산
+  const nowKSTYear = getKSTYear(now);
+  const nowKSTMonth = getKSTMonth(now) - 1; // Date.UTC는 0-based
+  const nowKSTDay = getKSTDate(now);
+  const nowAtMidnightKST = Date.UTC(nowKSTYear, nowKSTMonth, nowKSTDay - 1, 15, 0, 0, 0);
+
+  const baseKSTYear = getKSTYear(base);
+  const baseKSTMonth = getKSTMonth(base) - 1;
+  const baseKSTDay = getKSTDate(base);
+  const baseAtMidnightKST = Date.UTC(baseKSTYear, baseKSTMonth, baseKSTDay - 1, 15, 0, 0, 0);
+
+  const diffDays = Math.floor((nowAtMidnightKST - baseAtMidnightKST) / (1000 * 60 * 60 * 24));
+
+  const cycles = Math.floor(diffDays / 14);
+  let nextDate = new Date(baseAtMidnightKST + cycles * 14 * 24 * 60 * 60 * 1000);
+
+  // 다음 레이드 시간을 KST로 설정
+  const kstDateString = getKSTDateString(nextDate);
+  let nextRaidTime = new Date(`${kstDateString}T${timeStr}:00+09:00`);
+
+  if (nextRaidTime <= now) {
+    nextRaidTime = new Date(nextRaidTime.getTime() + 14 * 24 * 60 * 60 * 1000);
+  }
+
+  return nextRaidTime;
+}
+
+function getNextWeeklyTime(timeStr, days, referenceTime = getCurrentKST()) {
+  const [hour, min] = timeStr.split(':').map(Number);
+  const now = referenceTime;
+
+  for (let i = 0; i < 14; i++) { // 최대 2주까지만 탐색
+    const futureDate = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
+
+    // KST 날짜 문자열 생성
+    const kstDateString = getKSTDateString(futureDate);
+
+    const nextRaidTime = new Date(`${kstDateString}T${timeStr}:00+09:00`);
+
+    // KST 기준 요일 구하기
+    const kstDay = getKSTDay(nextRaidTime);
+
+    if (days.includes(kstDay) && nextRaidTime > now) {
+      return nextRaidTime;
+    }
+  }
+  // 만약 지난 2주간 해당 요일이 없다면, 기본 로직으로 다음 시간을 반환 (오류 방지)
+  const fallbackDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const kstDateString = getKSTDateString(fallbackDate);
+  return new Date(`${kstDateString}T${timeStr}:00+09:00`);
+}
+
+function getNextCustomWeeklyTime(schedules, activeFrom = null, activeUntil = null) {
+  const now = getCurrentKST();
+  const startTime = activeFrom ? new Date(activeFrom) : null;
+  const endTime = activeUntil ? new Date(activeUntil) : null;
+
+  if (endTime && now >= endTime) {
+    return { nextTime: null, timeStr: '' };
+  }
+
+  const referenceTime = startTime && now < startTime
+    ? new Date(startTime.getTime() - 1000)
+    : now;
+  let minTime = null;
+  let bestTimeStr = '';
+
+  for (const schedule of schedules) {
+    const nextRaidTime = getNextWeeklyTime(schedule.time, [schedule.day], referenceTime);
+    if (endTime && nextRaidTime >= endTime) {
+      continue;
+    }
+    if (!minTime || nextRaidTime < minTime) {
+      minTime = nextRaidTime;
+      bestTimeStr = schedule.time;
+    }
+  }
+
+  return { nextTime: minTime, timeStr: bestTimeStr };
+}
+
+function getNextHourlyTime(minute) {
+  const now = getCurrentKST();
+
+  const kstHour = getKSTHours(now);
+  const kstDateString = getKSTDateString(now);
+
+  let nextTime = new Date(`${kstDateString}T${kstHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00+09:00`);
+
+  if (nextTime <= now) {
+    nextTime = new Date(nextTime.getTime() + 60 * 60 * 1000);
+  }
+
+  return nextTime;
+}
+
+function getTimeDiffString(target) {
+  const now = getCurrentKST();
+  let diff = Math.floor((target - now) / 1000);
+  if (diff < 0) return '-00:00:00';
+  const h = Math.floor(diff / 3600).toString().padStart(2, '0');
+  const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+  const s = (diff % 60).toString().padStart(2, '0');
+  return `-${h}:${m}:${s}`;
+}
+
+function formatTimeToKR(str) {
+  // "-HH:MM:SS" 형식에서 MM, SS만 추출
+  const match = str.match(/-(\d{2}):(\d{2}):(\d{2})/);
+  if (!match) return str;
+  const [, h, m, s] = match;
+  let result = '';
+  if (h !== '00') result += `${parseInt(h)}시간 `;
+  if (m !== '00') result += `${parseInt(m)}분 `;
+  result += `${parseInt(s)}초`;
+  return result.trim();
+}
+
+// 순환 레이드: 기준 날짜/시간부터 하루마다 stepMinutes(기본 25분)씩 밀림
+function getRotationNextTime(raid) {
+  const now = getCurrentKST();
+  const step = Number.isFinite(Number(raid.stepMinutes)) ? Number(raid.stepMinutes) : 25;
+  const baseDate = new Date(raid.baseDate + 'T00:00:00+09:00');
+  const [baseHour, baseMin] = raid.baseTime.split(':').map(Number);
+
+  // KST 자정 기준으로 날짜 차이 계산
+  const nowKSTYear = getKSTYear(now);
+  const nowKSTMonth = getKSTMonth(now) - 1; // Date.UTC는 0-based
+  const nowKSTDay = getKSTDate(now);
+  const nowAtMidnightKST = Date.UTC(nowKSTYear, nowKSTMonth, nowKSTDay - 1, 15, 0, 0, 0);
+
+  const baseKSTYear = getKSTYear(baseDate);
+  const baseKSTMonth = getKSTMonth(baseDate) - 1;
+  const baseKSTDay = getKSTDate(baseDate);
+  const baseAtMidnightKST = Date.UTC(baseKSTYear, baseKSTMonth, baseKSTDay - 1, 15, 0, 0, 0);
+
+  let diffDays = Math.floor((nowAtMidnightKST - baseAtMidnightKST) / (1000 * 60 * 60 * 24));
+
+  // 시간이 누적되어 날짜가 밀리는 것을 감안하여, 하루 전부터 탐색 시작
+  diffDays -= 1;
+
+  for (let guard = 0; guard < 3000; guard++) {
+    // 레이드 시간 계산: baseTime + (diffDays * step분)
+    const totalMinutes = baseHour * 60 + baseMin + (diffDays * step);
+    const raidHour = Math.floor(totalMinutes / 60) % 24;
+    const raidMin = totalMinutes % 60;
+
+    // 날짜가 넘어간 경우 처리
+    const extraDays = Math.floor(totalMinutes / (60 * 24));
+    let finalDate = new Date(baseAtMidnightKST + (diffDays + extraDays) * 24 * 60 * 60 * 1000);
+    const finalDateString = getKSTDateString(finalDate);
+
+    let nextTime = new Date(`${finalDateString}T${raidHour.toString().padStart(2, '0')}:${raidMin.toString().padStart(2, '0')}:00+09:00`);
+
+    if (nextTime > now) {
+      return nextTime;
+    }
+    diffDays++;
+  }
+  return null;
+}
+
+function formatKSTTime(date) {
+  return getKSTHours(date).toString().padStart(2, '0') + ':' + getKSTMinutes(date).toString().padStart(2, '0');
+}
+
+/** 레이드 하나의 다음 시간 { nextTime, timeStr } — 기간 밖이면 nextTime = null */
+function computeNextRaid(raid) {
+  const now = getCurrentKST();
+  const until = raid.activeUntil ? new Date(raid.activeUntil) : null;
+  if (until && now >= until) return { nextTime: null, timeStr: '' };
+
+  if (raid.type === 'custom_weekly') {
+    return getNextCustomWeeklyTime(raid.schedules, raid.activeFrom, raid.activeUntil);
+  }
+
+  // 시작 전인 레이드는 숨김 (요일별 시간 레이드는 시작 전에도 첫 회차를 보여줌)
+  if (raid.activeFrom && now < new Date(raid.activeFrom)) return { nextTime: null, timeStr: '' };
+
+  let nextTime = null;
+  let timeStr = '';
+  try {
+    if (raid.type === 'rotation') {
+      nextTime = getRotationNextTime(raid);
+      timeStr = nextTime ? formatKSTTime(nextTime) : '';
+    } else if (raid.type === 'hourly') {
+      nextTime = getNextHourlyTime(raid.minute);
+      timeStr = formatKSTTime(nextTime);
+    } else {
+      (raid.times || []).forEach((t) => {
+        let candidate = null;
+        if (raid.type === 'daily') candidate = getNextDailyTime(t);
+        else if (raid.type === 'biweekly') candidate = getNextBiweeklyTime(t, raid.baseDate);
+        else if (raid.type === 'weekly') candidate = getNextWeeklyTime(t, raid.days);
+        if (candidate && !isNaN(candidate.getTime()) && (!nextTime || candidate < nextTime)) {
+          nextTime = candidate;
+          timeStr = t;
+        }
+      });
+    }
+  } catch (error) {
+    console.warn('레이드 시간 계산 실패:', raid.name, error);
+    return { nextTime: null, timeStr: '' };
+  }
+  if (nextTime && until && nextTime >= until) return { nextTime: null, timeStr: '' };
+  return { nextTime, timeStr };
+}
+
+let sortedRaids = [];
+
+function renderRaids() {
+  const container = document.getElementById('raid-timers');
+  container.innerHTML = '';
+  container.style.maxHeight = '170px';
+  container.style.overflowY = 'auto';
+  let allRaids = [];
+  const respawnRaids = [];
+  const nowForPeriod = getCurrentKST();
+  raids.forEach(raid => {
+    if (raid.type === 'respawn') {
+      // 처치주기형: 표시 기간 안에서만 보여주고, 시간 대신 인게임 타이머 확인 안내
+      const from = raid.activeFrom ? new Date(raid.activeFrom) : null;
+      const until = raid.activeUntil ? new Date(raid.activeUntil) : null;
+      if ((!from || nowForPeriod >= from) && (!until || nowForPeriod < until)) respawnRaids.push(raid);
+      return;
+    }
+    const { nextTime, timeStr } = computeNextRaid(raid);
+    if (nextTime) {
+      allRaids.push({
+        name: raid.name,
+        image: raid.image,
+        timeStr,
+        map: raid.map,
+        mapImage: raid.mapImage || null,
+        nextTime,
+      });
+    }
+  });
+
+  // 남은 시간이 적은 순서로 정렬
+  allRaids.sort((a, b) => a.nextTime - b.nextTime);
+  // 정렬된 배열을 전역 변수에 저장
+  sortedRaids = allRaids;
+  // 렌더링
+  allRaids.forEach(raid => {
+    const div = document.createElement('div');
+    div.className = 'raid-timer-item';
+    div.style.display = 'flex';
+    div.style.alignItems = 'center';
+    div.style.marginBottom = '4px';
+    div.style.fontSize = '0.8rem';
+    div.innerHTML = `
+      <div style="background:#0B0E1A; border-radius:3px; width:46px; height:46px; display:flex; align-items:center; justify-content:center; margin-right:10px;">
+        <img loading="lazy" src="${escapeRaidHtml(raid.image)}" alt="${escapeRaidHtml(raid.name)}" width="46" height="46" style="object-fit:contain; display:block;" onerror="this.onerror=null; this.src='/image/digimon/default.webp';">
+      </div>
+      <div style="display:flex; flex-direction:column; text-align:left;">
+        <span><strong>${escapeRaidHtml(raid.name)}</strong></span>
+        <span style="font-size:0.7rem; color:#666;">${raid.timeStr}, <span class="raid-location" data-map-image="${escapeRaidHtml(raid.mapImage || '')}" style="${raid.mapImage ? 'cursor:pointer; text-decoration:underline; color:#007bff;' : 'color:#666;'} font-weight:bold;">${escapeRaidHtml(raid.map)}${raid.mapImage ? ' <i class="ri-map-pin-line"></i>' : ''}</span></span>
+        <span class="remain">${getTimeDiffString(raid.nextTime)}</span>
+      </div>
+    `;
+    div.dataset.nextTime = raid.nextTime;
+    container.appendChild(div);
+  });
+
+  // 처치주기형은 고정형 아래에 표시 (카운트다운·알림 대상 아님 — 클래스가 달라 updateTimers 가 건드리지 않음)
+  respawnRaids.forEach(raid => {
+    const div = document.createElement('div');
+    div.className = 'raid-respawn-item';
+    div.style.display = 'flex';
+    div.style.alignItems = 'center';
+    div.style.marginBottom = '4px';
+    div.style.fontSize = '0.8rem';
+    div.innerHTML = `
+      <div style="background:#0B0E1A; border-radius:3px; width:46px; height:46px; display:flex; align-items:center; justify-content:center; margin-right:10px;">
+        <img loading="lazy" src="${escapeRaidHtml(raid.image)}" alt="${escapeRaidHtml(raid.name)}" width="46" height="46" style="object-fit:contain; display:block;" onerror="this.onerror=null; this.src='/image/digimon/default.webp';">
+      </div>
+      <div style="display:flex; flex-direction:column; text-align:left;">
+        <span><strong>${escapeRaidHtml(raid.name)}</strong></span>
+        <span style="font-size:0.7rem; color:#666;"><span class="raid-location" data-map-image="${escapeRaidHtml(raid.mapImage || '')}" style="${raid.mapImage ? 'cursor:pointer; text-decoration:underline; color:#007bff;' : 'color:#666;'} font-weight:bold;">${escapeRaidHtml(raid.map)}${raid.mapImage ? ' <i class="ri-map-pin-line"></i>' : ''}</span></span>
+        <span style="color:#8a6d1f;">인게임 타이머 확인</span>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+const alarmAudio = new Audio('assets/sound/alarm.mp3');
+let notified = {};
+let notificationTime = 5; // 기본값 5분
+// 경계 기반 트리거 및 스누즈 관리를 위한 상태
+let previousDiffSeconds = {}; // 키: name+timeStr -> 직전 남은 초
+let cooldownUntil = {}; // 키: name+timeStr -> 스누즈 종료 타임스탬프(ms)
+
+function updateTimers() {
+  const items = document.querySelectorAll('.raid-timer-item');
+  const now = getCurrentKST();
+  let needsRerender = false;
+
+  // 알림 시간 설정값 가져오기
+  const notificationTimeSpan = document.getElementById('notification-time');
+  if (notificationTimeSpan) {
+    const time = parseInt(notificationTimeSpan.textContent);
+    if (!isNaN(time) && time > 0 && time <= 60) {
+      notificationTime = time;
+    }
+  }
+
+  for (let i = 0; i < items.length; i++) {
+    const remainSpan = items[i].querySelector('.remain');
+    if (sortedRaids[i]) {
+      const diff = Math.floor((sortedRaids[i].nextTime - now) / 1000);
+      remainSpan.textContent = getTimeDiffString(sortedRaids[i].nextTime);
+
+      // 남은 시간이 0이 되면 다음 시간으로 업데이트
+      if (diff <= 0) {
+        // 다음 회차 시간은 renderRaids()가 다시 계산합니다
+        const notifyKey = sortedRaids[i].name + sortedRaids[i].timeStr;
+        // 다음 회차로 넘어갔으므로 재알림을 위해 상태 재무장
+        delete notified[notifyKey];
+        delete previousDiffSeconds[notifyKey];
+        delete cooldownUntil[notifyKey];
+        needsRerender = true;
+      }
+
+      // 경계 기반 1회 트리거 + 스누즈(쿨다운)
+      const notifyKey = sortedRaids[i].name + sortedRaids[i].timeStr;
+      const nowTs = Date.now();
+      const prev = previousDiffSeconds[notifyKey];
+
+      // 경계 진입: 직전에는 > 임계값, 현재는 ≤ 임계값인 순간에만 1회 트리거
+      const thresholdSec = notificationTime * 60;
+      const enteredThreshold = (typeof prev === 'number' ? prev > thresholdSec : true) && diff > 0 && diff <= thresholdSec;
+
+      // 스누즈 중이면 무시
+      const underCooldown = cooldownUntil[notifyKey] && cooldownUntil[notifyKey] > nowTs;
+
+      if (enteredThreshold && !underCooldown) {
+        if (!notified[notifyKey]) {
+          const alarmToggle = document.getElementById('raid-alarm-toggle');
+          if (alarmToggle && alarmToggle.checked) {
+            const volumeSlider = document.getElementById('alarm-volume');
+            const durationInput = document.getElementById('alarm-duration');
+
+            alarmAudio.volume = volumeSlider ? parseFloat(volumeSlider.value) : 0.5;
+            const alarmDuration = durationInput ? parseInt(durationInput.value, 10) * 1000 : 3000;
+
+            alarmAudio.currentTime = 0;
+            alarmAudio.play();
+
+            setTimeout(() => {
+              alarmAudio.pause();
+              alarmAudio.currentTime = 0;
+            }, alarmDuration);
+
+            // Custom alert logic
+            const customAlert = document.getElementById('custom-raid-alert');
+            const customAlertMessage = document.getElementById('custom-alert-message');
+            if (customAlert && customAlertMessage) {
+              customAlertMessage.textContent = `${sortedRaids[i].name} 레이드가 ${formatTimeToKR(getTimeDiffString(sortedRaids[i].nextTime))} 남았습니다!`;
+              customAlert.style.display = 'flex';
+
+              // Attach snooze logic to the close button
+              const closeButton = document.getElementById('custom-alert-close');
+              const closeButtonClickHandler = () => {
+                customAlert.style.display = 'none';
+                cooldownUntil[notifyKey] = Date.now() + 60 * 1000; // 60초 스누즈
+                closeButton.removeEventListener('click', closeButtonClickHandler); // 이벤트 리스너 정리
+              };
+              closeButton.addEventListener('click', closeButtonClickHandler);
+            }
+          }
+          notified[notifyKey] = true;
+        }
+      }
+
+      // 직전 diff 업데이트
+      previousDiffSeconds[notifyKey] = diff;
+      if (diff > 0 && diff < notificationTime * 60) {
+        remainSpan.style.color = '#e74c3c'; // 빨간색
+      } else {
+        remainSpan.style.color = '';
+      }
+    }
+  }
+
+  // 시간이 업데이트된 경우 전체 목록을 다시 렌더링
+  if (needsRerender) {
+    renderRaids();
+  }
+}
+
+onReady(async () => {
+  // 페이지 로드 시 시간 동기화와 레이드 목록 불러오기를 함께 수행
+  const [, loadedRaids] = await Promise.all([window.DSRTime ? window.DSRTime.readyWithin(3000) : null, loadRaids()]);
+  raids = loadedRaids;
+
+  const alarmToggle = document.getElementById('raid-alarm-toggle');
+  const notificationTimeSpan = document.getElementById('notification-time');
+  const volumeSlider = document.getElementById('alarm-volume');
+  const durationInput = document.getElementById('alarm-duration');
+  const durationValueSpan = document.getElementById('alarm-duration-value');
+  const settingsToggle = document.getElementById('raid-settings-toggle');
+  const settingsPanel = document.getElementById('raid-settings-panel');
+  const settingsClose = document.getElementById('raid-settings-close');
+
+  // 설정 패널 토글
+  if (settingsToggle && settingsPanel) {
+    settingsToggle.addEventListener('click', () => {
+      const isVisible = settingsPanel.style.display === 'block';
+      settingsPanel.style.display = isVisible ? 'none' : 'block';
+    });
+  }
+
+  // 설정 패널 닫기
+  if (settingsClose && settingsPanel) {
+    settingsClose.addEventListener('click', () => {
+      settingsPanel.style.display = 'none';
+    });
+  }
+
+  // 초기 볼륨 설정
+  if (volumeSlider) {
+    alarmAudio.volume = parseFloat(volumeSlider.value);
+    volumeSlider.addEventListener('input', function () {
+      alarmAudio.volume = parseFloat(this.value);
+    });
+  }
+
+  // 재생 시간 슬라이더 이벤트 리스너
+  if (durationInput && durationValueSpan) {
+    durationInput.addEventListener('input', function () {
+      durationValueSpan.textContent = `${this.value}초`;
+    });
+  }
+
+
+  // 알림 시간 입력 제한
+  notificationTimeSpan.addEventListener('input', function () {
+    // 빈 문자열이면 그대로 두기
+    if (this.textContent === '') return;
+
+    let value = parseInt(this.textContent);
+    if (isNaN(value)) {
+      this.textContent = '';
+    } else if (value > 60) {
+      this.textContent = '60';
+    }
+  });
+
+  // 알림 시간 입력 완료 시 유효성 검사
+  notificationTimeSpan.addEventListener('blur', function () {
+    let value = parseInt(this.textContent);
+    if (isNaN(value) || value < 1) {
+      this.textContent = '5';
+      notificationTime = 5;
+    } else if (value > 60) {
+      this.textContent = '60';
+      notificationTime = 60;
+    } else {
+      notificationTime = value;
+    }
+    // 알림 시간이 변경되면 notified 객체 초기화
+    notified = {};
+  });
+
+  alarmToggle.addEventListener('change', async function () {
+    if (this.checked) {
+      if (Notification.permission === "default") {
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") {
+          this.checked = false;
+          alert("알림 권한이 필요합니다.");
+        }
+      } else if (Notification.permission === "denied") {
+        this.checked = false;
+        alert("알림 권한이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요.");
+      }
+    }
+  });
+
+  const timersContainer = document.getElementById('raid-timers');
+  const modal = document.getElementById('map-modal');
+  const modalImage = document.getElementById('map-modal-image');
+  const closeModal = document.getElementById('map-modal-close');
+
+  if (timersContainer && modal && modalImage && closeModal) {
+    timersContainer.addEventListener('click', (e) => {
+      // Use closest to handle clicks on the icon inside the span
+      const locationSpan = e.target.closest('.raid-location');
+      if (locationSpan) {
+        const imageName = locationSpan.dataset.mapImage || null;
+
+        if (imageName) {
+          modalImage.src = `https://media.dsrwiki.com/dsrwiki/map/${encodeURIComponent(imageName)}.png`;
+          modal.style.display = 'flex';
+        }
+      }
+    });
+
+    closeModal.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
+  }
+
+  renderRaids();
+  // (Astro) 페이지를 떠나면 1초 타이머 정지
+  const raidTimerId = setInterval(updateTimers, 1000);
+  signal.addEventListener('abort', () => clearInterval(raidTimerId));
+});
+}

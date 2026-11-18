@@ -1,0 +1,528 @@
+// 디지몬 페이지 관리자 도구 — 디지몬 추가/수정/삭제 + 이미지 업로드(R2).
+// dsrwiki.com/digimon#admin 으로 들어오면 불러와집니다. 로그인은 메인 페이지 관리자와 같습니다.
+(function () {
+  if (window.DSRDigimonAdmin) return;
+
+  const API = "/.netlify/functions/digimon-admin";
+  const MEDIA = "https://media.dsrwiki.com/dsrwiki/digimon/";
+
+  const STAGES = ["성장기", "성숙기", "완전체", "궁극체"];
+  const TYPES = ["백신", "데이터", "바이러스", "프리", "언노운", "NO DATA"];
+  const ATTRS = ["물리", "어둠", "불", "빛", "강철", "바람", "천둥", "얼음", "나무", "흙", "물"];
+  const FIELDS = ["NSp", "NSo", "ME", "WG", "VB", "UK", "DR", "DS", "DA", "JT"];
+  const STRONG_EFFECTS = ["내성", "회피", "반사"];
+  const WEAK_EFFECTS = ["약점", "회피불가", "효과확률"];
+  const RANGES = ["근거리", "원거리", "자신"];
+  const TARGETS = ["단일", "전체", "자신", "아군"];
+  const STATS = [["level", "레벨"], ["hp", "HP"], ["sp", "SP"], ["STR", "힘"], ["INT", "지능"], ["DEF", "수비"], ["RES", "저항"], ["SPD", "속도"]];
+  const IMAGE_MAX = { portrait: 512, skill1: 256, skill2: 256, skill3: 256, stack: 256 };
+
+  // ---- coeff start (게임 테이블 2026-10-22 패치 기준으로 확인한 규칙) ----
+  // 계수를 낮추는 효과 (게임 Effect_Basic 의 상태이상·CC·디버프). 버프, 회복, 스택 계열은 해당 없음.
+  const DAMAGE_EFFECTS = new Set(["ADVENTURE (절대 영도)", "UNKNOWN ERROR", "감염", "감염(잠식)", "감전", "격리", "공격력 감소", "공황", "과부하", "교대불가", "금속화", "꼭두각시", "낙인", "데이터 변조", "마비", "망자의 저주", "매료", "맹독 분출", "무방비", "미지의 힘", "반동", "방어력 감소", "방어력 감소(소)", "봉인", "부식", "빙결", "빛과 어둠 (빛의 심판)", "빛과 어둠 (어둠의 유혹)", "빛의 잔영", "삼위일체", "생명의 키스", "석화", "성흔", "세뇌", "속도 감소", "속박", "수면", "수압", "스나이퍼 미사일", "스턴", "시끄럽다 얘!!", "어둠의 사자 (검은 톱니바퀴)", "어둠의 왕 (쇠약)", "어드벤처 에너미", "업화", "연소", "연소 (어둠)", "열상", "영원한 잠", "영혼 붕괴", "용의 포효", "위험한 장난", "이상 현상(STAGE 5)", "이상 현상(STAGE 6)", "이상 현상(STAGE 7)", "이상 현상(분노)", "이상 현상(빙결)", "이상 현상(어둠의 힘)", "이상 현상(업화)", "이상 현상(전의 상실)", "이상 현상(침식)", "이상 현상(혼란)", "잔류 에너지", "저주", "중독", "중압", "진공", "질식", "참격의 여파", "최후의 암흑 (쇠약)", "최후의 암흑 (지배)", "출혈", "침잠", "타락", "파멸의 불꽃", "파열", "폭파 지령 (조준)", "한기", "혼란", "화상", "회피율 감소"]);
+
+  /**
+   * 스킬 레벨별 1타당 계수 자동 계산.
+   * 총 계수(1타당 × 타수)를 1/10000 단위 정수로 계산한 뒤 타수로 나누고 소수점 넷째 자리에서 버립니다.
+   * 반환: { values: [Lv1..Lv10], rule, warning? } 또는 { error }
+   *
+   * 전체 공격(대상 "전체")은 효과가 없으면 총 계수 × 0.96 (게임 전체 공격 61개 중 58개)
+   * HP 소모 스킬은 게임에 6개뿐이고 값이 제각각이라 경고를 함께 보여줍니다.
+   */
+  function autoCoefficients({ slot, hits, effect, additionalTurn, hpCost, targetCount }) {
+    if (hits === "보조") return { error: "보조 스킬은 계수를 자동으로 정하지 않습니다." };
+    const n = Number(hits);
+    if (!Number.isInteger(n) || n < 1) return { error: "타수를 먼저 입력해주세요." };
+    const effects = String(effect || "").split(",").map((e) => e.trim()).filter(Boolean);
+    const lowering = effects.filter((e) => DAMAGE_EFFECTS.has(e));
+    const turn = Number(additionalTurn) || 0;
+    const allTarget = String(targetCount || "").trim() === "전체";
+    if (slot !== 1 && hpCost && turn > 0) {
+      return { error: "HP 소모 + 추가 턴 스킬은 게임에 2개뿐이고 정해진 규칙이 없어 자동 계산하지 않습니다. 게임 값을 직접 입력해주세요." };
+    }
+    let lv1, step, rule, warning;
+    if (slot === 1) {
+      [lv1, step, rule] = [5000, 500, "1스킬"];
+    } else if (hpCost) {
+      [lv1, step, rule] = [13900, 500, `${slot}스킬 · HP 소모`];
+      warning = "HP 소모 스킬은 게임에서 6개 중 4개만 이 값이라 실제 값과 다를 수 있습니다.";
+    } else if (turn > 0) {
+      const cast = Math.round(turn * 30) * 100; // 위키 추가 턴 = 게임 CastingTime / 3000
+      [lv1, step, rule] = [10000 + cast * 2, 500, `${slot}스킬 · 추가 턴 ${turn}`];
+    } else if (lowering.length) {
+      [lv1, step, rule] = [9000, 425, `${slot}스킬 · 효과(${lowering.join(", ")})`];
+    } else {
+      [lv1, step, rule] = [10000, 500, `${slot}스킬${effects.length ? ` · 계수에 영향 없는 효과(${effects.join(", ")})` : ""}`];
+    }
+    // 전체 공격 × 0.96 (상태이상·CC·디버프 효과가 있으면 0.90 그대로, 1스킬은 해당 없음)
+    if (allTarget && slot !== 1 && !hpCost && !(lowering.length && turn <= 0)) {
+      lv1 = (lv1 * 24) / 25;
+      step = (step * 24) / 25;
+      rule += " · 전체 공격 ×0.96";
+    }
+    const values = Array.from({ length: 10 }, (_, i) => Math.floor((lv1 + step * i) / n) / 10000);
+    const fmt = (bp) => String(bp / 10000);
+    return { values, warning, rule: `${rule} → 총 ${fmt(lv1)} ~ ${fmt(lv1 + step * 9)} ÷ ${n}타 (넷째 자리 버림)` };
+  }
+  // ---- coeff end ----
+
+  // ---------- 스타일 ----------
+  const style = document.createElement("style");
+  style.textContent = `
+    .dga-toolbar { display: flex; gap: 6px; justify-content: flex-end; margin: 0 0 8px; flex-wrap: wrap; }
+    .dga-btn { font: inherit; font-size: 12px; line-height: 1.2; padding: 5px 9px; border-radius: 5px; border: 1px solid #c0c0c0;
+      background: #fff; color: #2c3e50; cursor: pointer; }
+    .dga-btn:hover { background: #e8ebef; }
+    .dga-btn:disabled { opacity: .5; cursor: default; }
+    .dga-btn.dga-primary { background: #2c3e50; border-color: #2c3e50; color: #fff; }
+    .dga-btn.dga-primary:hover { background: #1d2a36; }
+    .dga-btn.dga-danger { color: #c0392b; border-color: #e3b5b0; }
+    .dga-btn.dga-danger:hover { background: #fbeceb; }
+    .dga-edit { display: block; margin: 4px auto 0; padding: 2px 8px; font-size: 11px; }
+
+    .dga-overlay { position: fixed; inset: 0; background: rgba(15, 20, 30, .55); z-index: 3000; display: flex;
+      align-items: flex-start; justify-content: center; padding: 30px 16px; overflow-y: auto; box-sizing: border-box; }
+    .dga-modal { background: #fff; color: #222; width: 100%; max-width: 420px; border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.3);
+      padding: 18px 18px 16px; box-sizing: border-box; text-align: left; font-size: 14px; }
+    .dga-modal.dga-wide { max-width: 820px; }
+    .dga-modal [hidden] { display: none !important; }
+    .dga-modal h2 { margin: 0 0 14px; font-size: 17px; }
+    .dga-modal h3 { margin: 16px 0 8px; font-size: 14px; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+    .dga-modal .dga-field { margin-bottom: 10px; min-width: 0; }
+    .dga-modal .dga-label { display: block; margin: 0 0 3px; font-size: 12px; font-weight: bold; color: #555; }
+    .dga-modal input[type="text"], .dga-modal input[type="password"], .dga-modal input[type="number"], .dga-modal select {
+      width: 100%; box-sizing: border-box; margin: 0; padding: 6px 7px; font: inherit; font-size: 13px;
+      border: 1px solid #ccc; border-radius: 5px; background: #fff; color: #222; }
+    .dga-grid { display: grid; gap: 8px 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .dga-grid.dga-g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dga-grid.dga-g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .dga-grid.dga-g5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .dga-checks { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+    .dga-check { display: inline-flex !important; align-items: center; gap: 4px; margin: 0 !important; font-size: 13px; white-space: nowrap; cursor: pointer; }
+    .dga-skill { border: 1px solid #e3e3e3; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; background: #fafbfc; }
+    .dga-skill-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-weight: bold; }
+    .dga-mults { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+    .dga-modal .dga-mults input { padding: 5px 3px; font-size: 12px; text-align: center; }
+    .dga-mult-tools { display: flex; gap: 6px; align-items: center; margin-top: 6px; font-size: 12px; color: #666; flex-wrap: wrap; }
+    .dga-modal .dga-mult-tools input { width: 70px; padding: 4px 5px; font-size: 12px; }
+    .dga-img { display: flex; align-items: center; gap: 10px; }
+    .dga-preview { width: 56px; height: 56px; border-radius: 6px; background: #0b0e1a center / contain no-repeat; flex: none; border: 1px solid #ddd; }
+    .dga-preview.dga-small { width: 40px; height: 40px; }
+    .dga-img-info { font-size: 11px; color: #888; }
+    .dga-img-info.dga-new { color: #27ae60; font-weight: bold; }
+    .dga-hint { font-size: 12px; color: #888; margin: 4px 0 0; }
+    .dga-error { color: #c0392b; font-size: 13px; margin: 10px 0 0; min-height: 1em; white-space: pre-line; }
+    .dga-footer { display: flex; justify-content: flex-end; gap: 6px; margin-top: 14px; align-items: center; }
+    .dga-footer .dga-btn { font-size: 13px; padding: 7px 14px; }
+    .dga-footer .dga-spacer { flex: 1; }
+    @media (max-width: 640px) {
+      .dga-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .dga-grid.dga-g5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .dga-mults { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    }
+  `;
+  document.head.appendChild(style);
+
+  // ---------- 공통 (admin-core.js) ----------
+  const Core = window.DSRAdminCore;
+  const { el, input, getToken, setToken, clearToken, request, clearHash, fileToDataUrl, closeAllModals } = Core;
+  const { field, openModal, showLogin: coreLogin } = Core.ui("dga");
+  let listSeq = 0;
+  /** 자유 입력 + 추천 목록 */
+  function suggestInput(value, options, attrs = {}) {
+    const id = `dga-list-${++listSeq}`;
+    const wrap = el("span", { style: { display: "contents" } }, [
+      input(value, { list: id, ...attrs }),
+      el("datalist", { id }, options.map((o) => el("option", { value: o }))),
+    ]);
+    return { node: wrap, input: wrap.firstChild };
+  }
+  function select(value, options, attrs = {}) {
+    const opts = options.includes(value) || value === undefined || value === "" ? options : [value, ...options];
+    const s = el("select", attrs, opts.map((o) => el("option", { value: o, text: o === "" ? "(없음)" : o })));
+    s.value = value ?? options[0];
+    return s;
+  }
+  function checks(selected, options) {
+    const all = [...options, ...(selected || []).filter((x) => !options.includes(x))];
+    const boxes = all.map((o) => {
+      const b = el("input", { type: "checkbox", value: o });
+      b.checked = (selected || []).includes(o);
+      return el("label", { class: "dga-check" }, [b, o]);
+    });
+    // 원래 있던 값은 원래 순서 그대로, 새로 체크한 값은 뒤에 (JSON 변경을 최소화)
+    const rank = (v) => ((selected || []).includes(v) ? (selected || []).indexOf(v) : 1000 + all.indexOf(v));
+    const read = () => boxes.map((l) => l.firstChild).filter((b) => b.checked).map((b) => b.value).sort((a, b) => rank(a) - rank(b));
+    return { node: el("div", { class: "dga-checks" }, boxes), read };
+  }
+
+  // ---------- 토큰 / API ----------
+
+  // ---------- 로그인 ----------
+  function showLogin() {
+    return coreLogin("디지몬 관리자 로그인", enterAdmin);
+  }
+
+  // ---------- 관리 모드 ----------
+  let active = false;
+
+  function decorateRows() {
+    if (!active) return;
+    document.querySelectorAll("#characterTable tr").forEach((tr) => {
+      const cell = tr.cells[0];
+      if (!cell || cell.querySelector(".dga-edit")) return;
+      cell.appendChild(el("button", { type: "button", class: "dga-btn dga-edit", text: "수정", onclick: (e) => { e.stopPropagation(); showEditor(tr.dataset.name); } }));
+    });
+  }
+
+  function enterAdmin() {
+    active = true;
+    if (!document.querySelector(".dga-toolbar")) {
+      const results = document.querySelector(".results");
+      results?.parentNode.insertBefore(el("div", { class: "dga-toolbar" }, [
+        el("span", { text: "관리자 모드", style: { fontSize: "12px", color: "#888", marginRight: "auto", alignSelf: "center" } }),
+        el("button", { type: "button", class: "dga-btn dga-primary", text: "+ 디지몬 추가", onclick: () => showEditor(null) }),
+        el("button", { type: "button", class: "dga-btn", text: "관리 종료", onclick: exitAdmin }),
+      ]), results);
+    }
+    decorateRows();
+  }
+
+  function exitAdmin(expired) {
+    active = false;
+    clearToken();
+    document.querySelector(".dga-toolbar")?.remove();
+    document.querySelectorAll(".dga-edit").forEach((b) => b.remove());
+    if (expired === true) alert("관리자 로그인이 만료되었습니다. 다시 로그인하려면 주소 끝에 #admin 을 붙여 접속하세요.");
+  }
+
+  document.addEventListener("digimon:rendered", decorateRows);
+
+  // ---------- 이미지 ----------
+  const folderOf = (name) => (name === "폼몬" ? "포무몬" : name).replace(/:/g, "_");
+  const imageUrl = (name, slot) => `${MEDIA}${folderOf(name)}/${slot === "portrait" ? folderOf(name) : slot}.webp`;
+
+  /** 파일 → 최대 크기에 맞춰 줄인 webp data URL (브라우저가 webp를 못 만들면 png) */
+
+  /** 이미지 선택칸. read()는 새로 고른 이미지 data URL 또는 undefined */
+  function imagePicker(label, slot, currentUrl, small) {
+    const preview = el("div", { class: `dga-preview${small ? " dga-small" : ""}` });
+    const info = el("span", { class: "dga-img-info", text: currentUrl ? "현재 이미지" : "이미지 없음" });
+    if (currentUrl) {
+      const probe = new Image();
+      probe.onload = () => { preview.style.backgroundImage = `url("${currentUrl}")`; };
+      probe.onerror = () => { info.textContent = "이미지 없음"; };
+      probe.src = currentUrl;
+    }
+    let picked;
+    const fileInput = el("input", { type: "file", accept: "image/webp,image/png,image/jpeg,image/gif", style: { display: "none" } });
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      try {
+        const r = await fileToDataUrl(file, IMAGE_MAX[slot]);
+        picked = r.dataUrl;
+        preview.style.backgroundImage = `url("${r.dataUrl}")`;
+        info.textContent = `새 이미지 ${r.w}×${r.h} · ${Math.round(r.bytes / 1024)}KB (저장 시 업로드)`;
+        info.className = "dga-img-info dga-new";
+      } catch (e) {
+        alert("이미지를 읽지 못했습니다.");
+      }
+      fileInput.value = "";
+    });
+    const node = field(label, el("div", { class: "dga-img" }, [
+      preview,
+      el("div", {}, [
+        el("button", { type: "button", class: "dga-btn", text: "파일 선택", onclick: () => fileInput.click() }),
+        el("div", {}, info),
+      ]),
+      fileInput,
+    ]));
+    return { node, read: () => picked, hasNew: () => !!picked };
+  }
+
+  // ---------- 편집기 ----------
+  function collectEffects() {
+    const set = new Set();
+    Object.values(window.DSRDigimon?.data || {}).forEach((d) => (d.skills || []).forEach((s) => s.effect && set.add(s.effect)));
+    return [...set].sort((a, b) => a.localeCompare(b, "ko"));
+  }
+
+  function skillEditor(index, skill, digimonName) {
+    const s = skill || { name: "", hits: 1, range: "원거리", attribute: "물리", target_count: "단일", multipliers: [], change: [] };
+    const name = input(s.name, { maxlength: "40", placeholder: "스킬 이름" });
+    const hits = suggestInput(String(s.hits ?? ""), ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "보조"], { placeholder: "숫자 또는 보조" });
+    const range = select(s.range ?? "", ["", ...RANGES]);
+    const attribute = select(s.attribute, ATTRS);
+    const target = select(s.target_count ?? "", ["", ...TARGETS]);
+    const effect = suggestInput(s.effect ?? "", collectEffects(), { placeholder: "없으면 비움" });
+    const addTurn = el("input", { type: "number", step: "any", min: "0", max: "10", value: s.additionalTurn ?? "", placeholder: "없으면 비움" });
+    const hpCost = el("input", { type: "checkbox" });
+    hpCost.checked = s.hpCost === true;
+    const change = checks(s.change || [], ATTRS);
+
+    const mults = Array.from({ length: 10 }, (_, i) => el("input", { type: "number", step: "any", min: "0", value: s.multipliers?.[i] ?? "", "aria-label": `Lv${i + 1} 계수`, title: `Lv${i + 1}` }));
+    const startIn = el("input", { type: "number", step: "any", placeholder: "Lv1 값" });
+    const stepIn = el("input", { type: "number", step: "any", placeholder: "증가량" });
+    const fill = () => {
+      const a = Number(startIn.value), d = Number(stepIn.value);
+      if (!startIn.value || !stepIn.value || !Number.isFinite(a) || !Number.isFinite(d)) return alert("Lv1 값과 증가량을 입력해주세요.");
+      mults.forEach((m, i) => { m.value = String(Math.round((a + d * i) * 10000) / 10000); });
+    };
+
+    // 계수 자동 계산: 타수/효과/추가 턴/HP 소모가 바뀌면, 계수를 직접 고치지 않은 경우에만 다시 채움
+    const autoInfo = el("div", { class: "dga-hint", style: { marginTop: "6px" } });
+    const currentValues = () => mults.map((m) => m.value.trim());
+    let lastAuto = null;
+    const computeAuto = () => autoCoefficients({
+      slot: index + 1,
+      hits: hits.input.value.trim() === "보조" ? "보조" : hits.input.value.trim(),
+      effect: effect.input.value,
+      additionalTurn: addTurn.value,
+      hpCost: hpCost.checked,
+      targetCount: target.value,
+    });
+    const applyAuto = () => {
+      const r = computeAuto();
+      if (r.error) { autoInfo.textContent = r.error; autoInfo.style.color = "#d35400"; return; }
+      mults.forEach((m, i) => { m.value = String(r.values[i]); });
+      lastAuto = currentValues().join(",");
+      autoInfo.textContent = `자동 계산: ${r.rule}${r.warning ? ` ⚠ ${r.warning}` : ""}`;
+      autoInfo.style.color = r.warning ? "#d35400" : "#27ae60";
+    };
+    const refreshAuto = () => {
+      const r = computeAuto();
+      const cur = currentValues();
+      const untouched = cur.every((v) => v === "") || cur.join(",") === lastAuto;
+      if (untouched && !r.error) return applyAuto();
+      if (r.error) { autoInfo.textContent = r.error; autoInfo.style.color = "#d35400"; return; }
+      const same = r.values.every((v, i) => cur[i] !== "" && Math.abs(Number(cur[i]) - v) < 1e-9);
+      autoInfo.textContent = same ? `자동 계산 값과 같음 · ${r.rule}` : `자동 계산 값과 다름 (특수 계수이거나 입력 오류일 수 있음) · 규칙: ${r.rule}`;
+      autoInfo.style.color = same ? "#27ae60" : "#d35400";
+    };
+    [hits.input, effect.input, addTurn].forEach((n) => n.addEventListener("input", refreshAuto));
+    target.addEventListener("change", refreshAuto);
+    hpCost.addEventListener("change", refreshAuto);
+    mults.forEach((m) => m.addEventListener("input", refreshAuto));
+
+    const icon = imagePicker("스킬 아이콘", `skill${index + 1}`, digimonName ? imageUrl(digimonName, `skill${index + 1}`) : null, true);
+
+    const node = el("div", { class: "dga-skill" }, [
+      el("div", { class: "dga-skill-head", text: `${index + 1}스킬` }),
+      el("div", { class: "dga-grid" }, [
+        el("div", { style: { gridColumn: "span 2" } }, field("이름", name)),
+        field("타수", hits.node),
+        field("속성", attribute),
+        field("사거리", range),
+        field("대상", target),
+        field("효과", effect.node),
+        field("추가 턴", addTurn),
+      ]),
+      field("레벨별 계수 (Lv1 ~ Lv10)", el("div", {}, [
+        el("div", { class: "dga-mults" }, mults),
+        el("div", { class: "dga-mult-tools" }, [
+          el("button", { type: "button", class: "dga-btn dga-primary", text: "계수 자동 계산", onclick: applyAuto }),
+          el("span", { text: "또는 직접:", style: { marginLeft: "6px" } }), startIn, "부터", stepIn, "씩",
+          el("button", { type: "button", class: "dga-btn", text: "채우기", onclick: fill }),
+        ]),
+        autoInfo,
+      ])),
+      field("변환 가능 속성", change.node),
+      el("div", { class: "dga-grid dga-g2" }, [
+        field("HP 소모", el("label", { class: "dga-check" }, [hpCost, "HP를 소모하는 스킬"])),
+        icon.node,
+      ]),
+    ]);
+
+    function read() {
+      const hitsVal = hits.input.value.trim();
+      const multVals = mults.map((m) => m.value.trim());
+      const lastFilled = multVals.reduce((acc, v, i) => (v !== "" ? i : acc), -1);
+      const filled = multVals.slice(0, lastFilled + 1);
+      const out = {
+        name: name.value.trim(),
+        hits: hitsVal === "보조" ? "보조" : hitsVal === "" ? "" : Number(hitsVal),
+        range: range.value,
+        attribute: attribute.value,
+        target_count: target.value,
+        effect: effect.input.value.trim() || undefined,
+        additionalTurn: addTurn.value === "" ? undefined : Number(addTurn.value),
+        multipliers: filled.map(Number),
+        hpCost: hpCost.checked || undefined,
+        change: change.read(),
+        _gap: filled.includes(""),
+      };
+      return out;
+    }
+    refreshAuto(); // 새 스킬은 바로 채우고, 기존 스킬은 규칙과 같은지 표시
+    return { node, read, icon };
+  }
+
+  async function showEditor(originalName) {
+    const isNew = !originalName;
+    // 다른 관리자가 바꿨을 수 있으니 최신 데이터로 편집 시작
+    let base = null;
+    if (!isNew) {
+      try {
+        const fresh = await request(API, "GET");
+        base = fresh.data[originalName];
+        if (!base) { alert("이미 삭제된 디지몬입니다. 페이지를 새로고침해주세요."); return; }
+      } catch (err) {
+        if (err.status === 401) { exitAdmin(true); return; }
+        alert(err.message);
+        return;
+      }
+    }
+    const d = base || {
+      evolution_stage: "성장기", type: "백신",
+      stats: { level: 1, hp: 0, sp: 0, STR: 0, INT: 0, DEF: 0, RES: 0, SPD: 0 },
+      strengths: { attribute: "", effect: "" }, weaknesses: { attribute: "", effect: "" }, fields: [], skills: [],
+    };
+
+    const name = input(originalName || "", { maxlength: "40", placeholder: "예) 오메가몬" });
+    const stage = select(d.evolution_stage, STAGES);
+    const type = select(d.type, TYPES);
+    const stats = STATS.map(([k, label]) => [k, label, el("input", { type: "number", min: "0", step: "1", value: d.stats?.[k] ?? 0 })]);
+    const strongAttr = select(d.strengths?.attribute ?? "", ["", ...ATTRS]);
+    const strongEff = select(d.strengths?.effect ?? "", ["", ...STRONG_EFFECTS]);
+    const weakAttr = select(d.weaknesses?.attribute ?? "", ["", ...ATTRS]);
+    const weakEff = select(d.weaknesses?.effect ?? "", ["", ...WEAK_EFFECTS]);
+    const fields = checks(d.fields || [], FIELDS);
+
+    const portrait = imagePicker("디지몬 이미지", "portrait", originalName ? imageUrl(originalName, "portrait") : null);
+    const stack = imagePicker("스택 이미지 (선택)", "stack", originalName ? imageUrl(originalName, "stack") : null, true);
+
+    const skillCount = select(String((d.skills || []).length || (isNew ? 3 : 0)), ["0", "1", "2", "3"]);
+    const skillEditors = [0, 1, 2].map((i) => skillEditor(i, d.skills?.[i], originalName));
+    const syncSkills = () => skillEditors.forEach((s, i) => { s.node.hidden = i >= Number(skillCount.value); });
+    skillCount.addEventListener("change", syncSkills);
+    syncSkills();
+
+    const readForm = () => ({
+      name: name.value.trim(),
+      entry: {
+        evolution_stage: stage.value,
+        type: type.value,
+        stats: Object.fromEntries(stats.map(([k, , inp]) => [k, inp.value === "" ? NaN : Number(inp.value)])),
+        strengths: { attribute: strongAttr.value, effect: strongEff.value },
+        weaknesses: { attribute: weakAttr.value, effect: weakEff.value },
+        fields: fields.read(),
+        skills: skillEditors.slice(0, Number(skillCount.value)).map((s) => s.read()),
+      },
+    });
+    const imagesChanged = () => [portrait, stack, ...skillEditors.map((s) => s.icon)].some((p) => p.hasNew());
+    const initial = JSON.stringify(readForm());
+
+    function validate({ name: n, entry }) {
+      if (!n) return "디지몬 이름을 입력해주세요.";
+      if (/[\/\\]/.test(n)) return "이름에 / 나 \\ 는 쓸 수 없습니다.";
+      if (!isNew || n !== originalName) {
+        if (n !== originalName && window.DSRDigimon?.data && Object.prototype.hasOwnProperty.call(window.DSRDigimon.data, n)) return `"${n}" 디지몬이 이미 있습니다.`;
+      }
+      if (!entry.evolution_stage || !entry.type) return "진화 단계와 타입을 입력해주세요.";
+      for (const [k, label] of STATS) if (!Number.isInteger(entry.stats[k]) || entry.stats[k] < 0) return `${label} 값을 확인해주세요.`;
+      for (let i = 0; i < entry.skills.length; i++) {
+        const s = entry.skills[i];
+        if (!s.name) return `${i + 1}스킬 이름을 입력해주세요.`;
+        if (!(s.hits === "보조" || (Number.isInteger(s.hits) && s.hits >= 1))) return `${i + 1}스킬 타수는 숫자 또는 "보조"입니다.`;
+        if (s._gap) return `${i + 1}스킬 계수 중간에 빈칸이 있습니다.`;
+      }
+      return null;
+    }
+
+    const error = el("p", { class: "dga-error" });
+    const save = el("button", { type: "submit", class: "dga-btn dga-primary", text: isNew ? "추가" : "저장" });
+    const cancel = el("button", { type: "button", class: "dga-btn", text: "취소" });
+    const del = isNew ? null : el("button", { type: "button", class: "dga-btn dga-danger", text: "삭제" });
+
+    const form = el("form", { novalidate: true }, [
+      el("h3", { text: "기본 정보" }),
+      el("div", { class: "dga-grid" }, [
+        el("div", { style: { gridColumn: "span 2" } }, field("이름", name, isNew ? null : "이름을 바꾸면 기존 이미지도 새 이름 폴더로 복사됩니다.")),
+        field("진화 단계", stage),
+        field("타입", type),
+      ]),
+      el("h3", { text: "능력치" }),
+      el("div", { class: "dga-grid" }, stats.map(([, label, inp]) => field(label, inp))),
+      el("h3", { text: "강점 / 약점 / 필드" }),
+      el("div", { class: "dga-grid" }, [
+        field("강점 속성", strongAttr), field("강점 효과", strongEff),
+        field("약점 속성", weakAttr), field("약점 효과", weakEff),
+      ]),
+      field("필드", fields.node),
+      el("h3", { text: "이미지" }),
+      el("div", { class: "dga-grid dga-g2" }, [portrait.node, stack.node]),
+      el("p", { class: "dga-hint", text: "디지몬 이미지는 최대 512px, 아이콘은 최대 256px로 줄여서 webp로 올립니다. 새로 고르지 않은 이미지는 그대로 둡니다." }),
+      el("h3", { text: "스킬" }),
+      field("스킬 개수", el("div", { style: { maxWidth: "120px" } }, skillCount)),
+      ...skillEditors.map((s) => s.node),
+      error,
+      el("div", { class: "dga-footer" }, [del, el("span", { class: "dga-spacer" }), cancel, save]),
+    ]);
+
+    let saving = false;
+    const modal = openModal(isNew ? "디지몬 추가" : `디지몬 수정 — ${originalName}`, form, {
+      wide: true,
+      onRequestClose(close) {
+        if (saving) return;
+        if ((JSON.stringify(readForm()) !== initial || imagesChanged()) && !confirm("저장하지 않은 변경 내용이 있습니다. 닫을까요?")) return;
+        close();
+      },
+    });
+    cancel.addEventListener("click", () => modal.tryClose());
+
+    const lock = (on) => { saving = on; [save, cancel, del].forEach((b) => b && (b.disabled = on)); };
+    const fail = (err) => {
+      if (err.status === 401) { modal.close(); exitAdmin(true); return; }
+      error.textContent = err.message;
+    };
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const data = readForm();
+      const problem = validate(data);
+      if (problem) { error.textContent = problem; return; }
+      data.entry.skills.forEach((s) => { delete s._gap; });
+      const images = {};
+      if (portrait.read()) images.portrait = portrait.read();
+      if (stack.read()) images.stack = stack.read();
+      skillEditors.forEach((s, i) => { if (s.icon.read()) images[`skill${i + 1}`] = s.icon.read(); });
+      lock(true);
+      error.textContent = "";
+      save.textContent = "저장 중...";
+      try {
+        await request(API, "POST", { action: "save", originalName: originalName || null, name: data.name, entry: data.entry, base, images });
+        modal.close();
+        await window.DSRDigimon.reload();
+      } catch (err) {
+        fail(err);
+      } finally {
+        lock(false);
+        save.textContent = isNew ? "추가" : "저장";
+      }
+    });
+
+    del?.addEventListener("click", async () => {
+      if (!confirm(`"${originalName}" 디지몬을 삭제할까요?\n(이미지는 지우지 않고, 저장 전 데이터는 백업됩니다)`)) return;
+      lock(true);
+      try {
+        await request(API, "POST", { action: "delete", name: originalName, base });
+        modal.close();
+        await window.DSRDigimon.reload();
+      } catch (err) {
+        fail(err);
+      } finally {
+        lock(false);
+      }
+    });
+    setTimeout(() => name.focus(), 0);
+  }
+
+  // ---------- 시작 ----------
+  function open() {
+    if (active) return clearHash();
+    if (getToken()) { clearHash(); enterAdmin(); } else if (location.hash === "#admin" || location.hash === "#coupon-admin") showLogin();
+  }
+  window.DSRDigimonAdmin = { open };
+  open();
+})();

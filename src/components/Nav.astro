@@ -1,0 +1,181 @@
+---
+// 상단 메뉴 — 기존 app/nav.js 의 <custom-nav> 를 옮긴 것
+// - 디자인이 페이지 CSS 와 섞이지 않도록 기존처럼 shadow DOM 안에 둠.
+//   다만 JS 로 그리던 것을 HTML 에 바로 넣어서(Declarative Shadow DOM) 처음부터 완성된 메뉴가 보임
+// - 메뉴 CSS 를 HTML 안에 넣어 두므로, CSS 를 기다리느라 메뉴를 숨겨 두던 처리도 필요 없음
+// - transition:persist: 페이지를 옮겨도 메뉴는 그대로 두고 본문만 바뀜
+import baseCss from '../../public/assets/css/styles1.css?raw';
+import navCss from '../../public/assets/css/nav-custom.css?raw';
+
+type Item = { label: string; href: string; target?: string };
+type Menu = { type: 'link'; label: string; href: string } | { type: 'dropdown'; label: string; items: Item[] };
+
+const MENU_ITEMS: Menu[] = [
+  {
+    type: 'dropdown',
+    label: '디지몬',
+    items: [
+      { label: '도감', href: '/digimon' },
+      { label: '덱', href: '/deck' },
+      { label: '진화트리', href: '/evolution' },
+    ],
+  },
+  { type: 'link', label: '맵', href: '/map' },
+  {
+    type: 'dropdown',
+    label: '던전',
+    items: [
+      { label: '탐지기', href: '/detector' },
+      { label: '오버플로우', href: '/overflow' },
+    ],
+  },
+  {
+    type: 'dropdown',
+    label: '도구',
+    items: [
+      { label: '데미지 계산기', href: '/calculator' },
+      { label: 'EXP 물약 시뮬레이터', href: '/exp' },
+      { label: '가챠 시뮬레이터', href: '/gacha' },
+      { label: '코스튬 슬롯 각인 시뮬레이터', href: '/costume-slot' },
+    ],
+  },
+  {
+    type: 'dropdown',
+    label: '사이트',
+    items: [
+      { label: '공식 홈페이지', href: 'https://www.digimonsuperrumble.com/', target: '_blank' },
+      { label: '공식 카페', href: 'https://cafe.naver.com/movedsr', target: '_blank' },
+    ],
+  },
+];
+
+// styles1.css 맨 위의 글꼴 @import 는 페이지에서 이미 불러오므로 메뉴 안에서는 뺌
+const shadowCss = baseCss.replace(/@import[^;]+;/g, '') + navCss;
+---
+<custom-nav transition:persist="site-nav">
+  <template shadowrootmode="open">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.2.0/fonts/remixicon.css" rel="stylesheet" />
+    <style set:html={shadowCss}></style>
+
+    <header class="header">
+      <nav class="nav container">
+        <div class="nav__data">
+          <a href="/">
+            <img src="https://media.dsrwiki.com/dsrwiki/logo2.webp" class="nav__logo" alt="DSR WIKI" fetchpriority="high" />
+          </a>
+
+          <div class="nav__toggle" id="nav-toggle">
+            <i class="ri-menu-line nav__burger"></i>
+            <i class="ri-close-line nav__close"></i>
+          </div>
+        </div>
+
+        <div class="nav__menu" id="nav-menu">
+          <ul class="nav__list">
+            {MENU_ITEMS.map((item) =>
+              item.type === 'dropdown' ? (
+                <li class="dropdown__item">
+                  <div class="nav__link dropdown__toggle">
+                    {item.label} <i class="ri-arrow-down-s-line dropdown__arrow"></i>
+                  </div>
+                  <ul class="dropdown__menu">
+                    {item.items.map((sub) => (
+                      <li>
+                        <a href={sub.href} class="dropdown__link" target={sub.target}>{sub.label}</a>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ) : (
+                <li><a href={item.href} class="nav__link">{item.label}</a></li>
+              ),
+            )}
+
+            <li class="feedback-expcarry-wrapper">
+              <button class="feedback-btn" id="feedbackBtn">피드백</button>
+            </li>
+          </ul>
+        </div>
+      </nav>
+    </header>
+  </template>
+</custom-nav>
+
+<script>
+  import { prefetch } from 'astro:prefetch';
+
+  const host = document.querySelector('custom-nav') as HTMLElement | null;
+
+  // 아주 오래된 브라우저(Declarative Shadow DOM 미지원)용: <template> 을 직접 shadow DOM 으로 붙임
+  if (host && !host.shadowRoot) {
+    const tpl = host.querySelector('template[shadowrootmode]') as HTMLTemplateElement | null;
+    if (tpl) {
+      host.attachShadow({ mode: 'open' }).appendChild(tpl.content);
+      tpl.remove();
+    }
+  }
+
+  const root = host?.shadowRoot;
+  if (root) {
+    const navToggle = root.getElementById('nav-toggle');
+    const navMenu = root.getElementById('nav-menu');
+
+    const closeDropdowns = () => {
+      root.querySelectorAll('.dropdown__menu').forEach((m) => m.classList.remove('show-dropdown'));
+      root.querySelectorAll('.dropdown__arrow').forEach((a) => a.classList.remove('rotate-arrow'));
+    };
+
+    /* 메뉴 토글 (모바일) */
+    navToggle?.addEventListener('click', () => {
+      navMenu?.classList.toggle('show-menu');
+      navToggle.classList.toggle('show-icon');
+    });
+
+    /* 드롭다운 토글 (모바일 + PC 모두 동일 처리) */
+    root.querySelectorAll('.dropdown__toggle').forEach((toggle) => {
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const item = toggle.closest('.dropdown__item')!;
+        const menu = item.querySelector('.dropdown__menu')!;
+        const arrow = item.querySelector('.dropdown__arrow')!;
+        const isOpen = menu.classList.contains('show-dropdown');
+        closeDropdowns();
+        if (!isOpen) {
+          menu.classList.add('show-dropdown');
+          arrow.classList.add('rotate-arrow');
+        }
+      });
+    });
+
+    /* 바깥 클릭 시 닫기 */
+    root.addEventListener('click', (e) => {
+      if (!(e.target as Element).closest('.dropdown__item')) closeDropdowns();
+    });
+
+    /* 피드백 버튼 */
+    root.getElementById('feedbackBtn')?.addEventListener('click', () => {
+      window.open('https://forms.gle/7xSaJBz4A28CPY4z9', '_blank');
+    });
+
+    /* 다른 페이지로 넘어가면 열려 있던 모바일 메뉴·드롭다운을 닫음 (예전엔 새로 고침으로 닫혔음) */
+    document.addEventListener('astro:after-swap', () => {
+      navMenu?.classList.remove('show-menu');
+      navToggle?.classList.remove('show-icon');
+      closeDropdowns();
+      // 드롭다운은 마우스를 올리면 CSS 로 열리므로, 클릭한 뒤에도 열려 보이지 않게 포커스를 뺌
+      (root.activeElement as HTMLElement | null)?.blur();
+    });
+
+    /* 다음 페이지 미리 받기: Astro 의 자동 미리 받기는 shadow DOM 안의 링크를 못 보므로 여기서 직접 호출 */
+    const linkOf = (e: Event) =>
+      (e.target as Element).closest?.('a[href^="/"]') as HTMLAnchorElement | null;
+    root.addEventListener('pointerover', (e) => {
+      const a = linkOf(e);
+      if (a) prefetch(a.getAttribute('href')!);
+    }, { passive: true });
+    root.addEventListener('touchstart', (e) => {
+      const a = linkOf(e);
+      if (a) prefetch(a.getAttribute('href')!, { ignoreSlowConnection: true });
+    }, { passive: true });
+  }
+</script>

@@ -1,0 +1,16 @@
+# Cloudflare 용 주소 규칙
+# 예전 .html 주소로 들어오면 확장자 없는 주소로 영구 이동 (검색엔진용, 기존 Netlify 와 같음)
+# /digimon → digimon.html 보여 주기는 wrangler.jsonc 의 html_handling 이 처리하므로 여기엔 없음
+/index.html / 301
+/index / 301
+/calculator.html /calculator 301
+/costume-slot.html /costume-slot 301
+/deck.html /deck 301
+/detail.html /detail 301
+/detector.html /detector 301
+/digimon.html /digimon 301
+/evolution.html /evolution 301
+/exp.html /exp 301
+/gacha.html /gacha 301
+/map.html /map 301
+/overflow.html /overflow 301

@@ -1,0 +1,1136 @@
+(() => {
+  // ====================================================
+  // 1. 전역 변수 및 필터 상태
+  // ====================================================
+  const filters = {
+    evolution: [],
+    type: [],
+    skill1: [],
+    skill2: [],
+    skill3: [],
+    strong: [],
+    weak: [],
+    field: [],
+    effect: [],
+  };
+  let currentSortState = {
+    column: -1,
+    direction: 'none' // 'none', 'asc', 'desc'
+  };
+  let originalRows = []; // 원래 순서를 저장할 배열
+
+  // 필터 접기/펴기 토글 함수
+  function toggleFilters() {
+    const filtersContent = document.getElementById('filters-content');
+    const toggleBtn = document.getElementById('toggle-filters-btn');
+    const icon = toggleBtn.querySelector('i');
+
+    if (filtersContent.classList.contains('collapsed')) {
+      filtersContent.classList.remove('collapsed');
+      icon.className = 'ri-arrow-up-s-line';
+    } else {
+      filtersContent.classList.add('collapsed');
+      icon.className = 'ri-arrow-down-s-line';
+    }
+
+    // 상태 저장
+    saveFilterState();
+  }
+
+  // 커스텀 툴팁 표시 함수
+  function showCustomTooltip(e, text, isHtml = false) {
+    const tooltip = document.getElementById('custom-tooltip');
+    const tooltipSpan = tooltip.querySelector('span');
+    if (isHtml) {
+      tooltipSpan.innerHTML = text;
+    } else {
+      tooltipSpan.textContent = text;
+    }
+    tooltip.style.display = 'block';
+
+    // 초기 상태: 화살표 위쪽 (기본값)
+    tooltip.classList.remove('flipped');
+
+    const rect = e.target.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+
+    const left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+    let top = rect.bottom + 5;
+
+    // 화면 아래쪽을 넘어가는지 확인
+    if (top + tooltipRect.height > window.innerHeight) {
+      // 툴팁 높이 + 간격(5px) + 화살표 높이(8px) 만큼 위로 이동
+      top = rect.top - tooltipRect.height - 13;
+      tooltip.classList.add('flipped'); // 위로 뒤집힘 -> 화살표는 아래쪽으로
+    }
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+
+    if (left + tooltipRect.width > window.innerWidth) {
+      tooltip.style.left = `${window.innerWidth - tooltipRect.width - 10}px`;
+    }
+
+    if (left < 0) {
+      tooltip.style.left = '10px';
+    }
+  }
+
+  function hideCustomTooltip() {
+    const tooltip = document.getElementById('custom-tooltip');
+    tooltip.style.display = 'none';
+  }
+
+  const attributeEffects = {
+    cc: {
+      강철: "중압",
+      흙: "석화",
+      물: "침잠",
+      물리: "스턴",
+      바람: "진공",
+      불: "공황",
+      빛: "격리",
+      어둠: "봉인",
+      얼음: "빙결",
+      천둥: "마비",
+    },
+    dot: {
+      강철: "파열",
+      나무: "중독",
+      흙: "질식",
+      물: "부식",
+      물리: "출혈",
+      바람: "열상",
+      불: "화상",
+      빛: "성흔",
+      어둠: "저주",
+      얼음: "한기",
+      천둥: "감전",
+    },
+  };
+
+  const ccEffects = new Set(Object.values(attributeEffects.cc));
+  const dotEffects = new Set(Object.values(attributeEffects.dot));
+
+  function getEffectForAttribute(effectName, attribute) {
+    if (ccEffects.has(effectName)) {
+      return attributeEffects.cc[attribute] || effectName;
+    }
+    if (dotEffects.has(effectName)) {
+      return attributeEffects.dot[attribute] || effectName;
+    }
+    return effectName;
+  }
+
+  function getPossibleSkillEffects(effectString, defaultAttribute, changeAttributes, attributeFilters) {
+    const effects = (effectString || "")
+      .split(',')
+      .map((effect) => effect.trim())
+      .filter(Boolean);
+    const availableAttributes = [defaultAttribute, ...changeAttributes].filter(Boolean);
+    const attributes = attributeFilters.length > 0
+      ? availableAttributes.filter((attribute) => attributeFilters.includes(attribute))
+      : availableAttributes;
+
+    return new Set(
+      attributes.flatMap((attribute) =>
+        effects.map((effect) =>
+          attribute === defaultAttribute ? effect : getEffectForAttribute(effect, attribute)
+        )
+      )
+    );
+  }
+
+  function getAttributeForEffectFilter(effectString, defaultAttribute, changeAttributes, effectFilters) {
+    if (effectFilters.length === 0) return null;
+
+    const effects = (effectString || "")
+      .split(',')
+      .map((effect) => effect.trim())
+      .filter(Boolean);
+    const availableAttributes = [defaultAttribute, ...changeAttributes].filter(Boolean);
+
+    return availableAttributes.find((attribute) =>
+      effects.some((effect) => {
+        const displayedEffect = attribute === defaultAttribute
+          ? effect
+          : getEffectForAttribute(effect, attribute);
+        return effectFilters.includes(displayedEffect);
+      })
+    ) || null;
+  }
+
+  function updateSkillEffectIcons(cell, attribute) {
+    const defaultAttribute = cell.querySelector('.main-skill-icon')?.dataset.defaultAttr;
+
+    cell.querySelectorAll('.digimon-effect-img[data-default-effect]').forEach((effectImg) => {
+      const defaultEffect = effectImg.dataset.defaultEffect;
+      if (!ccEffects.has(defaultEffect) && !dotEffects.has(defaultEffect)) return;
+
+      const displayedEffect = attribute === defaultAttribute
+        ? defaultEffect
+        : getEffectForAttribute(defaultEffect, attribute);
+
+      effectImg.src = `https://media.dsrwiki.com/dsrwiki/debuff/${displayedEffect}.webp`;
+      effectImg.alt = displayedEffect;
+      effectImg.setAttribute(
+        'onmouseenter',
+        `showEffectTooltip(event, '${displayedEffect}', '${effectImg.dataset.digimonName}', ${effectImg.dataset.skillNumber})`
+      );
+      effectImg.setAttribute(
+        'onmousemove',
+        `showEffectTooltip(event, '${displayedEffect}', '${effectImg.dataset.digimonName}', ${effectImg.dataset.skillNumber})`
+      );
+    });
+  }
+
+  const effectDescriptions = {
+    출혈: "* 출혈<br>공격 시 65% 확률로 발생됩니다.<br>턴마다 지속 피해를 입힙니다.<br>물리속성에 취약해집니다.<br>힐 받을 경우 해제됩니다.",
+    열상: "* 열상<br>공격 시 65% 확률로 발생됩니다.<br>턴마다 지속 피해를 입힙니다.<br>흙속성에 취약해집니다.<br>나무속성 피격 시 해제됩니다.",
+    저주: "* 저주<br>공격 시 65% 확률로 발생됩니다.<br>턴마다 지속 피해를 입힙니다.<br>빛속성에 취약해집니다.<br>천둥속성 피격 시 해제됩니다.",
+    질식: "* 질식<br>공격 시 65% 확률로 발생됩니다.<br>턴마다 지속 피해를 입힙니다.<br>물리속성에 취약해집니다.<br>강철속성 피격 시 해제됩니다.",
+    성흔: "* 성흔<br>공격 시 65% 확률로 발생됩니다.<br>턴마다 지속 피해를 입힙니다.<br>얼음속성에 취약해집니다.<br>바람속성 피격 시 해제됩니다.",
+    파열: "* 파열<br>공격 시 65% 확률로 발생됩니다.<br>턴마다 지속 피해를 입힙니다.<br>나무속성에 취약해집니다.<br>어둠속성 피격 시 해제됩니다.",
+    한기: "* 한기<br>공격 시 65% 확률로 발생됩니다.<br>턴마다 지속 피해를 입힙니다.<br>천둥속성에 취약해집니다.<br>물속성 피격 시 해제됩니다.",
+    부식: "* 부식<br>공격 시 65% 확률로 발생됩니다.<br>턴마다 지속 피해를 입힙니다.<br>바람속성에 취약해집니다.<br>흙속성 피격 시 해제됩니다.",
+    화상: "* 화상<br>공격 시 65% 확률로 발생됩니다.<br>턴마다 지속 피해를 입힙니다.<br>바람속성에 취약해집니다.<br>물속성 피격 시 해제됩니다.",
+    중독: "* 중독<br>공격 시 65% 확률로 발생됩니다.<br>턴마다 지속 피해를 입힙니다.<br>어둠속성에 취약해집니다.<br>불속성 피격 시 해제됩니다.",
+    감전: "* 감전<br>공격 시 65% 확률로 발생됩니다.<br>턴마다 지속 피해를 입힙니다.<br>물속성에 취약해집니다.<br>나무속성 피격 시 해제됩니다.",
+    봉인: "* 봉인<br>공격 시 25% 확률로 발생됩니다.<br>일정 턴 동안 행동 불가.<br>빛속성에 취약해집니다.<br>천둥속성 피격 시 해제됩니다.",
+    빙결: "* 빙결<br>공격 시 25% 확률로 발생됩니다.<br>일정 턴 동안 행동 불가.<br>천둥속성에 취약해집니다.<br>천둥속성 피격 시 해제됩니다.",
+    석화: "* 석화<br>공격 시 25% 확률로 발생됩니다.<br>일정 턴 동안 행동 불가.<br>강철속성에 취약해집니다.<br>강철속성 피격 시 해제됩니다.",
+    격리: "* 격리<br>공격 시 25% 확률로 발생됩니다.<br>일정 턴 동안 행동 불가.<br>얼음속성에 취약해집니다.<br>바람속성 피격 시 해제됩니다.",
+    스턴: "* 스턴<br>공격 시 25% 확률로 발생됩니다.<br>일정 턴 동안 행동 불가.<br>강철속성에 취약해집니다.<br>빛속성 피격 시 해제됩니다.",
+    중압: "* 중압<br>공격 시 25% 확률로 발생됩니다.<br>일정 턴 동안 행동 불가.<br>나무속성에 취약해집니다.<br>어둠속성 피격 시 해제됩니다.",
+    마비: "* 마비<br>공격 시 25% 확률로 발생됩니다.<br>일정 턴 동안 행동 불가.<br>불속성에 취약해집니다.<br>물리속성 피격 시 해제됩니다.",
+    침잠: "* 침잠<br>공격 시 25% 확률로 발생됩니다.<br>일정 턴 동안 행동 불가.<br>바람속성에 취약해집니다.<br>흙속성 피격 시 해제됩니다.",
+    진공: "* 진공<br>공격 시 25% 확률로 발생됩니다.<br>일정 턴 동안 행동 불가.<br>흙속성에 취약해집니다.<br>나무속성 피격 시 해제됩니다.",
+    공황: "* 공황<br>공격 시 25% 확률로 발생됩니다.<br>일정 턴 동안 행동 불가.<br>물속성에 취약해집니다.<br>얼음속성 피격 시 해제됩니다.",
+    연소: "* 연소<br>공격 시 65% 확률로 발생됩니다.<br>턴마다 대상의 SP 추가 소모.<br>스킬 레벨에 따라 소모량 증가.",
+    매료: "* 매료<br>공격 시 29.5% 확률로 발생됩니다.<br>일정 턴 동안 명령 불가.<br>피아식별 없이 행동.",
+    "방어력 감소": "* 방어력 감소<br>공격 시 65% 확률로 발생됩니다.<br>일정 턴 동안 DEF x% 감소",
+    "방어력 증가": "* 방어력 증가<br>일정 턴 동안 DEF x% 증가",
+    "공격력 증가": "* 공격력 증가<br>일정 턴 동안 STR x% 증가",
+    "속도 감소": "* 속도 감소<br>공격 시 65% 확률로 발생됩니다.<br>일정 턴 동안 SPD x% 감소",
+    "속도 증가": "* 속도 증가<br>일정 턴 동안 SPD x% 증가",
+    "치명타율 증가": "* 치명타율 증가<br>일정 턴 동안 치명타율 x% 증가",
+    "회피율 증가": "* 회피율 증가<br>일정 턴 동안 회피율 x% 증가",
+    회복: "* 회복",
+    혼란: "* 혼란<br>공격 시 29.5% 확률로 발생됩니다.<br>일정 턴 동안 명령 불가.<br>피아식별 없이 행동.",
+    금속화: "* 금속화<br>공격 시 25% 확률로 발생됩니다.<br>일정 턴 동안 행동 불가해지며, 턴마다 지속 피해를 입힙니다.<br>불속성에 취약해집니다.<br>나무속성 피격 시 해제됩니다.",
+    "잔류 에너지": "* 잔류 에너지<br>공격 시 65% 확률로 발생됩니다.<br>턴마다 지속 피해를 입힙니다.<br>빛속성에 취약해집니다.<br>흙속성 피격 시 해제됩니다.",
+    "꼭두각시": "* 꼭두각시<br>공격 시 **% 확률로 발생됩니다.<br>일정 턴 동안 명령이 불가해집니다.<br>피아식별 없이 행동하게 됩니다.<br>빛속성 피격 시 해제됩니다.",
+    "안개 장벽": "* 안개 장벽<br>일정 턴 동안 아군 모두에게 DEF x% 증가",
+    "영원한 잠": "* 영원한 잠<br>공격 시 18% 확률로 발생됩니다.<br>일정 턴 동안 행동 불가해집니다.<br>물 속성 피격 시 해제됩니다.",
+    "만개": "* 만개<br>2턴 동안 매 턴 HP를 261 회복합니다.",
+    "스나이퍼 미사일": "* 스나이퍼 미사일<br>공격 시 14% 확률로 발생됩니다.<br>일정 턴 동안 행동 불가.<br>불 속성에 취약해집니다.<br>물리 속성 피격 시 해제됩니다.",
+    감염: "* 감염<br>공격 시 30% 확률로 발생합니다.<br>턴마다 지속 피해를 입힙니다.<br>일정 턴 동안 명령이 불가해집니다.<br>피아식별 없이 행동하게 됩니다."
+  };
+
+  const effectDescriptionsLower = Object.keys(effectDescriptions).reduce(
+    (acc, key) => {
+      acc[key.toLowerCase()] = effectDescriptions[key];
+      return acc;
+    },
+    {}
+  );
+
+  function showEffectTooltip(e, effectName, digimonName, skillNumber) {
+    if (!effectName) return;
+    const normalizedEffect = effectName.trim().toLowerCase();
+    let effectDescription = effectDescriptionsLower[normalizedEffect] || "효과 설명을 찾을 수 없습니다.";
+
+    const safeDigimonName = digimonName ? digimonName.replace(/:/g, '_') : '';
+
+    let effectImagePath = `https://media.dsrwiki.com/dsrwiki/debuff/${effectName}.webp`;
+    if (normalizedEffect === "회복") {
+      effectImagePath = `https://media.dsrwiki.com/dsrwiki/digimon/${safeDigimonName}/skill${skillNumber}.webp`;
+    } else if (normalizedEffect === "스택 증가") {
+      effectImagePath = `https://media.dsrwiki.com/dsrwiki/debuff/스택.webp`;
+      if (digimonName === "황룡몬") {
+        effectDescription = "황룡몬 전용 스택.<br>해당 스킬을 사용할 때마다 '음양' 스택이 1개씩 쌓입니다.<br><br>스택은 최대 3개까지 쌓을 수 있습니다."; // 황룡몬 스택 증가 설명 입력
+      } else if (digimonName === "벨페몬:레이지모드") {
+        effectDescription = "벨페몬:레이지모드 전용 스택.<br>해당 스킬을 사용할 때마다 '나태의 업화' 스택이 2개씩 쌓입니다.<br><br>스택은 최대 6개까지 쌓을 수 있습니다.";
+      } else if (digimonName === "알파몬:왕룡검") {
+        effectDescription = "알파몬:왕룡검 전용 스택.<br>해당 스킬을 사용할 때마다 '용혼' 스택이 1개씩 쌓입니다.<br><br>스택은 최대 2개까지 쌓을 수 있습니다.";
+      }
+    } else if (normalizedEffect === "스택 소모") {
+      effectImagePath = `https://media.dsrwiki.com/dsrwiki/digimon/${safeDigimonName}/stack.webp`;
+      if (digimonName === "황룡몬") {
+        effectDescription = "황룡몬 전용 스택.<br>황룡몬이 보유한 음양 스택이 1/2/3개 일 때,<br>'황회' 스킬의 대미지가 1.4/2.26/3.45배 증가합니다.<br><br>'황회' 스킬 사용 시 보유 중인 모든 스택을 소모합니다."; // 황룡몬 스택 소모 설명 입력
+      } else if (digimonName === "벨페몬:레이지모드") {
+        effectDescription = "벨페몬:레이지모드 전용 스택.<br>벨페몬:레이지모드가 보유한 나태의 업화 스택이 3/5개 일 때,<br>'기프트 오브 다크네스' 스킬의 대미지가 2.33/3.44배 증가합니다.";
+      } else if (digimonName === "알파몬:왕룡검") {
+        effectDescription = "알파몬:왕룡검 전용 '용혼' 스택.<br>보유 스택이 1/2개일 때 '디지털라이즈 오브 소울'의 대미지가 1.72/2.76배가 됩니다.<br>해당 스킬 사용 시 보유 중인 모든 용혼 스택을 소모합니다.";
+      }
+    }
+
+    const content = `
+      <div class="tooltip-content">
+        <img loading="lazy" src="${effectImagePath}" alt="${effectName} 이미지" class="tooltip-inner-img" ${normalizedEffect === "스택 소모" ? 'onerror="this.onerror=null;this.src=\'https://media.dsrwiki.com/dsrwiki/debuff/스택.webp\';"' : ''}>
+        <div class="tooltip-description">${effectDescription}</div>
+      </div>
+    `;
+
+    showCustomTooltip(e, content, true);
+  }
+
+  function showConvertibleTooltip(e, changeAttrString) {
+    const changeAttrs = changeAttrString ? changeAttrString.split(',').map(a => a.trim()).filter(Boolean) : [];
+    let content = "";
+    if (changeAttrs.length > 0) {
+      content = `
+        <div class="convertible-tooltip-content" style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-weight: bold; font-size: 14px; color: #fff;">변환 가능 속성:</span>
+          <div style="display: flex; gap: 4px; align-items: center;">
+            ${changeAttrs.map(attr => `
+              <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/${attr}.webp" alt="${attr}" style="width: 26px; height: 26px; object-fit: contain; vertical-align: middle;">
+            `).join('')}
+          </div>
+        </div>
+      `;
+    } else {
+      content = `
+        <div class="convertible-tooltip-content" style="display: flex; align-items: center; gap: 6px;">
+          <span style="font-weight: bold; font-size: 14px; color: #fff;">변환 가능 속성:</span>
+          <span style="font-size: 14px; color: #bbb;">없음</span>
+        </div>
+      `;
+    }
+    showCustomTooltip(e, content, true);
+  }
+
+  // ====================================================
+  // 2. 필터 상태 관리 및 초기화
+  // ====================================================
+
+  // 페이지 로드 시 필터 상태 복원
+  function restoreFilterState() {
+    // 필터를 항상 펼친 상태로 유지 (기본값)
+    const filtersContent = document.getElementById('filters-content');
+    const toggleBtn = document.getElementById('toggle-filters-btn');
+    const icon = toggleBtn.querySelector('i');
+
+    // collapsed 클래스 제거하여 펼친 상태로 설정
+    filtersContent.classList.remove('collapsed');
+    icon.className = 'ri-arrow-up-s-line';
+
+    // localStorage에서 기존 값 제거
+    localStorage.removeItem('digimonFiltersCollapsed');
+  }
+
+  // 필터 상태 저장
+  function saveFilterState() {
+    const filtersContent = document.getElementById('filters-content');
+    const isCollapsed = filtersContent.classList.contains('collapsed');
+    localStorage.setItem('digimonFiltersCollapsed', isCollapsed);
+  }
+
+  // ====================================================
+  // 3. JSON Loader Module
+  // ====================================================
+  const JSONLoader = {
+    async loadJSON(url) {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error('Error loading JSON:', error);
+        return null;
+      }
+    }
+  };
+
+  // ====================================================
+  // 3. TableDataManager Module
+  // ====================================================
+  const TableDataManager = {
+    showLoading() {
+      const loadingSpinner = document.getElementById('loading-spinner');
+      const resultTable = document.querySelector('.result-table');
+      if (loadingSpinner) loadingSpinner.classList.remove('hidden');
+      if (resultTable) resultTable.style.display = 'none';
+    },
+
+    hideLoading() {
+      const loadingSpinner = document.getElementById('loading-spinner');
+      const resultTable = document.querySelector('.result-table');
+      if (loadingSpinner) loadingSpinner.classList.add('hidden');
+      if (resultTable) resultTable.style.display = 'table';
+    },
+
+    async fetchData(fresh = false) {
+      try {
+        // 로딩 표시 시작
+        this.showLoading();
+
+        // fresh: 관리자가 저장한 직후에는 브라우저 캐시를 건너뜀
+        const response = await fetch('https://media.dsrwiki.com/data/csv/digimon.json' + (fresh ? `?t=${Date.now()}` : ''), fresh ? { cache: 'no-store' } : undefined);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const digimonData = await response.json();
+        if (!digimonData) return;
+
+        const tableBody = document.getElementById("characterTable");
+        tableBody.innerHTML = "";
+
+        Object.entries(digimonData).forEach(([name, digimon]) => {
+          try {
+            if (name === '멧돼지몬') return;
+            const evolution = digimon.evolution_stage;
+            const type = digimon.type;
+            const stats = digimon.stats;
+            const strengths = digimon.strengths;
+            const weaknesses = digimon.weaknesses;
+            const fields = digimon.fields.join(";");
+
+            const typeImagePath = `https://media.dsrwiki.com/dsrwiki/${type}.webp`;
+            const typeImgHtml = `<img loading="lazy" src="${typeImagePath}" alt="${type}" 
+              class="digimon-type-img"
+              onmouseenter="showCustomTooltip(event, '${type}')"
+              onmousemove="showCustomTooltip(event, '${type}')"
+              onmouseleave="hideCustomTooltip()"
+            >`;
+
+            const strongHtml = strengths.attribute
+              ? `<img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/${strengths.attribute}.webp" alt="${strengths.attribute}" 
+                  class="digimon-attr-img bg-strong"
+                  onmouseenter="showCustomTooltip(event, '${strengths.attribute}')"
+                  onmousemove="showCustomTooltip(event, '${strengths.attribute}')"
+                  onmouseleave="hideCustomTooltip()"
+                > <span>${strengths.effect || ""}</span>`
+              : "";
+
+            const weakHtml = weaknesses.attribute
+              ? `<img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/${weaknesses.attribute}.webp" alt="${weaknesses.attribute}" 
+                  class="digimon-attr-img bg-weak"
+                  onmouseenter="showCustomTooltip(event, '${weaknesses.attribute}')"
+                  onmousemove="showCustomTooltip(event, '${weaknesses.attribute}')"
+                  onmouseleave="hideCustomTooltip()"
+                > <span>${weaknesses.effect || ""}</span>`
+              : "";
+
+            const fieldsHtml = fields
+              ? fields
+                .split(";")
+                .map(field => field.trim())
+                .filter(field => field !== "")
+                .map(
+                  (field) =>
+                    `<img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/field/${field}.webp" alt="${field}" 
+                        class="digimon-field-img"
+                        onmouseenter="showCustomTooltip(event, '${field}')"
+                        onmousemove="showCustomTooltip(event, '${field}')"
+                        onmouseleave="hideCustomTooltip()"
+                      >`
+                )
+                .join("")
+              : "";
+
+            const createSkillHtml = (skill, skillNumber, digimonName) => {
+              if (!skill) return "<td></td>";
+              let isAoE = skill.target_count === "전체";
+              let isCast = !!skill.additionalTurn;
+              let isHPCost = !!skill.hpCost;
+              let skillClass = "";
+
+              if (isAoE && isCast && isHPCost) {
+                skillClass = "skill-bg-mixed-all";
+              } else if (isAoE && isCast) {
+                skillClass = "skill-bg-mixed-aoe-cast";
+              } else if (isAoE && isHPCost) {
+                skillClass = "skill-bg-mixed-aoe-hp";
+              } else if (isCast && isHPCost) {
+                skillClass = "skill-bg-mixed-cast-hp";
+              } else if (isHPCost) {
+                skillClass = "skill-bg-green";
+              } else if (isCast) {
+                skillClass = "skill-bg-red";
+              } else if (isAoE) {
+                skillClass = "skill-bg-blue";
+              }
+
+              let effectTooltipHtml = "";
+              if (skill.effect) {
+                // 콤마로 구분된 여러 효과 처리
+                const effects = skill.effect.split(',').map(e => e.trim());
+
+                effectTooltipHtml = effects.map(eff => {
+                  const normalizedEff = eff.toLowerCase();
+                  let effectImagePath = `https://media.dsrwiki.com/dsrwiki/debuff/${eff}.webp`;
+
+                  if (normalizedEff === "회복") {
+                    effectImagePath = `https://media.dsrwiki.com/dsrwiki/digimon/${digimonName}/skill${skillNumber}.webp`;
+                  } else if (normalizedEff === "스택 증가") {
+                    effectImagePath = `https://media.dsrwiki.com/dsrwiki/debuff/스택.webp`;
+                  } else if (normalizedEff === "스택 소모") {
+                    effectImagePath = `https://media.dsrwiki.com/dsrwiki/digimon/${digimonName.replace(/:/g, '_')}/stack.webp`;
+                  }
+
+                  return `<img loading="lazy" src="${effectImagePath}" alt="${eff}" 
+                      class="digimon-effect-img"
+                      data-default-effect="${eff}"
+                      data-digimon-name="${digimonName}"
+                      data-skill-number="${skillNumber}"
+                      ${normalizedEff === "스택 소모" ? 'onerror="this.onerror=null;this.src=\'https://media.dsrwiki.com/dsrwiki/debuff/스택.webp\';"' : ''}
+                      onmouseenter="showEffectTooltip(event, '${eff}', '${digimonName}', ${skillNumber})"
+                      onmousemove="showEffectTooltip(event, '${eff}', '${digimonName}', ${skillNumber})"
+                      onmouseleave="hideCustomTooltip()"
+                      style="margin-right: 2px;"
+                     >`;
+                }).join('');
+              }
+
+              const changeAttrString = skill.change && Array.isArray(skill.change) ? skill.change.join(',') : '';
+
+              return `
+                <td class="${skillClass}">
+                  <div style="position: relative; display: inline-block;" class="main-skill-icon-wrapper">
+                    <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/${skill.attribute}.webp" alt="${skill.attribute}" 
+                      class="digimon-attr-img bg-skill main-skill-icon"
+                      data-default-attr="${skill.attribute}"
+                      onmouseenter="showConvertibleTooltip(event, '${changeAttrString}')"
+                      onmousemove="showConvertibleTooltip(event, '${changeAttrString}')"
+                      onmouseleave="hideCustomTooltip()"
+                    >
+                  </div>
+                  ${effectTooltipHtml}
+                  <span>${skill.hits === '보조' ? skill.hits : `${skill.hits}타`} / ${skill.range}${skill.additionalTurn ? ` <span style="font-size: 0.9em; color: gray;">(${skill.additionalTurn})</span>` : ''}</span>
+                </td>
+              `;
+            };
+
+            // 표시명은 폼몬으로 변경됐지만 기존 CDN 이미지 경로는 유지한다.
+            const sanitizedName = (name === "폼몬" ? "포무몬" : name).replace(/[:]/g, "_");
+            const characterImagePath = `https://media.dsrwiki.com/dsrwiki/digimon/${sanitizedName}/${sanitizedName}.webp`;
+
+            const newRow = document.createElement("tr");
+            newRow.dataset.name = name;
+            newRow.dataset.evolution = evolution;
+            newRow.dataset.type = type;
+            newRow.dataset.level = stats.level;
+            newRow.dataset.hp = stats.hp;
+            newRow.dataset.sp = stats.sp;
+            newRow.dataset.힘 = stats.STR;
+            newRow.dataset.지능 = stats.INT;
+            newRow.dataset.수비 = stats.DEF;
+            newRow.dataset.저항 = stats.RES;
+            newRow.dataset.속도 = stats.SPD;
+            newRow.dataset.강점 = strengths.attribute;
+            newRow.dataset.강점효과 = strengths.effect;
+            newRow.dataset.약점 = weaknesses.attribute;
+            newRow.dataset.약점효과 = weaknesses.effect;
+            newRow.dataset.fields = fields;
+
+            // 스킬 속성 및 변환 데이터 저장
+            newRow.dataset.skill1Attr = digimon.skills[0]?.attribute || "";
+            newRow.dataset.skill2Attr = digimon.skills[1]?.attribute || "";
+            newRow.dataset.skill3Attr = digimon.skills[2]?.attribute || "";
+            newRow.dataset.skill1Change = digimon.skills[0]?.change ? digimon.skills[0].change.join(',') : "";
+            newRow.dataset.skill2Change = digimon.skills[1]?.change ? digimon.skills[1].change.join(',') : "";
+            newRow.dataset.skill3Change = digimon.skills[2]?.change ? digimon.skills[2].change.join(',') : "";
+
+            // 스킬 효과 데이터 저장
+            newRow.dataset.skill1Effect = digimon.skills[0]?.effect || "";
+            newRow.dataset.skill2Effect = digimon.skills[1]?.effect || "";
+            newRow.dataset.skill3Effect = digimon.skills[2]?.effect || "";
+
+            newRow.innerHTML = `
+              <td>
+                <div class="digimon-icon-container">
+                  <img loading="lazy" src="${characterImagePath}" alt="${name}" class="digimon-icon" onerror="this.src='https://media.dsrwiki.com/dsrwiki/digimon/default.webp';">
+                </div>
+                <a href="/detail?name=${encodeURIComponent(name)}" class="digimon-link">${name}</a>
+              </td>
+              <td class="digimon-table-cell">${stats.level}</td>
+              <td class="digimon-table-cell">${evolution}</td>
+              <td class="digimon-table-cell">
+                ${typeImgHtml}
+              </td>
+              <td class="digimon-table-cell digimon-cell-border-left">${stats.hp}</td>
+              <td class="digimon-table-cell">${stats.sp}</td>
+              <td class="digimon-table-cell">${stats.STR}</td>
+              <td class="digimon-table-cell">${stats.INT}</td>
+              <td class="digimon-table-cell">${stats.DEF}</td>
+              <td class="digimon-table-cell">${stats.RES}</td>
+              <td class="digimon-table-cell">${stats.SPD}</td>
+              <td class="digimon-cell-border-left">${strongHtml}</td>
+              <td class="digimon-cell-border-right">${weakHtml}</td>
+              ${createSkillHtml(digimon.skills[0], 1, name)}
+              ${createSkillHtml(digimon.skills[1], 2, name)}
+              ${createSkillHtml(digimon.skills[2], 3, name)}
+              <td class="digimon-cell-border-left">${fieldsHtml}</td>
+            `;
+            newRow.style.display = "";
+            tableBody.appendChild(newRow);
+          } catch (error) {
+            console.error('Error processing digimon:', error, name, digimon);
+          }
+        });
+
+        originalRows = Array.from(tableBody.rows);
+
+        // 로딩 완료 후 로딩 표시 숨김
+        this.hideLoading();
+
+        // 데이터 로딩 완료 후 필터 상태 복원
+        restoreFilterState();
+
+        // 관리자 도구가 수정 버튼을 붙일 수 있도록 알림
+        window.DSRDigimon.data = digimonData;
+        document.dispatchEvent(new CustomEvent('digimon:rendered', { detail: { data: digimonData } }));
+      } catch (error) {
+        console.error('Error in fetchData:', error);
+        // 에러 발생 시에도 로딩 표시 숨김
+        this.hideLoading();
+      }
+    }
+  };
+
+  // ... (The rest of the code remains the same) ...
+
+  // ====================================================
+  // 4. FilterModule Module (필터 토글 및 테이블 필터링)
+  // ====================================================
+  const FilterModule = {
+
+    toggleEvolution(evolution) {
+      const index = filters.evolution.indexOf(evolution);
+      if (index > -1) {
+        filters.evolution.splice(index, 1);
+        document.getElementById(evolution).classList.remove("active");
+      } else {
+        filters.evolution.push(evolution);
+        document.getElementById(evolution).classList.add("active");
+      }
+      this.filterTable();
+    },
+
+    toggleType(type) {
+      const index = filters.type.indexOf(type);
+      if (index > -1) {
+        filters.type.splice(index, 1);
+        document.getElementById(type).classList.remove("active");
+      } else {
+        filters.type.push(type);
+        document.getElementById(type).classList.add("active");
+      }
+      this.filterTable();
+    },
+
+    toggleSkill1(skill) {
+      const index = filters.skill1.indexOf(skill);
+      const btnId = `skill1_${skill}`;
+      if (index > -1) {
+        filters.skill1.splice(index, 1);
+        document.getElementById(btnId).classList.remove("active");
+      } else {
+        filters.skill1.push(skill);
+        document.getElementById(btnId).classList.add("active");
+      }
+      this.filterTable();
+    },
+
+    toggleSkill2(skill) {
+      const index = filters.skill2.indexOf(skill);
+      const btnId = `skill2_${skill}`;
+      if (index > -1) {
+        filters.skill2.splice(index, 1);
+        document.getElementById(btnId).classList.remove("active");
+      } else {
+        filters.skill2.push(skill);
+        document.getElementById(btnId).classList.add("active");
+      }
+      this.filterTable();
+    },
+
+    toggleSkill3(skill) {
+      const index = filters.skill3.indexOf(skill);
+      const btnId = `skill3_${skill}`;
+      if (index > -1) {
+        filters.skill3.splice(index, 1);
+        document.getElementById(btnId).classList.remove("active");
+      } else {
+        filters.skill3.push(skill);
+        document.getElementById(btnId).classList.add("active");
+      }
+      this.filterTable();
+    },
+
+    toggleSkillStrong(skillstrong) {
+      const strength = skillstrong.replace("strong_", "");
+      const index = filters.strong.indexOf(strength);
+      if (index > -1) {
+        filters.strong.splice(index, 1);
+        document.getElementById(skillstrong).classList.remove("active");
+      } else {
+        filters.strong.push(strength);
+        document.getElementById(skillstrong).classList.add("active");
+      }
+      this.filterTable();
+    },
+
+    toggleSkillWeak(skillweak) {
+      const weakness = skillweak.replace("weak_", "");
+      const index = filters.weak.indexOf(weakness);
+      if (index > -1) {
+        filters.weak.splice(index, 1);
+        document.getElementById(skillweak).classList.remove("active");
+      } else {
+        filters.weak.push(weakness);
+        document.getElementById(skillweak).classList.add("active");
+      }
+      this.filterTable();
+    },
+
+    toggleField(field) {
+      const index = filters.field.indexOf(field);
+      if (index > -1) {
+        filters.field.splice(index, 1);
+        document.getElementById(field).classList.remove("active");
+      } else {
+        filters.field.push(field);
+        document.getElementById(field).classList.add("active");
+      }
+      this.filterTable();
+    },
+
+    toggleEffect(effect) {
+      const effectName = effect.replace("effect_", "");
+      // HTML ID를 실제 effect 값으로 매핑
+      const effectMapping = {
+        "공격력증가": "공격력 증가",
+        "방어력감소": "방어력 감소",
+        "방어력증가": "방어력 증가",
+        "속도감소": "속도 감소",
+        "속도증가": "속도 증가",
+        "치명타율증가": "치명타율 증가",
+        "회피율증가": "회피율 증가",
+        "잔류에너지": "잔류 에너지",
+        "안개장벽": "안개 장벽",
+        "영원한잠": "영원한 잠",
+        "스나이퍼미사일": "스나이퍼 미사일"
+      };
+
+      const actualEffectName = effectMapping[effectName] || effectName;
+      const index = filters.effect.indexOf(actualEffectName);
+      if (index > -1) {
+        filters.effect.splice(index, 1);
+        document.getElementById(effect).classList.remove("active");
+      } else {
+        filters.effect.push(actualEffectName);
+        document.getElementById(effect).classList.add("active");
+      }
+      this.filterTable();
+    },
+    filterTable() {
+      const tableBody = document.getElementById("characterTable");
+      const rows = tableBody.querySelectorAll("tr");
+
+      // 데이터가 로딩되지 않았거나 행이 없으면 필터링하지 않음
+      if (!rows || rows.length === 0) {
+        return;
+      }
+
+      const hasFilter = Object.values(filters).some((filter) => filter.length > 0);
+
+      if (!hasFilter) {
+        rows.forEach(row => {
+          updateSkillEffectIcons(row.cells[13], row.dataset.skill1Attr || "");
+          updateSkillEffectIcons(row.cells[14], row.dataset.skill2Attr || "");
+          updateSkillEffectIcons(row.cells[15], row.dataset.skill3Attr || "");
+
+          row.querySelectorAll('.main-skill-icon').forEach((img) => {
+            const defaultAttr = img.dataset.defaultAttr;
+            img.src = `https://media.dsrwiki.com/dsrwiki/${defaultAttr}.webp`;
+            img.alt = defaultAttr;
+            img.classList.remove('converted-glow');
+          });
+          row.style.display = "";
+        });
+        return;
+      }
+
+      rows.forEach((row) => {
+        const evolutionMatches =
+          filters.evolution.length === 0 ||
+          filters.evolution.includes(row.dataset.evolution);
+        const typeMatches =
+          filters.type.length === 0 || filters.type.includes(row.dataset.type);
+        const fieldData = row.dataset.fields
+          ? row.dataset.fields
+            .split(";")
+            .map((field) => field.trim())
+            .filter(Boolean)
+          : [];
+        const fieldMatches =
+          filters.field.length === 0 ||
+          fieldData.some((field) => filters.field.includes(field));
+        const strength = row.dataset.강점 ? row.dataset.강점.trim() : "";
+        const weakness = row.dataset.약점 ? row.dataset.약점.trim() : "";
+        const strengthsMatch =
+          filters.strong.length === 0 ||
+          filters.strong.some((filter) => filter === strength);
+        const weaknessesMatch =
+          filters.weak.length === 0 ||
+          filters.weak.some((filter) => filter === weakness);
+
+        const skill1Attr = row.dataset.skill1Attr || "";
+        const skill2Attr = row.dataset.skill2Attr || "";
+        const skill3Attr = row.dataset.skill3Attr || "";
+        const skill1Change = row.dataset.skill1Change ? row.dataset.skill1Change.split(',').map(a => a.trim()).filter(Boolean) : [];
+        const skill2Change = row.dataset.skill2Change ? row.dataset.skill2Change.split(',').map(a => a.trim()).filter(Boolean) : [];
+        const skill3Change = row.dataset.skill3Change ? row.dataset.skill3Change.split(',').map(a => a.trim()).filter(Boolean) : [];
+
+        const updateSkillUI = (cell, defaultAttr, changeAttrs, activeFilter, effectString) => {
+          if (!defaultAttr) {
+            return activeFilter.length === 0;
+          }
+          if (!cell) return activeFilter.length === 0;
+          const img = cell.querySelector('.main-skill-icon');
+          if (!img) return activeFilter.length === 0;
+
+          if (activeFilter.length === 0) {
+            const effectMatchedAttr = getAttributeForEffectFilter(
+              effectString,
+              defaultAttr,
+              changeAttrs,
+              filters.effect
+            );
+            const displayedAttr = effectMatchedAttr || defaultAttr;
+
+            img.src = `https://media.dsrwiki.com/dsrwiki/${displayedAttr}.webp`;
+            img.alt = displayedAttr;
+            img.classList.toggle('converted-glow', displayedAttr !== defaultAttr);
+            updateSkillEffectIcons(cell, displayedAttr);
+            return true;
+          }
+
+          if (activeFilter.includes(defaultAttr)) {
+            img.src = `https://media.dsrwiki.com/dsrwiki/${defaultAttr}.webp`;
+            img.alt = defaultAttr;
+            img.classList.remove('converted-glow');
+            updateSkillEffectIcons(cell, defaultAttr);
+            return true;
+          }
+
+          const matchedConvertible = activeFilter.find(f => changeAttrs.includes(f));
+          if (matchedConvertible) {
+            img.src = `https://media.dsrwiki.com/dsrwiki/${matchedConvertible}.webp`;
+            img.alt = matchedConvertible;
+            img.classList.add('converted-glow');
+            updateSkillEffectIcons(cell, matchedConvertible);
+            return true;
+          }
+
+          img.src = `https://media.dsrwiki.com/dsrwiki/${defaultAttr}.webp`;
+          img.alt = defaultAttr;
+          img.classList.remove('converted-glow');
+          updateSkillEffectIcons(cell, defaultAttr);
+          return false;
+        };
+
+        const match1 = updateSkillUI(row.cells[13], skill1Attr, skill1Change, filters.skill1, row.dataset.skill1Effect);
+        const match2 = updateSkillUI(row.cells[14], skill2Attr, skill2Change, filters.skill2, row.dataset.skill2Effect);
+        const match3 = updateSkillUI(row.cells[15], skill3Attr, skill3Change, filters.skill3, row.dataset.skill3Effect);
+
+        const skillsMatch = match1 && match2 && match3;
+
+        // Effect 필터링 로직
+        const skill1Effects = getPossibleSkillEffects(
+          row.dataset.skill1Effect,
+          skill1Attr,
+          skill1Change,
+          filters.skill1
+        );
+        const skill2Effects = getPossibleSkillEffects(
+          row.dataset.skill2Effect,
+          skill2Attr,
+          skill2Change,
+          filters.skill2
+        );
+        const skill3Effects = getPossibleSkillEffects(
+          row.dataset.skill3Effect,
+          skill3Attr,
+          skill3Change,
+          filters.skill3
+        );
+        const effectMatches = filters.effect.length === 0 ||
+          filters.effect.some(effect =>
+            skill1Effects.has(effect) || skill2Effects.has(effect) || skill3Effects.has(effect)
+          );
+
+        if (
+          evolutionMatches &&
+          typeMatches &&
+          skillsMatch &&
+          fieldMatches &&
+          strengthsMatch &&
+          weaknessesMatch &&
+          effectMatches
+        ) {
+          row.style.display = "";
+        } else {
+          row.style.display = "none";
+        }
+      });
+    },
+    resetFilters() {
+      filters.evolution = [];
+      filters.type = [];
+      filters.skill1 = [];
+      filters.skill2 = [];
+      filters.skill3 = [];
+      filters.strong = [];
+      filters.weak = [];
+      filters.field = [];
+      filters.effect = [];
+      const filterButtons = document.querySelectorAll(
+        ".button-group button, .button-group-field button, .effect-btn"
+      );
+      filterButtons.forEach((button) => {
+        button.classList.remove("active");
+      });
+
+      this.filterTable();
+      console.log('Filters reset, showing all rows');
+    }
+  };
+
+  // ====================================================
+  // 5. Sorting Module
+  // ====================================================
+  function sortTable(column) {
+    const table = document.getElementById("characterTable");
+    const rows = Array.from(table.rows);
+    const typeOrder = ["백신", "데이터", "바이러스", "프리", "언노운", "노데이터"];
+
+    if (currentSortState.column === column) {
+      if (currentSortState.direction === 'none') {
+        currentSortState.direction = 'asc';
+      } else if (currentSortState.direction === 'asc') {
+        currentSortState.direction = 'desc';
+      } else {
+        currentSortState.direction = 'none';
+      }
+    } else {
+      currentSortState.column = column;
+      currentSortState.direction = 'asc';
+    }
+
+    if (currentSortState.direction !== 'none') {
+      rows.sort((a, b) => {
+        let cellA = a.cells[column].innerText.trim();
+        let cellB = b.cells[column].innerText.trim();
+
+        if (column === 0) {
+          cellA = a.cells[column].querySelector("a")?.innerText.trim() || cellA;
+          cellB = b.cells[column].querySelector("a")?.innerText.trim() || cellB;
+          return currentSortState.direction === 'asc' ?
+            cellA.localeCompare(cellB) :
+            cellB.localeCompare(cellA);
+        } else if (column === 3) {
+          cellA = a.cells[column].querySelector("img").alt.trim();
+          cellB = b.cells[column].querySelector("img").alt.trim();
+          const indexA = typeOrder.indexOf(cellA);
+          const indexB = typeOrder.indexOf(cellB);
+          const orderA = indexA === -1 ? typeOrder.length : indexA;
+          const orderB = indexB === -1 ? typeOrder.length : indexB;
+          return currentSortState.direction === 'asc' ?
+            orderA - orderB :
+            orderB - orderA;
+        } else {
+          const aValue = isNaN(parseFloat(cellA)) ? cellA : parseFloat(cellA);
+          const bValue = isNaN(parseFloat(cellB)) ? 0 : parseFloat(cellB);
+          if (aValue < bValue) return currentSortState.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return currentSortState.direction === 'asc' ? 1 : -1;
+          return 0;
+        }
+      });
+      rows.forEach((row) => table.appendChild(row));
+    } else {
+      table.innerHTML = '';
+      originalRows.forEach(row => table.appendChild(row));
+    }
+
+    updateSortIndicator(column);
+  }
+
+  function updateSortIndicator(column) {
+    const sortSpans = document.querySelectorAll('[id^="sort-"]');
+    sortSpans.forEach(span => {
+      span.className = '';
+    });
+
+    if (currentSortState.column === column && currentSortState.direction !== 'none') {
+      const sortSpan = document.getElementById(`sort-${getColumnId(column)}`);
+      if (sortSpan) {
+        sortSpan.className = currentSortState.direction === 'asc' ? 'ascending' : 'descending';
+      }
+    }
+  }
+
+  function getColumnId(column) {
+    const columnIds = [
+      'name', 'level', 'evolution', 'type', 'hp', 'sp',
+      'STR', 'INT', 'DEF', 'RES', 'SPD'
+    ];
+    return columnIds[column] || '';
+  }
+
+  // ====================================================
+  // 6. Search Module
+  // ====================================================
+  function initSearchListener() {
+    const searchInput = document.getElementById("search");
+    searchInput.addEventListener("input", function () {
+      const searchInputArray = this.value
+        .toLowerCase()
+        .split(",")
+        .map((term) => term.trim());
+      const rows = document.querySelectorAll("#characterTable tr");
+
+      // 데이터가 로딩되지 않았거나 행이 없으면 검색하지 않음
+      if (!rows || rows.length === 0) {
+        return;
+      }
+
+      const hasFilter = Object.values(filters).some(
+        (filter) => filter.length > 0
+      );
+      const isEmptySearch = searchInputArray.length === 1 && searchInputArray[0] === "";
+
+      // 빈 검색어의 전체 필터 복원은 행마다 반복하지 않고 한 번만 처리한다.
+      if (hasFilter && isEmptySearch) {
+        FilterModule.filterTable();
+        return;
+      }
+
+      rows.forEach((row) => {
+        const name = row.dataset.name ? row.dataset.name.toLowerCase() : "";
+        if (isEmptySearch) {
+          row.style.display = "none";
+        } else {
+          const nameMatches = searchInputArray.some((term) => name.includes(term));
+          row.style.display = nameMatches ? "" : "none";
+        }
+      });
+    });
+  }
+
+  // ====================================================
+  // 7. Tooltip Module
+  // ====================================================
+  let openTooltip = null;
+  function showTooltip(tooltipId) {
+    const tooltip = document.getElementById(tooltipId);
+    if (openTooltip && openTooltip !== tooltip) {
+      openTooltip.classList.remove("show");
+    }
+    tooltip.classList.add("show");
+    openTooltip = tooltip;
+  }
+
+  function hideTooltip(tooltipId) {
+    const tooltip = document.getElementById(tooltipId);
+    if (tooltip) {
+      tooltip.classList.remove("show");
+    }
+  }
+
+  function initTooltipCloseBtns() {
+    const closeBtns = document.querySelectorAll(".close-btn");
+    closeBtns.forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        const tooltip = btn.closest(".tooltip-skill, .tooltip-field");
+        if (tooltip) {
+          hideTooltip(tooltip.id);
+        }
+      });
+    });
+    document.querySelectorAll(".tooltip-skill, .tooltip-field").forEach((tooltip) => {
+      tooltip.addEventListener("click", (event) => {
+        event.stopPropagation();
+      });
+    });
+  }
+
+  // ====================================================
+  // 8. 초기화 및 전역 함수 노출
+  // ====================================================
+  // 이미지가 다 불러와질 때까지(window.onload) 기다리지 않고, HTML을 읽자마자 바로 데이터를 요청합니다.
+  // (이 스크립트는 defer 라서 실행 시점에 표와 필터 HTML이 이미 준비되어 있음)
+  const init = () => {
+    // 페이지 로드 시 로딩 표시를 보이도록 설정
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const resultTable = document.querySelector('.result-table');
+    if (loadingSpinner) loadingSpinner.classList.remove('hidden');
+    if (resultTable) resultTable.style.display = 'none';
+
+    // 필터 상태 복원을 데이터 로딩 완료 후로 이동
+    // restoreFilterState();
+
+    TableDataManager.fetchData();
+    initSearchListener();
+    initTooltipCloseBtns();
+    initDigimonAdminLoader();
+  };
+
+  // 관리자 도구: 주소 끝에 #admin 을 붙이거나 이미 로그인했으면 불러옵니다 (일반 방문자는 다운로드하지 않음)
+  window.DSRDigimon = {
+    data: null,
+    reload: () => TableDataManager.fetchData(true),
+  };
+
+  function initDigimonAdminLoader() {
+    let hasToken = false;
+    try { hasToken = !!sessionStorage.getItem('dsrCouponAdminToken'); } catch (e) { /* 저장소 차단 */ }
+    const wantsAdmin = () => location.hash === '#admin' || location.hash === '#coupon-admin';
+    const load = () => {
+      if (window.DSRDigimonAdmin) return window.DSRDigimonAdmin.open();
+      if (document.querySelector('script[data-digimon-admin]')) return;
+      if (!window.DSRAdminCore && !document.querySelector('script[data-admin-core]')) {
+        const core = document.createElement('script');
+        core.src = 'app/admin-core.js';
+        core.dataset.adminCore = '1';
+        core.async = false;
+        document.head.appendChild(core);
+      }
+      const script = document.createElement('script');
+      script.src = 'app/digimon-admin.js';
+      script.dataset.digimonAdmin = '1';
+      script.async = false;
+      document.head.appendChild(script);
+    };
+    window.addEventListener('hashchange', () => { if (wantsAdmin()) load(); });
+    if (wantsAdmin() || hasToken) load();
+  }
+
+  window.resetFilters = FilterModule.resetFilters.bind(FilterModule);
+  window.toggleEvolution = FilterModule.toggleEvolution.bind(FilterModule);
+  window.toggleType = FilterModule.toggleType.bind(FilterModule);
+  window.toggleSkill1 = FilterModule.toggleSkill1.bind(FilterModule);
+  window.toggleSkill2 = FilterModule.toggleSkill2.bind(FilterModule);
+  window.toggleSkill3 = FilterModule.toggleSkill3.bind(FilterModule);
+  window.toggleSkillStrong = FilterModule.toggleSkillStrong.bind(FilterModule);
+  window.toggleSkillWeak = FilterModule.toggleSkillWeak.bind(FilterModule);
+  window.toggleField = FilterModule.toggleField.bind(FilterModule);
+  window.toggleEffect = FilterModule.toggleEffect.bind(FilterModule);
+  window.sortTable = sortTable;
+  window.showTooltip = showTooltip;
+  window.hideTooltip = hideTooltip;
+  window.showCustomTooltip = showCustomTooltip;
+  window.hideCustomTooltip = hideCustomTooltip;
+  window.showEffectTooltip = showEffectTooltip;
+  window.showConvertibleTooltip = showConvertibleTooltip;
+  window.toggleFilters = toggleFilters;
+
+  // 모든 함수를 연결한 뒤 시작
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();

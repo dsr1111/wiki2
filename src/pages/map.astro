@@ -1,0 +1,46 @@
+---
+// 기존 map.html 을 옮긴 페이지
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="맵">
+  <Fragment slot="head">
+    <link rel="stylesheet" href="/assets/css/pages/map/main.css" />
+    <link rel="stylesheet" href="/assets/css/styles1.css?p=map" />
+  </Fragment>
+
+  <div class="container1" style="position: relative" ;>
+    <div class="main">
+      <p>지도</p>
+      <div class="dropdown">
+        <div class="dropdown-con">
+          <select id="con-dropdown">
+            <option value="파일섬" selected>파일섬</option>
+            <option value="서버대륙">서버대륙</option>
+            <option value="현실 세계">현실 세계</option>
+            <option value="스파이럴 마운틴">스파이럴 마운틴</option>
+            <option value="데이터 세계">데이터 세계</option>
+          </select>
+        </div>
+        <div class="dropdown-map">
+          <select id="map-dropdown">
+
+          </select>
+        </div>
+        <button class="dropdown-icon">
+          아이콘 필터 <span class="arrow">▼</span>
+        </button>
+        <div class="dropdown-content" id="dropdown-content"></div>
+      </div>
+    </div>
+
+    <div id="image-container">
+    </div>
+  </div>
+  <!-- (Astro) 기존 map.html 에 짝 없는 </div> 가 하나 더 있었음. 브라우저는 무시하지만 Astro 는 오류를 내므로 제거 -->
+
+  <script>
+    import { onPage } from '../scripts/page.js';
+    import { init } from '../scripts/map.js';
+    onPage('map', init);
+  </script>
+</Layout>

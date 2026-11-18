@@ -1,0 +1,16 @@
+// Cloudflare Workers 배포 설정 (정적 사이트)
+// - npm run build 로 만든 dist/ 폴더를 그대로 올림
+// - 임시 주소: https://dsr-wiki.<계정 이름>.workers.dev
+// - 관리자 저장용 API(기존 Netlify 함수)는 3단계에서 main 스크립트로 추가 예정
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dsr-wiki",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    // /map → map.html 을 보여 주고, /map.html 이나 /map/ 으로 오면 /map 으로 보냄 (기존 주소와 동일)
+    "html_handling": "drop-trailing-slash",
+    // 없는 주소는 dist/404.html (있으면) 로
+    "not_found_handling": "404-page"
+  }
+}

@@ -1,0 +1,51 @@
+---
+// 기존 detector.html 을 옮긴 페이지
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="탐지기" bodyClass="bg-gray-100" bodyStyle="font-family: 'Pretendard', sans-serif;">
+  <Fragment slot="head">
+    <link rel="stylesheet" href="/assets/css/styles1.css?p=detector" />
+    <link rel="stylesheet" href="/assets/css/pages/detector/main.css" />
+    <link rel="stylesheet" href="/assets/css/tw/detector.css" />
+  </Fragment>
+
+  <div class="mt-20 md:mt-28">
+    <div class="container mx-auto px-4">
+
+      <div class="mb-8">
+        <div class="section-title">탐지기</div>
+        <div id="detectorGrid" class="detector-flex mb-4">
+          <!-- 탐지기 버튼들이 여기에 동적으로 추가됩니다 -->
+        </div>
+        <hr class="section-divider">
+        <div class="section-title">악역 디지몬</div>
+        <div id="digimonGrid" class="digimon-flex mb-4 hidden">
+          <!-- 디지몬 버튼들이 여기에 동적으로 추가됩니다 -->
+        </div>
+        <div class="flex flex-col md:flex-row items-start gap-0 mt-12">
+          <div id="mapContainer" class="relative map-img-wrap hidden">
+            <img loading="lazy" id="mapImage" class="rounded-lg shadow-lg" src="" alt="맵 이미지">
+            <div id="digimonMarker"
+              class="absolute w-7 h-7 -translate-x-1/2 -translate-y-1/2 cursor-pointer hidden blink-shadow"
+              style="background: rgb(52,52,52); border-radius: 3px;">
+              <img loading="lazy" class="w-7 h-7 object-contain" src="" alt="디지몬">
+            </div>
+          </div>
+          <div class="flex flex-col md:flex-row gap-0 md:ml-4 w-full md:w-auto mt-4 md:mt-0">
+            <div id="digimonInfoCard"
+              class="hidden flex flex-col justify-center w-full md:w-auto md:min-w-[400px] md:h-[500px]"></div>
+            <div id="digimonMechanicCard"
+              class="hidden flex flex-col justify-center w-full md:w-auto md:min-w-[400px] md:h-[500px] md:ml-4 mt-4 md:mt-0">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    import { onPage } from '../scripts/page.js';
+    import { init } from '../scripts/detector.js';
+    onPage('detector', init);
+  </script>
+</Layout>

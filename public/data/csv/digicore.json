@@ -1,0 +1,564 @@
+{
+  "digicore": {
+    "갓드라몬": {
+      "items": [
+        {
+          "name": "홀리 링",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "오파니몬": {
+      "items": [
+        {
+          "name": "홀리 링",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "페닉스몬": {
+      "items": [
+        {
+          "name": "홀리 링",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 2
+        },
+        {
+          "name": "사랑의 기운",
+          "probability": "6%",
+          "tradeable": false,
+          "count": 1
+        }
+      ]
+    },
+    "세라피몬": {
+      "items": [
+        {
+          "name": "희망의 기운",
+          "probability": "11.3%",
+          "tradeable": false,
+          "count": 1
+        }
+      ]
+    },
+    "헤라클레스캅테리몬": {
+      "items": [
+        {
+          "name": "지식의 기운",
+          "probability": "6%",
+          "tradeable": false,
+          "count": 1
+        }
+      ]
+    },
+    "로제몬": {
+      "items": [
+        {
+          "name": "순수의 기운",
+          "probability": "7.5%",
+          "tradeable": false,
+          "count": 1
+        }
+      ]
+    },
+    "바이킹몬": {
+      "items": [
+        {
+          "name": "성실의 기운",
+          "probability": "9%",
+          "tradeable": false,
+          "count": 1
+        }
+      ]
+    },
+    "홀리드라몬": {
+      "items": [
+        {
+          "name": "빛의 기운",
+          "probability": "9%",
+          "tradeable": false,
+          "count": 1
+        }
+      ]
+    },
+    "마린엔젤몬": {
+      "items": [
+        {
+          "name": "홀리 링",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "홀리엔젤몬": {
+      "items": [
+        {
+          "name": "홀리 링",
+          "probability": "60%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "패롯몬": {
+      "items": [
+        {
+          "name": "홀리 링",
+          "probability": "20%",
+          "tradeable": true,
+          "count": 2
+        }
+      ]
+    },
+    "엔젤우몬": {
+      "items": [
+        {
+          "name": "홀리 링",
+          "probability": "60%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "플롯트몬": {
+      "items": [
+        {
+          "name": "홀리 링",
+          "probability": "20%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "테이파몬": {
+      "items": [
+        {
+          "name": "홀리 링",
+          "probability": "20%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "가트몬": {
+      "items": [
+        {
+          "name": "홀리 링",
+          "probability": "40%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "그랜쿠가몬": {
+      "items": [
+        {
+          "name": "강인한 그랜쿠가몬의 디지코어",
+          "probability": "40%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "메가드라몬": {
+      "items": [
+        {
+          "name": "메가 핸드",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "타임몬": {
+      "items": [
+        {
+          "name": "타임몬의 시계바늘(1시간)",
+          "probability": "50%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "메탈그레이몬": {
+      "items": [
+        {
+          "name": "메탈그레이몬의 파츠 데이터",
+          "probability": "100%",
+          "tradeable": false,
+          "count": 1,
+          "description": "사용 시 다음 아이템 중 하나를 획득할 수 있습니다.",
+          "possible_items": [
+            {
+              "name": "트라이던트 암",
+              "tradeable": true,
+              "probability": "확률",
+              "count": 1
+            },
+            {
+              "name": "메탈그레이몬의 갈기",
+              "tradeable": true,
+              "probability": "확률",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    "엔젤몬": {
+      "items": [
+        {
+          "name": "엔젤몬의 날개",
+          "probability": "50%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "가루몬": {
+      "items": [
+        {
+          "name": "가루몬의 다리",
+          "probability": "50%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "로프몬": {
+      "items": [
+        {
+          "name": "로프몬의 의지",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 1
+        },
+        {
+          "name": "로프몬의 의지",
+          "probability": "50%",
+          "tradeable": true,
+          "count": 2
+        }
+      ]
+    },
+    "메탈콩알몬": {
+      "items": [
+        {
+          "name": "사이코 블래스터",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "발두르몬": {
+      "items": [
+        {
+          "name": "발두르몬의 깃털",
+          "probability": "10%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "오메가몬": {
+      "items": [
+        {
+          "name": "오메가몬의 성스러운 데이터",
+          "probability": "100%",
+          "tradeable": false,
+          "count": 1,
+          "description": "구성품 중 하나를 랜덤하게 획득 가능",
+          "possible_items": [
+            {
+              "name": "발두르몬의 깃털",
+              "tradeable": false,
+              "probability": "확률",
+              "count": 1
+            },
+            {
+              "name": "오메가 블레이드",
+              "tradeable": true,
+              "probability": "확률",
+              "count": 1
+            }
+          ]
+        }
+      ]
+    },
+    "밀레니엄몬": {
+      "items": [
+        {
+          "name": "밀레니엄몬의 데이터 덩어리",
+          "probability": "100%",
+          "tradeable": false,
+          "count": 1,
+          "description": "구성품 중 하나를 랜덤하게 획득 가능",
+          "possible_items": [
+            {
+              "name": "문밀레니엄몬의 데이터 흔적",
+              "tradeable": false,
+              "probability": "확률",
+              "count": 1,
+              "description": "구성품 중 하나를 랜덤하게 획득 가능",
+              "possible_items": [
+                {
+                  "name": "밀레니엄몬의 어둠의 마음",
+                  "tradeable": true,
+                  "probability": "확률",
+                  "count": 1
+                },
+                {
+                  "name": "불길한 마음의 조각",
+                  "tradeable": false,
+                  "probability": "확률",
+                  "count": 100
+                },
+                {
+                  "name": "불길한 마음의 조각",
+                  "tradeable": true,
+                  "probability": "확률",
+                  "count": 100
+                }
+              ]
+            },
+            {
+              "name": "지드밀레니엄몬의 데이터 흔적",
+              "tradeable": false,
+              "probability": "확률",
+              "count": 1,
+              "description": "구성품 중 하나를 랜덤하게 획득 가능",
+              "possible_items": [
+                {
+                  "name": "밀레니엄몬의 어둠의 영혼",
+                  "tradeable": true,
+                  "probability": "확률",
+                  "count": 1
+                },
+                {
+                  "name": "불길한 광석",
+                  "tradeable": false,
+                  "probability": "확률",
+                  "count": 100
+                },
+                {
+                  "name": "불길한 광석",
+                  "tradeable": true,
+                  "probability": "확률",
+                  "count": 100
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "워그레이몬": {
+      "items": [
+        {
+          "name": "조각난 불굴의 용기",
+          "probability": "5.6%",
+          "tradeable": false,
+          "count": 1
+        }
+      ]
+    },
+    "듀크몬": {
+      "items": [
+        {
+          "name": "홀리 링",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "슬래쉬엔젤몬": {
+      "items": [
+        {
+          "name": "홀리 링",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "크로스몬": {
+      "items": [
+        {
+          "name": "홀리 링",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "쿠다몬": {
+      "items": [
+        {
+          "name": "홀리 링",
+          "probability": "20%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "케루비몬(선)": {
+      "items": [
+        {
+          "name": "홀리 링",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 2
+        }
+      ]
+    },
+    "메탈가루몬": {
+      "items": [
+        {
+          "name": "조각난 불멸의 우정",
+          "probability": "5.6%",
+          "tradeable": false,
+          "count": 1
+        }
+      ]
+    },
+    "청룡몬": {
+      "items": [
+        {
+          "name": "동방의 태극",
+          "probability": "100%",
+          "tradeable": false,
+          "count": 1
+        }
+      ]
+    },
+    "백호몬": {
+      "items": [
+        {
+          "name": "서방의 태극",
+          "probability": "100%",
+          "tradeable": false,
+          "count": 1
+        }
+      ]
+    },
+    "주작몬": {
+      "items": [
+        {
+          "name": "남방의 태극",
+          "probability": "100%",
+          "tradeable": false,
+          "count": 1
+        }
+      ]
+    },
+    "현무몬": {
+      "items": [
+        {
+          "name": "북방의 태극",
+          "probability": "100%",
+          "tradeable": false,
+          "count": 1
+        }
+      ]
+    },
+    "고래몬": {
+      "items": [
+        {
+          "name": "고래 석상",
+          "probability": "8.8%",
+          "tradeable": true,
+          "count": 1,
+          "mutant": true
+        }
+      ]
+    },
+    "피노키몬": {
+      "items": [
+        {
+          "name": "브롯사몬 탐지기",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 2
+        }
+      ]
+    },
+    "로제몬:버스트모드": {
+      "items": [
+        {
+          "name": "브롯사몬 탐지기",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 2
+        }
+      ]
+    },
+    "뿌띠몬": {
+      "items": [
+        {
+          "name": "브롯사몬 탐지기",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "릴리몬": {
+      "items": [
+        {
+          "name": "브롯사몬 탐지기",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "라일라몬": {
+      "items": [
+        {
+          "name": "브롯사몬 탐지기",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "쥬레이몬": {
+      "items": [
+        {
+          "name": "브롯사몬 탐지기",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "브롯사몬": {
+      "items": [
+        {
+          "name": "브롯사몬 탐지기",
+          "probability": "100%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    },
+    "리리스몬": {
+      "items": [
+        {
+          "name": "리리스몬의 목줄",
+          "probability": "13.38%",
+          "tradeable": true,
+          "count": 1
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,80 @@
+---
+// 기존 calculator.html 을 옮긴 페이지
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="데미지 계산기">
+  <Fragment slot="head">
+    <link rel="stylesheet" href="/assets/css/styles1.css?p=calculator" />
+    <link rel="stylesheet" href="/assets/css/pages/calculator/main.css?v=20260929-navfont" />
+    <link rel="stylesheet" href="/assets/css/pages/calculator/layout.css?v=20260929-scroll" />
+  </Fragment>
+
+<main class="calculator-shell">
+  <div id="status" role="status">디지몬과 몬스터 정보를 불러오는 중입니다.</div>
+  <form id="calculator-form" hidden>
+  <div class="workspace">
+    <div class="setup">
+      <div class="combatants">
+        <section class="panel" aria-labelledby="attacker-title">
+          <div class="section-heading"><h2 id="attacker-title">내 디지몬</h2><label class="toggle"><input type="checkbox" id="manual-mode">수동 입력</label></div>
+          <div id="normal-inputs">
+            <div class="form-grid"><label>진화 단계<select id="stage-select"><option>성장기</option><option>성숙기</option><option>완전체</option><option>궁극체</option></select></label><label>디지몬<select id="character-select"></select></label></div>
+            <div class="portrait-row"><div class="portrait" id="character-image-cell"></div><div><strong id="character-name"></strong><div class="identity" id="character-meta"></div><p class="base-stat">기본 힘 <b id="힘-cell"></b></p></div></div>
+            <div class="skill-fields"><label>사용 스킬<select id="skill-select"></select></label><label>스킬 레벨<select id="skilllevel-select"></select></label></div>
+            <fieldset class="element-field"><legend>스킬 속성</legend><div id="element-options" class="element-options"></div><select id="skill-element" hidden aria-label="계산에 사용할 스킬 속성"></select></fieldset>
+          </div>
+          <div id="manual-inputs" hidden><p class="helper manual-hint">디지몬 데이터 대신 아래에 입력한 수치로 계산합니다.</p><div class="form-grid">
+            <label>타입<select id="manual-type"><option>백신</option><option>바이러스</option><option>데이터</option><option>프리</option><option>언노운</option></select></label>
+            <label>레벨<input id="manual-level" type="number" min="1" max="1000" value="100" required></label>
+            <label>기본 힘<input id="manual-power" type="number" min="0" value="0" required></label>
+            <label>스킬 계수 (%)<input id="manual-skill-coefficient" type="number" min="0.01" value="100" step="0.01" required></label>
+            <label>스킬 타수<input id="manual-hit-count" type="number" min="1" max="100" value="1" required></label>
+            <label>스킬 대상<select id="manual-target-type"><option>단일</option><option>전체</option></select></label>
+            <label class="full">스킬 속성<select id="manual-skill-element"></select></label>
+          </div></div>
+        </section>
+        <section class="panel" aria-labelledby="enemy-title">
+          <div class="section-heading"><h2 id="enemy-title">악역 디지몬</h2></div>
+          <div class="form-grid"><label>출현 지역<select id="map1-select"></select></label><label>맵<select id="map2-select"></select></label><label class="full">몬스터<select id="mob-select"></select></label></div>
+          <div class="portrait-row"><div class="portrait" id="mob-image-cell"></div><div><strong id="mob-name"></strong><div class="identity" id="mob-meta"></div></div></div>
+          <dl class="enemy-stats"><div><dt>체력</dt><dd id="mob-hp"></dd></div><div><dt>수비</dt><dd id="mob-def"></dd></div><div><dt>약점</dt><dd id="mob-weak"></dd></div><div><dt>내성</dt><dd id="mob-strong"></dd></div></dl>
+        </section>
+      </div>
+      <section class="panel modifiers" aria-labelledby="modifiers-title">
+        <div class="section-heading"><h2 id="modifiers-title">추가 보정</h2><button id="reset" class="quiet-button" type="button">입력 초기화</button></div>
+        <div class="modifier-grid">
+          <div class="modifier-group"><h3>힘 스탯</h3><div class="form-grid">
+            <label>포텐셜<span class="number-field"><input id="potential" type="number" min="0" step="any" placeholder="0"><span>%</span></span></label>
+            <label>유년기 교정<span class="number-field"><input id="correction" type="number" min="0" step="any" placeholder="0"><span>%</span></span></label>
+            <label>시너지<input id="synergy" type="number" min="0" step="any" placeholder="0"></label><label>버프<input id="buff" type="number" min="0" step="any" placeholder="0"></label>
+            <label>특화<input id="specialization" type="number" min="0" step="any" placeholder="0"></label><label>장비+코스튬<input id="equipment1" type="number" min="0" step="any" placeholder="0"></label>
+          </div></div>
+          <div class="modifier-group"><h3>속성 추가 데미지</h3><div class="form-grid">
+            <label>장비<span class="number-field"><input id="equipment2" type="number" min="0" step="any" placeholder="0"><span>%</span></span></label>
+            <label>각인<span class="number-field"><input id="engraving" type="number" min="0" step="any" placeholder="0"><span>%</span></span></label>
+          </div></div>
+        </div>
+        <section class="advanced" aria-labelledby="advanced-title"><h3 id="advanced-title" class="advanced-heading">크리티컬 · 데미지 범위</h3><div class="advanced-grid">
+          <label>크리티컬 확률 (%)<input id="crit-rate" type="number" min="0" max="100" step="any" placeholder="0"></label>
+          <label>크리티컬 데미지율 (%)<input id="crit-dmg" type="number" min="0.01" step="any" placeholder="150"></label>
+          <label>데미지 최소 (%)<input id="dmg-min" type="number" min="0.01" step="any" placeholder="95"></label>
+          <label>데미지 최대 (%)<input id="dmg-max" type="number" min="0.01" step="any" placeholder="105"></label>
+        </div></section>
+      </section>
+    </div>
+    <aside class="result-panel" aria-labelledby="result-title"><div class="section-heading"><h2 id="result-title">계산 결과</h2><span class="live-dot" aria-label="실시간 계산"></span></div>
+      <div class="form-grid"><label>상대 몹 수<select id="mob-count"><option value="1">1마리</option><option value="2">2마리</option><option value="3">3마리</option></select></label><label>처치 기준<select id="skillcount"><option>1킬</option><option>2킬</option><option>3킬</option><option>4킬</option><option>5킬</option></select></label></div>
+      <div class="probability" aria-live="polite" aria-atomic="true"><p>처치 확률</p><strong id="needstr">계산 중</strong><div class="probability-track"><span id="probability-bar"></span></div><p id="result-caption" class="helper" hidden></p></div>
+      <dl class="result-stats"><div><dt>최종 힘</dt><dd id="str-result">0</dd></div><div><dt>적용 속성</dt><dd id="result-element">-</dd></div><div><dt>적용 계수 / 타격</dt><dd id="result-coefficient">-</dd></div></dl>
+      <div class="damage-summary"><h3>스킬 1회 총 데미지 범위</h3><p><span>모두 일반 타격</span><strong id="normal-damage">-</strong></p><p><span>모두 크리티컬</span><strong id="critical-damage">-</strong></p><p class="damage-caveat">몬스터의 크리티컬 데미지 감소율 정보가 없어 실제 데미지와 다를 수 있습니다.</p></div>
+    </aside>
+  </div>
+  </form>
+</main>
+
+  <script>
+    import { onPage } from '../scripts/page.js';
+    import { init } from '../scripts/calculator.js';
+    onPage('calculator', init);
+  </script>
+</Layout>

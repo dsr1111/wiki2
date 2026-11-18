@@ -1,0 +1,64 @@
+---
+// 모든 페이지가 같이 쓰는 틀 — 기존 HTML 페이지들의 <head> 공통 부분 + 상단 메뉴
+// 페이지마다 다른 CSS·스크립트는 <Fragment slot="head"> 로 넣습니다.
+import { ClientRouter } from 'astro:transitions';
+import Nav from '../components/Nav.astro';
+
+interface Props {
+  /** 탭 제목. 비우면 'DSR WIKI', 넣으면 '덱 | DSR WIKI' 처럼 붙음 */
+  title?: string;
+  /** 기존 페이지 <body> 에 있던 클래스 (예: 'bg-gray-100') */
+  bodyClass?: string;
+  /** 기존 페이지 <body> 에 있던 style */
+  bodyStyle?: string;
+}
+
+const { title, bodyClass, bodyStyle } = Astro.props;
+const fullTitle = title ? `${title} | DSR WIKI` : 'DSR WIKI';
+
+// 기존 nav.js 의 initPageClass 와 같은 규칙으로 <body> 클래스를 정함
+// (페이지 CSS 가 body.page-xxx 로 구분하는 경우가 있어서 그대로 유지)
+const path = Astro.url.pathname;
+const PAGE_CLASSES = ['digimon', 'deck', 'evolution', 'map', 'detector', 'overflow', 'calculator', 'exp', 'gacha', 'costume-slot'];
+const pageClass = 'page-' + (PAGE_CLASSES.find((p) => path.includes(p)) ?? 'index');
+// 페이지 JS 가 "지금 내 페이지인지" 확인하는 이름 (/detail → 'detail', / → 'index').
+// 위 클래스는 기존과 같게 두려고 상세 페이지도 page-index 라서 따로 둠
+const pageName = path.replace(/^\/|\.html$|\/$/g, '') || 'index';
+---
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="stylesheet" href="/web/static/pretendard.css" />
+    <link rel="icon" href="https://media.dsrwiki.com/dsrwiki/icon.webp" type="image/x-icon" />
+    <title>{fullTitle}</title>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.2.0/fonts/remixicon.css" rel="stylesheet" />
+    <!--
+      페이지별 CSS. 공통 CSS(styles1.css)도 기존 페이지마다 위치가 달라서 각 페이지에서
+      원래 순서대로 넣습니다. 주소 끝에 ?p=페이지 를 붙이는 이유: 페이지를 옮길 때 Astro 는
+      같은 주소의 CSS 는 그대로 두고 새 CSS 만 뒤에 붙이므로, 그러면 CSS 순서가 원래와 달라짐.
+    -->
+    <slot name="head" />
+
+    <!-- 구글 애널리틱스: 페이지 이동(주소 변경)은 GA4 가 자동으로 집계함 -->
+    <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-V5VLCXSKM7"></script>
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() { dataLayer.push(arguments); }
+      gtag('js', new Date());
+      gtag('config', 'G-V5VLCXSKM7');
+    </script>
+
+    <!-- 페이지 이동 시 새로 고침 없이 본문만 바꿔 끼움 (메뉴는 그대로 유지) -->
+    <ClientRouter />
+  </head>
+  <body class={[pageClass, bodyClass].filter(Boolean).join(' ')} style={bodyStyle} data-page={pageName}>
+    <Nav />
+    <slot />
+    <script>
+      import '../scripts/lazyload.js';
+    </script>
+  </body>
+</html>

@@ -1,0 +1,47 @@
+---
+// 기존 evolution.html 을 옮긴 페이지
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="진화트리">
+  <Fragment slot="head">
+    <link rel="stylesheet" href="/assets/css/pages/evolution/main.css" />
+    <link rel="stylesheet" href="/assets/css/styles1.css?p=evolution" />
+  </Fragment>
+
+  <div class="container1">
+    <p class="notice-text">진화 조건 %가 미기입된 디지몬의 수치 피드백으로 제보받습니다.</p>
+    <div class="evolution-menu">
+      <div class="menu-items">
+        <button class="menu-item active" data-stage="all">전체</button>
+        <button class="menu-item" data-stage="1">유년기1</button>
+        <button class="menu-item" data-stage="2">유년기2</button>
+        <button class="menu-item" data-stage="3">성장기</button>
+        <button class="menu-item" data-stage="4">성숙기</button>
+        <button class="menu-item" data-stage="5">완전체</button>
+        <button class="menu-item" data-stage="6">궁극체</button>
+        <span class="menu-separator" aria-hidden="true"></span>
+        <button id="material-toggle" class="menu-item" data-mode="materials">진화 재료 보기</button>
+      </div>
+    </div>
+
+    <div class="search-container">
+      <input type="text" id="search-input" placeholder="찾을 디지몬 검색">
+    </div>
+
+    <div class="scroll-container" id="digimon-image-list">
+    </div>
+
+    <div id="name-tooltip" class="name-tooltip"></div>
+    <div id="evolution-tree" class="tree-container">
+    </div>
+    <div id="tooltip" class="tooltip"></div>
+    <div id="jogress-tooltip" class="jogress-tooltip"></div>
+    <div id="evolution-tooltip" class="evolution-tooltip"></div>
+  </div>
+
+  <script>
+    import { onPage } from '../scripts/page.js';
+    import { init } from '../scripts/evolution.js';
+    onPage('evolution', init);
+  </script>
+</Layout>

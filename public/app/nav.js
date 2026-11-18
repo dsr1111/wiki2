@@ -1,0 +1,367 @@
+// 추천인 홍보 배너를 사이트 전체에서 비활성화
+const REFERRAL_ENABLED = false;
+
+const MENU_ITEMS = [
+  {
+    type: 'dropdown',
+    label: '디지몬',
+    items: [
+      { label: '도감', href: '/digimon' },
+      { label: '덱', href: '/deck' },
+      { label: '진화트리', href: '/evolution' },
+    ]
+  },
+  {
+    type: 'link',
+    label: '맵',
+    href: '/map'
+  },
+  {
+    type: 'dropdown',
+    label: '던전',
+    items: [
+      { label: '탐지기', href: '/detector' },
+      { label: '오버플로우', href: '/overflow' },
+    ]
+  },
+  {
+    type: 'dropdown',
+    label: '도구',
+    items: [
+      { label: '데미지 계산기', href: '/calculator' },
+      { label: 'EXP 물약 시뮬레이터', href: '/exp' },
+      { label: '가챠 시뮬레이터', href: '/gacha' },
+      { label: '코스튬 슬롯 각인 시뮬레이터', href: '/costume-slot' },
+    ]
+  },
+  {
+    type: 'dropdown',
+    label: '사이트',
+    items: [
+      { label: '공식 홈페이지', href: 'https://www.digimonsuperrumble.com/', target: '_blank' },
+      { label: '공식 카페', href: 'https://cafe.naver.com/movedsr', target: '_blank' },
+    ]
+  }
+];
+
+class CustomNav extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+  }
+
+  connectedCallback() {
+    this.render();
+    this.initMenu();
+    this.initPageClass();
+    this.initReferral();
+  }
+
+  render() {
+    const menuHtml = MENU_ITEMS.map(item => {
+      if (item.type === 'dropdown') {
+        const subItems = item.items.map(subItem => `
+          <li>
+            <a href="${subItem.href}" class="dropdown__link" ${subItem.target ? `target="${subItem.target}"` : ''}>
+              ${subItem.label}
+            </a>
+          </li>
+        `).join('');
+
+        return `
+          <li class="dropdown__item">
+            <div class="nav__link dropdown__toggle">
+              ${item.label} <i class="ri-arrow-down-s-line dropdown__arrow"></i>
+            </div>
+            <ul class="dropdown__menu">
+              ${subItems}
+            </ul>
+          </li>
+        `;
+      } else {
+        return `
+          <li><a href="${item.href}" class="nav__link">${item.label}</a></li>
+        `;
+      }
+    }).join('');
+
+    this.shadowRoot.innerHTML = `
+      <link href="https://cdn.jsdelivr.net/npm/remixicon@3.2.0/fonts/remixicon.css" rel="stylesheet"/>
+      <link rel="stylesheet" href="assets/css/styles1.css">
+      <link rel="stylesheet" href="assets/css/nav-custom.css">
+
+      <header class="header" style="visibility: hidden">
+        <nav class="nav container">
+          <div class="nav__data">
+            <a href="/">
+              <img src="https://media.dsrwiki.com/dsrwiki/logo2.webp" class="nav__logo" alt="DSR WIKI" fetchpriority="high" />
+            </a>
+
+            <div class="nav__toggle" id="nav-toggle">
+              <i class="ri-menu-line nav__burger"></i>
+              <i class="ri-close-line nav__close"></i>
+            </div>
+          </div>
+
+          <div class="nav__menu" id="nav-menu">
+            <ul class="nav__list">
+              ${menuHtml}
+
+              <li class="feedback-expcarry-wrapper">
+                <button class="feedback-btn" id="feedbackBtn">피드백</button>
+              </li>
+            </ul>
+          </div>
+        </nav>
+      </header>
+    `;
+    // 메뉴 CSS가 적용되기 전의 맨 글자가 잠깐 보이지 않게, CSS를 다 받은 뒤에 메뉴를 보여 줌
+    // (그동안은 styles1.css 의 custom-nav 막대가 같은 색으로 자리를 채움. 아이콘 글꼴은 기다리지 않음)
+    const header = this.shadowRoot.querySelector('.header');
+    const show = () => { header.style.visibility = ''; };
+    const sheets = [...this.shadowRoot.querySelectorAll('link[href^="assets/"]')];
+    Promise.all(sheets.map((l) => (l.sheet ? null : new Promise((r) => { l.addEventListener('load', r); l.addEventListener('error', r); })))).then(show);
+    setTimeout(show, 1500); // 혹시 늦어지면 그냥 보여 줌
+  }
+
+  initMenu() {
+    const root = this.shadowRoot;
+
+    const navToggle = root.getElementById("nav-toggle");
+    const navMenu = root.getElementById("nav-menu");
+
+    /* 메뉴 토글 */
+    if (navToggle) {
+      navToggle.addEventListener("click", () => {
+        navMenu.classList.toggle("show-menu");
+        navToggle.classList.toggle("show-icon");
+      });
+    }
+
+    /* 드롭다운 토글 (모바일 + PC 모두 동일 처리) */
+    root.querySelectorAll(".dropdown__toggle").forEach((toggle) => {
+      toggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+
+        const item = toggle.closest(".dropdown__item");
+        const menu = item.querySelector(".dropdown__menu");
+        const arrow = item.querySelector(".dropdown__arrow");
+
+        const isOpen = menu.classList.contains("show-dropdown");
+
+        // 다른 메뉴 닫기
+        root.querySelectorAll(".dropdown__menu").forEach((m) => m.classList.remove("show-dropdown"));
+        root.querySelectorAll(".dropdown__arrow").forEach((a) => a.classList.remove("rotate-arrow"));
+
+        // 현재 메뉴 토글
+        if (!isOpen) {
+          menu.classList.add("show-dropdown");
+          arrow.classList.add("rotate-arrow");
+        }
+      });
+    });
+
+    /* 외부 클릭 시 닫기 */
+    root.addEventListener("click", (e) => {
+      if (!e.target.closest(".dropdown__item")) {
+        root.querySelectorAll(".dropdown__menu").forEach((m) => m.classList.remove("show-dropdown"));
+        root.querySelectorAll(".dropdown__arrow").forEach((a) => a.classList.remove("rotate-arrow"));
+      }
+    });
+
+    /* 버튼 링크 */
+    const feedbackBtn = root.getElementById("feedbackBtn");
+    if (feedbackBtn) {
+      feedbackBtn.addEventListener("click", () => {
+        window.open("https://forms.gle/7xSaJBz4A28CPY4z9", "_blank");
+      });
+    }
+
+
+  }
+
+  initPageClass() {
+    // 페이지별 클래스 부여
+    const path = window.location.pathname;
+    if (path.includes('digimon')) document.body.classList.add('page-digimon');
+    else if (path.includes('deck')) document.body.classList.add('page-deck');
+    else if (path.includes('evolution')) document.body.classList.add('page-evolution');
+    else if (path.includes('map')) document.body.classList.add('page-map');
+    else if (path.includes('detector')) document.body.classList.add('page-detector');
+    else if (path.includes('overflow')) document.body.classList.add('page-overflow');
+    else if (path.includes('calculator')) document.body.classList.add('page-calculator');
+    else if (path.includes('exp')) document.body.classList.add('page-exp');
+    else if (path.includes('gacha')) document.body.classList.add('page-gacha');
+    else if (path.includes('costume-slot')) document.body.classList.add('page-costume-slot');
+    else document.body.classList.add('page-index'); // index.html 또는 기본값
+  }
+
+  initReferral() {
+    if (!REFERRAL_ENABLED) {
+      document.getElementById('referral-banner')?.remove();
+      return;
+    }
+
+    // 이미 배너가 있으면 중복 생성 방지
+    if (document.getElementById('referral-banner')) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'referral-banner';
+    banner.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      color: #333;
+      padding: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      z-index: 9999;
+      font-family: inherit;
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 250px;
+      backdrop-filter: blur(4px);
+    `;
+
+    // 접힌 상태 확인
+    const isFolded = localStorage.getItem('referralFolded') === 'true';
+
+    banner.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:bold; font-size: 14px; color: #ff8c00;">추천인 코드</span>
+        <div style="display:flex; gap: 8px; align-items:center;">
+          <span id="ref-fold" style="cursor:pointer; font-size:12px; opacity:0.6; user-select:none;" title="접기/펴기">${isFolded ? '▲' : '▼'}</span>
+          <span id="ref-close" style="cursor:pointer; font-size:14px; opacity:0.6; user-select:none;" title="닫기">✕</span>
+        </div>
+      </div>
+      <div id="ref-content" style="display: ${isFolded ? 'none' : 'block'};">
+
+        <div id="ref-code-box" style="background:#f8f9fa; padding:10px; border-radius:4px; text-align:center; font-weight:bold; font-size:18px; letter-spacing:2px; border:1px dashed #ccc; margin-bottom:8px; color:#333; cursor:pointer; transition: all 0.2s ease;" title="클릭하여 복사">
+          A2USQRY
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(banner);
+
+    const foldBtn = document.getElementById('ref-fold');
+    const closeBtn = document.getElementById('ref-close');
+    const content = document.getElementById('ref-content');
+    const codeBox = document.getElementById('ref-code-box');
+
+    if (isFolded) {
+      banner.style.width = '160px';
+      banner.style.padding = '10px 15px';
+    }
+
+    foldBtn.addEventListener('click', () => {
+      const currentlyFolded = content.style.display === 'none';
+      if (currentlyFolded) {
+        content.style.display = 'block';
+        foldBtn.innerText = '▼';
+        banner.style.width = '250px';
+        banner.style.padding = '15px';
+        localStorage.setItem('referralFolded', 'false');
+      } else {
+        content.style.display = 'none';
+        foldBtn.innerText = '▲';
+        banner.style.width = '160px';
+        banner.style.padding = '10px 15px';
+        localStorage.setItem('referralFolded', 'true');
+      }
+    });
+
+    closeBtn.addEventListener('click', () => {
+      banner.remove();
+    });
+
+    codeBox.addEventListener('mouseover', () => {
+      if (codeBox.innerText === 'A2USQRY') {
+        codeBox.style.background = '#e9ecef';
+      }
+    });
+    codeBox.addEventListener('mouseout', () => {
+      if (codeBox.innerText === 'A2USQRY') {
+        codeBox.style.background = '#f8f9fa';
+      }
+    });
+
+    codeBox.addEventListener('click', () => {
+      const originalText = 'A2USQRY';
+      const doCopy = () => {
+        codeBox.innerText = '복사 완료!';
+        codeBox.style.color = '#28a745';
+        codeBox.style.borderColor = '#28a745';
+        codeBox.style.background = '#f8f9fa';
+        setTimeout(() => {
+          codeBox.innerText = originalText;
+          codeBox.style.color = '#333';
+          codeBox.style.borderColor = '#ccc';
+        }, 2000);
+      };
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(originalText).then(doCopy);
+      } else {
+        // Fallback
+        const tempInput = document.createElement('input');
+        tempInput.value = originalText;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        doCopy();
+      }
+    });
+  }
+}
+
+customElements.define("custom-nav", CustomNav);
+
+// ---------- 다음 페이지 미리 불러오기 ----------
+// 링크에 마우스를 올리거나(잠깐 멈추면) 손가락을 대는 순간 그 페이지를 미리 준비해서, 클릭하면 바로 넘어가게 합니다.
+// 크롬·엣지: 화면까지 미리 그려 둠(prerender) / 그 밖의 브라우저: HTML만 미리 받아 둠(prefetch).
+// 메뉴는 shadow DOM 안에 있어서 composedPath()로 실제 링크를 찾습니다.
+(function initPagePreload() {
+  const canPrerender = typeof HTMLScriptElement !== 'undefined' && HTMLScriptElement.supports && HTMLScriptElement.supports('speculationrules');
+  const done = new Set();
+  const MAX = 8; // 한 페이지에서 미리 준비하는 최대 개수 (데이터 낭비 방지)
+
+  function preload(a) {
+    if (done.size >= MAX || a.target === '_blank' || a.hasAttribute('download')) return;
+    let url;
+    try { url = new URL(a.getAttribute('href'), location.href); } catch (e) { return; }
+    if (url.origin !== location.origin || url.hash) return; // 다른 사이트, #admin 같은 주소는 제외
+    if (/\.[a-z0-9]+$/i.test(url.pathname)) return; // 파일(.txt, .html 등) 제외
+    const key = url.pathname + url.search;
+    if (key === location.pathname + location.search || done.has(key)) return;
+    done.add(key);
+    if (canPrerender) {
+      const s = document.createElement('script');
+      s.type = 'speculationrules';
+      s.textContent = JSON.stringify({ prerender: [{ source: 'list', urls: [key] }] });
+      document.head.appendChild(s);
+    } else {
+      const l = document.createElement('link');
+      l.rel = 'prefetch';
+      l.href = key;
+      document.head.appendChild(l);
+    }
+  }
+
+  const linkOf = (e) => e.composedPath().find((n) => n && n.tagName === 'A' && n.hasAttribute('href'));
+  let timer = null;
+  document.addEventListener('pointerover', (e) => {
+    if (e.pointerType !== 'mouse') return;
+    const a = linkOf(e);
+    clearTimeout(timer);
+    if (a) timer = setTimeout(() => preload(a), 80);
+  }, { passive: true });
+  document.addEventListener('pointerout', () => clearTimeout(timer), { passive: true });
+  document.addEventListener('touchstart', (e) => { const a = linkOf(e); if (a) preload(a); }, { passive: true });
+  document.addEventListener('focusin', (e) => { const a = linkOf(e); if (a) preload(a); });
+})();
