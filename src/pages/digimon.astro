@@ -6,6 +6,7 @@ import Layout from '../layouts/Layout.astro';
   <Fragment slot="head">
     <link rel="stylesheet" href="/assets/css/styles1.css?p=digimon" />
     <link rel="stylesheet" href="/assets/css/pages/digimon/main.css" />
+    <link rel="stylesheet" href="/assets/css/pages/digimon/filter.css" />
   </Fragment>
 
   <div style="margin-top: 140px;">
@@ -922,6 +923,7 @@ import Layout from '../layouts/Layout.astro';
   <script>
     import { onPage } from '../scripts/page.js';
     import { init } from '../scripts/digimon.js';
-    onPage('digimon', init);
+    import { initFilter } from '../scripts/digimon-filter.js';
+    onPage('digimon', init, initFilter);
   </script>
 </Layout>
