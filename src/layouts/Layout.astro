@@ -41,6 +41,33 @@ const pageName = path.replace(/^\/|\.html$|\/$/g, '') || 'index';
       같은 주소의 CSS 는 그대로 두고 새 CSS 만 뒤에 붙이므로, 그러면 CSS 순서가 원래와 달라짐.
     -->
     <slot name="head" />
+    <!--
+      PC 스크롤바를 메뉴 아래에서부터 시작하게 그림 (메뉴 옆 칸은 메뉴 색으로 채움).
+      - 스크롤바 칸을 항상 둠(overflow-y: scroll): 페이지마다 스크롤이 있고 없고가 달라도
+        화면 폭이 같아서 페이지를 옮길 때 메뉴가 좌우로 밀리지 않음 (스크롤할 게 없으면 손잡이만 안 보임)
+      - 스크롤바 배경 위쪽(메뉴 높이만큼)은 메뉴 색, 아래는 투명(페이지 배경이 보임), 손잡이는 메뉴 아래에서만 움직임
+      - body 에도 같은 규칙: Chrome 은 페이지 스크롤바 모양을 body 의 규칙으로 정하는 경우가 있음 (덱 페이지)
+      - 마우스를 쓰는 PC 에서만. 모바일은 스크롤바가 화면 위에 떠서 원래대로 둠
+      메뉴 높이: 1118px 미만 2.75rem, 이상 4.75rem (styles1.css 의 custom-nav 와 같음)
+    -->
+    <style is:inline>
+      @media (hover: hover) and (pointer: fine) {
+        html { --nav-h: 2.75rem; overflow-y: scroll; scrollbar-gutter: stable; }
+        :is(html, body)::-webkit-scrollbar {
+          width: 12px;
+          background: linear-gradient(var(--black-color, #1d232f) 0 var(--nav-h), rgba(0, 0, 0, 0.06) var(--nav-h), transparent calc(var(--nav-h) + 6px));
+        }
+        :is(html, body)::-webkit-scrollbar-track { margin-top: var(--nav-h); background: transparent; border-radius: 0; }
+        :is(html, body)::-webkit-scrollbar-thumb { background: #c3c8d0; background-clip: padding-box; border: 3px solid transparent; border-radius: 6px; }
+        :is(html, body)::-webkit-scrollbar-thumb:hover { background: #9aa1ab; background-clip: padding-box; }
+        /* 계산기: 내용이 화면에 딱 맞으면 원래 페이지 스크롤을 껐는데(스크롤바 칸까지 사라져 메뉴가 밀림),
+           PC 에서는 스크롤바 칸을 그대로 둠. 넘치는 게 없으니 손잡이는 안 보이고 스크롤도 안 됨 */
+        html.calculator-fits-viewport { overflow-y: scroll; }
+      }
+      @media (hover: hover) and (pointer: fine) and (min-width: 1118px) {
+        html { --nav-h: 4.75rem; }
+      }
+    </style>
 
     <!-- 구글 애널리틱스: 페이지 이동(주소 변경)은 GA4 가 자동으로 집계함 -->
     <script is:inline async src="https://www.googletagmanager.com/gtag/js?id=G-V5VLCXSKM7"></script>
