@@ -3,9 +3,6 @@
 // (여러 파일은 기존처럼 같은 범위를 쓰도록 실행 순서대로 이어 붙임)
 // onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
-// 메뉴(shadow DOM) 보정 CSS: 예전엔 파일을 따로 받아왔으나 이제 JS 안에 같이 들어감 (요청 1개 줄임)
-import navFixCss from '../styles/pages/calculator/nav.css?raw';
-
 import { getDigimonData } from './page.js';
 export function init(signal, onReady) {
 // ===== 기존 app/calculator-math.js =====
@@ -417,18 +414,6 @@ async function calculateProbability(value) {
 
 // ===== 기존 app/calculator.js =====
 'use strict';
-// Navigation fixes are scoped to this calculator's shadow-root instance.
-// (Astro) 메뉴는 페이지를 옮겨도 그대로 남으므로, 계산기 페이지를 떠날 때 이 스타일을 다시 뺌
-{
-  const root = document.querySelector('custom-nav')?.shadowRoot;
-  if (root && !root.querySelector('[data-calculator-navigation]')) {
-    const stylesheet = document.createElement('style');
-    stylesheet.textContent = navFixCss;
-    stylesheet.dataset.calculatorNavigation = '';
-    root.appendChild(stylesheet);
-    signal.addEventListener('abort', () => stylesheet.remove());
-  }
-}
 const $ = id => document.getElementById(id);
 const number = (id, fallback = 0) => $(id).value === '' ? fallback : Number($(id).value);
 const format = value => Number(value).toLocaleString('ko-KR', {maximumFractionDigits:2});
@@ -569,7 +554,7 @@ function updateViewportScrolling() {
     const workspace = document.querySelector('.workspace');
     if (!workspace) return; // (Astro) 페이지를 떠난 뒤
     const rect = workspace.getBoundingClientRect();
-    const navigation = document.querySelector('custom-nav')?.shadowRoot?.querySelector('.header');
+    const navigation = document.querySelector('custom-nav')?.shadowRoot?.querySelector('.bar');
     const navBottom = navigation?.getBoundingClientRect().bottom || 0;
     const fits = matchMedia('(min-width: 941px)').matches && rect.height > 0 &&
       rect.top + window.scrollY >= navBottom &&

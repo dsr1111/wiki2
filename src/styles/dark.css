@@ -1,0 +1,46 @@
+/* 다크 모드에서 직접 고친 것.
+   대부분의 다크 모드 색은 tools/dark-theme.mjs 가 CSS 마다 자동으로 만들고(라이트 모드는 그대로),
+   여기에는 자동으로 안 되는 것만 둠: 기본 바탕, 메뉴 색 변수, 외부 CSS, HTML/JS 안에 직접 적힌 색 등.
+   이 파일은 자동 변환 대상에서 빠짐 (astro.config.mjs). */
+
+/* 바탕색은 <html> 이 아니라 body 에 둠: 라이트 모드처럼 body 배경이 화면 전체(내용 아래 빈 곳까지)에 깔리게.
+   <html> 에 배경을 주면 내용이 있는 곳(body)과 없는 곳(html)의 색이 달라 보임.
+   :where() 로 우선순위를 0 으로 둬서, 페이지마다 자동 변환된 body 배경이 있으면 그게 쓰임 */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  color: #e3e6ec;
+}
+:where(:root[data-theme="dark"]) body {
+  background-color: #15171c;
+}
+
+/* 상단 메뉴: 메뉴는 shadow DOM 이라 색을 변수로 넘김 (nav-menu.css 의 :host 기본값을 덮음) */
+:root[data-theme="dark"] body custom-nav {
+  --nav-bg: #1a1d24;
+  --nav-ink: #e6e8ee;
+  --nav-muted: #9aa1b2;
+  --nav-line: #2c313c;
+  --nav-paper: #252a35;
+  --nav-here: #5fd3a4;
+  --nav-fb-bg: #e6e8ee;
+  --nav-fb-ink: #1a1d24;
+  background-color: #1a1d24;
+  box-shadow: inset 0 -1px 0 #2c313c;
+}
+
+/* 도감 상세 필터: 스킬 종류 색 견본은 JS 가 style 로 넣음 → 표의 스킬 칸 다크 색과 맞춤 */
+:root[data-theme="dark"] .fv-kind-swatch[style*="220, 248, 248"] { background: #073536 !important; }
+:root[data-theme="dark"] .fv-kind-swatch[style*="255, 234, 234"] { background: #3e2627 !important; }
+:root[data-theme="dark"] .fv-kind-swatch[style*="230, 255, 230"] { background: #1d341e !important; }
+
+/* 메인 레이드 타이머: JS 가 style 로 넣은 회색 글자·파란 지도 링크 */
+:root[data-theme="dark"] #raid-timers [style*="color:#666"] { color: #9aa1b0 !important; }
+:root[data-theme="dark"] #raid-timers [style*="color:#007bff"] { color: #6cb2ff !important; }
+:root[data-theme="dark"] #raid-timers [style*="color:#8a6d1f"] { color: #d4b25a !important; }
+
+/* 메인 쿠폰 안내 (index.astro 의 style) */
+:root[data-theme="dark"] [style*="color:#888"] { color: #9aa1b0 !important; }
+
+/* 메인 캘린더(FullCalendar): 칸 배경을 다크 색으로 바꾸면서 가려진 "오늘" 표시를 다시 보이게 */
+:root[data-theme="dark"] .fc .fc-daygrid-day.fc-day-today { background-color: rgba(255, 220, 40, 0.12); }
+:root[data-theme="dark"] .fc { --fc-border-color: #2f3238; --fc-page-bg-color: #1b1e24; --fc-neutral-bg-color: #23262c; }

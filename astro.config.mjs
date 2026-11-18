@@ -1,6 +1,7 @@
 // DSR 위키 (Astro 버전) 설정
 import { defineConfig } from 'astro/config';
 import { readFile, writeFile } from 'node:fs/promises';
+import darkTheme from './tools/dark-theme.mjs';
 
 // 메인 페이지의 캘린더 라이브러리를 페이지를 받자마자 같이 받기 시작하게 함.
 // 원래는 페이지 스크립트를 다 받고 실행한 뒤에야 받기 시작해서, 느린 회선에서는 글꼴 파일들과 대역폭을 나눠 쓰느라 늦게 떴음.
@@ -25,6 +26,9 @@ const preloadPageImports = (pages) => ({
   },
 });
 
+// 다크 모드 자동 변환에서 뺄 CSS: 직접 고친 파일, 원래부터 어두운 화면(코스튬 각인 창, 가챠 연출)
+const SKIP_DARK = ['/src/styles/dark.css', '/pages/costume-slot/main.css', '/pages/gacha/presentation.css'];
+
 export default defineConfig({
   integrations: [preloadPageImports(['index'])],
   site: 'https://dsrwiki.com',
@@ -38,4 +42,13 @@ export default defineConfig({
   devToolbar: { enabled: false },
   // HTML 압축 끄기: 압축하면 태그 사이 공백이 사라져(예: '100 크라운 : [입력칸]') 기존 화면과 미세하게 달라짐
   compressHTML: false,
+  // 다크 모드: src/styles 의 CSS 마다 색을 바꾼 다크 모드 규칙을 자동으로 덧붙임 (tools/dark-theme.mjs).
+  // 메뉴(shadow DOM)는 ?raw 로 넣어서 여기 안 걸림 — 메뉴 색은 nav-menu.css 의 변수로 바꿈
+  vite: {
+    css: {
+      postcss: {
+        plugins: [darkTheme({ include: (file) => file.includes('/src/styles/') && !SKIP_DARK.some((f) => file.endsWith(f)) })],
+      },
+    },
+  },
 });

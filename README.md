@@ -59,8 +59,8 @@ npm run deploy   # 빌드 후 Cloudflare 에 바로 배포 (처음 한 번 npx w
 - CSS 는 `src/styles/` 에 있고, 각 페이지 맨 위에서 예전 `<link>` 순서 그대로 import 합니다.
   빌드할 때 압축되어 페이지 HTML 안에 `<style>` 로 들어갑니다 (`astro.config.mjs` 의 `inlineStylesheets`).
   CSS 파일을 따로 기다리지 않고, 페이지를 옮길 때 CSS 순서가 섞이지 않습니다.
-  상단 메뉴는 shadow DOM 이라 따로: `nav-menu.css` 는 메뉴 안에만 들어감 (`Nav.astro`),
-  계산기의 메뉴 보정 `pages/calculator/nav.css` 는 계산기 JS 가 메뉴 안에 넣음.
+  상단 메뉴는 shadow DOM 이라 따로: `nav-menu.css` 는 메뉴 안에만 들어감 (`Nav.astro`).
+  메뉴 높이(모바일 44px, 1118px 이상 76px)는 페이지들이 위를 비워 두는 높이와 같아야 함
 - 메인 페이지 JS 는 기능별로 `src/scripts/home/` 에 나뉘어 있음 (서버 시각·Supabase·쿠폰·오늘의 장소/환율·캘린더·레이드 타이머).
   `src/scripts/index.js` 는 이것들을 실행 순서대로 모아서 넘기기만 함
 - 여러 페이지가 같이 쓰는 것은 `src/scripts/page.js`: `getDigimonData()` (digimon.json 을 한 번 받아 10분 동안 같이 씀),
@@ -68,5 +68,10 @@ npm run deploy   # 빌드 후 Cloudflare 에 바로 배포 (처음 한 번 npx w
 - `public/app/` 에는 관리자 도구 5개(`admin-core`, `digimon-admin`, `detector-admin`, `evolution-admin`, `site-admin`)만 남아 있음.
   예전 페이지 스크립트 복사본은 지웠음 (실제 코드는 `src/scripts/`)
 - 고정 데이터는 `src/data/` (예: 가챠 연출용 아이템 등급·아이콘 `gacha-presentation-assets.json`)
+- 다크 모드: `<html data-theme="dark">`. 메뉴의 해/달 버튼으로 바꾸고(기억함), 고른 적이 없으면 기기 설정을 따름
+  - 다크 색은 `tools/dark-theme.mjs` 가 빌드할 때 CSS 마다 자동으로 만들어 덧붙임 (라이트 모드 CSS 는 그대로).
+    CSS 를 새로 쓰거나 고쳐도 따로 할 일 없음
+  - 자동으로 안 맞는 곳(HTML·JS 안에 직접 적은 색, 외부 CSS)은 `src/styles/dark.css` 에 직접
+  - 원래 어두운 화면이라 자동 변환에서 뺀 파일은 `astro.config.mjs` 의 `SKIP_DARK`
 - 아이콘은 `src/styles/icons.css` (쓰는 11개만 SVG). 새 아이콘은 그 파일 설명대로 한 줄 추가
 - `tools/port-page.mjs` 는 위 변환을 해 주는 1회용 도구입니다 (기존 위키가 `E:/wiki/dsr/frontend` 에 있을 때).

@@ -5,6 +5,7 @@
 import { ClientRouter } from 'astro:transitions';
 import Nav from '../components/Nav.astro';
 import '../styles/icons.css';
+import '../styles/dark.css'; // 다크 모드에서 자동 변환으로 안 맞는 곳을 직접 고친 것
 
 interface Props {
   /** 탭 제목. 비우면 'DSR WIKI', 넣으면 '덱 | DSR WIKI' 처럼 붙음 */
@@ -32,30 +33,55 @@ const pageName = path.replace(/^\/|\.html$|\/$/g, '') || 'index';
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      다크/라이트 모드: <html data-theme="dark|light">. 화면을 그리기 전에 정해서 흰 화면이 번쩍이지 않게 함.
+      - 메뉴의 버튼으로 고르면 localStorage 'theme' 에 기억. 고른 적이 없으면 기기 설정(prefers-color-scheme)을 따름
+      - 페이지를 옮기면 Astro 가 <html> 속성을 새 페이지 것으로 바꾸므로, 바꾸기 전에 새 페이지에도 같은 값을 넣어 둠
+      - 다크 모드 색: tools/dark-theme.mjs 가 CSS 마다 자동으로 만들고, 안 맞는 곳은 src/styles/dark.css
+    -->
+    <script is:inline>
+      (function () {
+        var d = document.documentElement;
+        var mq = matchMedia('(prefers-color-scheme: dark)');
+        function saved() { try { return localStorage.getItem('theme'); } catch (e) { return null; } }
+        function pick() { var t = saved(); return t === 'dark' || t === 'light' ? t : (mq.matches ? 'dark' : 'light'); }
+        d.dataset.theme = pick();
+        if (window.__dsrTheme) return;
+        window.__dsrTheme = true;
+        document.addEventListener('astro:before-swap', function (e) { e.newDocument.documentElement.dataset.theme = d.dataset.theme; });
+        mq.addEventListener('change', function () { if (!saved()) d.dataset.theme = pick(); });
+      })();
+    </script>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link rel="stylesheet" href="/web/static/pretendard.css" />
-    <link rel="icon" href="https://media.dsrwiki.com/dsrwiki/icon.webp" type="image/x-icon" />
+    <!-- 탭 아이콘: 디지바이스 (public/favicon.*). 예전 아이콘은 https://media.dsrwiki.com/dsrwiki/icon.webp -->
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/favicon.png" type="image/png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>{fullTitle}</title>
     <slot name="head" />
     <!--
       PC 스크롤바를 메뉴 아래에서부터 시작하게 그림 (메뉴 옆 칸은 메뉴 색으로 채움).
       - 스크롤바 칸을 항상 둠(overflow-y: scroll): 페이지마다 스크롤이 있고 없고가 달라도
         화면 폭이 같아서 페이지를 옮길 때 메뉴가 좌우로 밀리지 않음 (스크롤할 게 없으면 손잡이만 안 보임)
-      - 스크롤바 배경 위쪽(메뉴 높이만큼)은 메뉴 색, 아래는 투명(페이지 배경이 보임), 손잡이는 메뉴 아래에서만 움직임
+      - 스크롤바 배경 위쪽(메뉴 높이만큼)은 메뉴 색(흰색 + 아래 1px 선), 아래는 투명(페이지 배경이 보임), 손잡이는 메뉴 아래에서만 움직임
       - body 에도 같은 규칙: Chrome 은 페이지 스크롤바 모양을 body 의 규칙으로 정하는 경우가 있음 (덱 페이지)
       - 마우스를 쓰는 PC 에서만. 모바일은 스크롤바가 화면 위에 떠서 원래대로 둠
       메뉴 높이: 1118px 미만 2.75rem, 이상 4.75rem (styles1.css 의 custom-nav 와 같음)
     -->
     <style is:inline>
       @media (hover: hover) and (pointer: fine) {
-        html { --nav-h: 2.75rem; overflow-y: scroll; scrollbar-gutter: stable; }
+        html { --nav-h: 2.75rem; --gutter-top: #fff; --gutter-line: #dcdee8; overflow-y: scroll; scrollbar-gutter: stable; }
+        html[data-theme="dark"] { --gutter-top: #1a1d24; --gutter-line: #2c313c; }
         :is(html, body)::-webkit-scrollbar {
           width: 12px;
-          background: linear-gradient(var(--black-color, #1d232f) 0 var(--nav-h), rgba(0, 0, 0, 0.06) var(--nav-h), transparent calc(var(--nav-h) + 6px));
+          background: linear-gradient(var(--gutter-top) 0 calc(var(--nav-h) - 1px), var(--gutter-line) calc(var(--nav-h) - 1px) var(--nav-h), transparent var(--nav-h));
         }
         :is(html, body)::-webkit-scrollbar-track { margin-top: var(--nav-h); background: transparent; border-radius: 0; }
         :is(html, body)::-webkit-scrollbar-thumb { background: #c3c8d0; background-clip: padding-box; border: 3px solid transparent; border-radius: 6px; }
         :is(html, body)::-webkit-scrollbar-thumb:hover { background: #9aa1ab; background-clip: padding-box; }
+        html[data-theme="dark"]::-webkit-scrollbar-thumb, html[data-theme="dark"] body::-webkit-scrollbar-thumb { background: #454b57; background-clip: padding-box; }
+        html[data-theme="dark"]::-webkit-scrollbar-thumb:hover, html[data-theme="dark"] body::-webkit-scrollbar-thumb:hover { background: #5d6472; background-clip: padding-box; }
         /* 계산기: 내용이 화면에 딱 맞으면 원래 페이지 스크롤을 껐는데(스크롤바 칸까지 사라져 메뉴가 밀림),
            PC 에서는 스크롤바 칸을 그대로 둠. 넘치는 게 없으니 손잡이는 안 보이고 스크롤도 안 됨 */
         /* 페이지 CSS 가 이 블록보다 뒤에 들어가므로(빌드 때 HTML 에 넣는 위치) :root 로 우선순위를 높여 둠 */

@@ -1,285 +1,190 @@
 /* 상단 메뉴(Nav.astro) 전용 — 메뉴의 shadow DOM 안에서만 쓰임 (페이지 CSS 에는 안 들어감).
-   styles1.css 에 있던 메뉴 규칙을 그대로 옮긴 것 (메뉴에 없는 하위 메뉴 sub* 규칙만 뺌). */
+   흰색 바 + 그룹 버튼. 그룹에 마우스를 올리면 화면 폭 전체에 4칸 패널이 열림.
+   1117px 이하는 "메뉴" 버튼으로 전체 목록을 엶.
+   높이는 예전 메뉴와 같게 둠 (모바일 44px, 1118px 이상 76px): 페이지들이 이 높이만큼 위를 비워 둠 */
 
-/*=============== HEADER ===============*/
-.header {
+:host {
+  --nav-ink: #1D2433;
+  --nav-muted: #636B80;
+  --nav-line: #DCDEE8;
+  --nav-paper: #F4F4F9;
+  --nav-here: #0F6B4E;
+  --nav-bg: #fff;
+  --nav-fb-bg: var(--nav-ink);
+  --nav-fb-ink: #fff;
+  --nav-h: var(--header-height);
+  /* 다크 모드 값은 src/styles/dark.css 에서 custom-nav 에 넣음 (바깥 규칙이 :host 보다 우선) */
+}
+
+.bar {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  background-color: var(--black-color);
-  box-shadow: 0 2px 16px hsla(220, 32%, 8%, 0.3);
+  padding: 0; /* styles1.css 의 header { padding: 0 2rem } 를 지움 */
+  background: var(--nav-bg);
+  box-shadow: inset 0 -1px 0 var(--nav-line);
+  color: var(--nav-ink);
+  font-family: "Pretendard", sans-serif;
   z-index: var(--z-fixed);
 }
 
-/*=============== NAV ===============*/
-.nav {
-  height: var(--header-height);
-}
+.bar a { color: inherit; text-decoration: none; }
+/* 버튼 기본값 초기화. :where() 로 우선순위를 0 으로 둬서 아래 각 버튼 규칙(굵기·크기)이 이김 */
+:where(.bar) button { font-family: inherit; font-size: inherit; line-height: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+.bar :focus-visible { outline: 2px solid var(--nav-ink); outline-offset: 2px; border-radius: 4px; }
 
-.nav__logo,
-.nav__burger,
-.nav__close {
-  color: var(--white-color);
-}
-
-.nav__data {
-  height: 100%;
+.bar__in {
+  max-width: 1200px;
+  height: var(--nav-h);
+  margin: 0 auto;
+  padding: 0 16px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 32px;
 }
 
-.nav__logo {
-  display: inline-flex;
-  align-items: center;
-  column-gap: 0.25rem;
-  font-weight: var(--font-semi-bold);
-  width: 85%;
-  max-width: 100%;
-  height: auto;
+.bar__home { display: block; flex: none; }
+
+/* 로고 파일은 정사각형이고 위아래가 비어 있어서, 그림 부분만 보이게 잘라서 크게 보여 줌 */
+.bar__logo {
+  display: block;
+  width: 72px;
+  height: 40px;
+  object-fit: cover;
+  object-position: 50% 55%;
 }
 
-.nav__toggle {
+.bar__nav { display: none; flex: 1; height: 100%; gap: 2px; }
+
+.bar__top {
   position: relative;
-  width: 32px;
-  height: 32px;
-}
-
-.nav__burger,
-.nav__close {
-  position: absolute;
-  width: max-content;
-  height: max-content;
-  inset: 0;
-  margin: auto;
-  font-size: 1.25rem;
-  cursor: pointer;
-  transition: opacity 0.1s, transform 0.4s;
-}
-
-.nav__close {
-  opacity: 0;
-}
-
-/* Navigation for mobile devices */
-@media screen and (max-width: 1118px) {
-  .nav__logo {
-    width: 60%;
-    max-width: 100%;
-    height: auto;
-  }
-
-  .nav__menu {
-    position: absolute;
-    left: 0;
-    top: 2.5rem;
-    width: 100%;
-    height: calc(100vh - 3.5rem);
-    overflow: auto;
-    pointer-events: none;
-    opacity: 0;
-    transition: top 0.4s, opacity 0.3s;
-  }
-
-  .nav__menu::-webkit-scrollbar {
-    width: 0;
-  }
-
-  .nav__list {
-    background-color: var(--black-color);
-    padding-top: 1rem;
-  }
-}
-
-.nav__link {
-  font-family: "Pretendard", sans-serif;
-  color: var(--white-color);
-  background-color: var(--black-color);
-  font-weight: var(--font-semi-bold);
-  padding: 1.25rem 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: background-color 0.3s;
-}
-
-.nav__link:hover {
-  background-color: var(--black-color-light);
-}
-
-/* Show menu */
-.show-menu {
-  opacity: 1;
-  top: 2.5rem;
-  pointer-events: initial;
-}
-
-/* Show icon */
-.show-icon .nav__burger {
-  opacity: 0;
-  transform: rotate(90deg);
-}
-
-.show-icon .nav__close {
-  opacity: 1;
-  transform: rotate(90deg);
-}
-
-/*=============== DROPDOWN ===============*/
-.dropdown__item {
-  cursor: pointer;
-}
-
-.dropdown__arrow {
-  font-size: 1.25rem;
-  font-weight: initial;
-  transition: transform 0.4s;
-}
-
-.dropdown__link {
-  font-family: "Pretendard", sans-serif;
-  padding: 1.25rem 1.25rem 1.25rem 2.5rem;
-  color: var(--white-color);
-  background-color: var(--black-color-light);
-  display: flex;
-  align-items: center;
-  column-gap: 0.5rem;
-  font-weight: var(--font-semi-bold);
-  transition: background-color 0.3s;
-  white-space: nowrap;
-  text-align: left;
-}
-
-.dropdown__link:hover {
-  background-color: var(--black-color);
-}
-
-.dropdown__menu {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.4s ease-out;
-}
-
-/* 모바일에서는 클릭 시 보이기 */
-@media (max-width: 768px) {
-  .show-dropdown {
-    max-height: 1000px;
-    transition: max-height 0.4s ease-in;
-  }
-}
-
-/* PC 에서는 마우스를 올리면 보이기 */
-.dropdown__item:hover .dropdown__menu {
-  max-height: 1000px;
-  transition: max-height 0.4s ease-in;
-}
-
-/* Rotate dropdown icon */
-.dropdown__item:hover .dropdown__arrow,
-.rotate-arrow {
-  transform: rotate(180deg);
-}
-
-/*=============== BREAKPOINTS ===============*/
-/* For small devices */
-@media screen and (max-width: 340px) {
-  .nav__link {
-    padding-inline: 1rem;
-  }
-}
-
-/* For large devices */
-@media screen and (min-width: 1118px) {
-  .nav {
-    height: calc(var(--header-height) + 2rem);
-    display: flex;
-    justify-content: space-between;
-  }
-
-  .nav__toggle {
-    display: none;
-  }
-
-  .nav__list {
-    height: 100%;
-    display: flex;
-    column-gap: 3rem;
-  }
-
-  .nav__link {
-    height: 100%;
-    padding: 0;
-    justify-content: initial;
-    column-gap: 0.25rem;
-  }
-
-  .nav__link:hover {
-    background-color: transparent;
-  }
-
-  .dropdown__item {
-    position: relative;
-  }
-
-  .dropdown__menu {
-    max-height: initial;
-    overflow: initial;
-    position: absolute;
-    left: 0;
-    top: 4.25rem;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s, top 0.3s;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .dropdown__link {
-    padding-inline: 1rem 3.5rem;
-  }
-
-  /* Show dropdown menu */
-  .dropdown__item:hover .dropdown__menu {
-    opacity: 1;
-    top: 4.75rem;
-    pointer-events: initial;
-    transition: top 0.3s;
-  }
-}
-
-/*=============== 피드백 버튼 (예전 nav-custom.css) ===============*/
-.feedback-btn {
-  background-color: #3B82F6;
-  color: white;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-left: 10px;
-  display: flex;
-  align-items: center;
-  height: 32px;
-  box-sizing: border-box;
-}
-
-.feedback-btn:hover {
-  background-color: #2563EB;
-}
-
-.feedback-expcarry-wrapper {
-  display: flex;
-  align-items: center;
   height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-weight: 700;
+  color: var(--nav-ink);
+}
+.bar__top.is-here::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 0;
+  height: 2px;
+  background: var(--nav-ink);
 }
 
-.feedback-expcarry-wrapper .feedback-btn {
-  margin-right: 4px;
+.bar__fb {
+  display: none;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--nav-fb-bg);
+  color: var(--nav-fb-ink) !important;
+  font-weight: 700;
+  font-size: 14px;
 }
 
-@media screen and (max-width: 768px) {
-  .feedback-btn {
-    margin-bottom: 20px;
+.bar__end { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* 다크/라이트 전환 버튼: 라이트에서는 달, 다크에서는 해 아이콘 */
+.bar__theme {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--nav-muted) !important;
+}
+.bar__theme:hover { background: var(--nav-paper) !important; color: var(--nav-ink) !important; }
+.bar__theme svg { width: 20px; height: 20px; }
+.bar__theme .sun,
+.bar__theme[aria-pressed="true"] .moon { display: none; }
+.bar__theme[aria-pressed="true"] .sun { display: block; }
+
+.bar__menu {
+  padding: 5px 12px;
+  border: 1px solid var(--nav-line) !important;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+/* 패널 (모바일: 화면 전체 목록) */
+.panel {
+  display: none;
+  position: fixed;
+  inset: var(--nav-h) 0 0;
+  overflow: auto;
+  background: var(--nav-bg);
+}
+.bar.open .panel { display: block; }
+
+.panel__cols {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 8px 24px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+
+.panel__col h3 {
+  margin: 0 10px 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--nav-muted);
+}
+.panel__col.dim { opacity: 0.45; transition: opacity 0.15s; }
+
+.panel__item {
+  display: block;
+  padding: 9px 10px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.panel__item:hover { background: var(--nav-paper); }
+.panel__item[aria-current] { color: var(--nav-here) !important; }
+
+.panel__fb {
+  display: block;
+  margin: 0 10px;
+  padding: 12px;
+  border-radius: 999px;
+  background: var(--nav-fb-bg);
+  color: var(--nav-fb-ink) !important;
+  text-align: center;
+  font-weight: 700;
+}
+
+/* PC */
+@media screen and (min-width: 1118px) {
+  :host { --nav-h: calc(var(--header-height) + 2rem); }
+
+  .bar__logo { width: 104px; height: 60px; }
+  .bar__nav { display: flex; }
+  .bar__fb { display: block; }
+  .bar__menu,
+  .panel__fb { display: none; }
+
+  .panel {
+    position: absolute;
+    inset: var(--nav-h) 0 auto;
+    overflow: visible;
+    box-shadow: inset 0 -1px 0 var(--nav-line), 0 18px 30px -18px rgba(29, 36, 51, 0.25);
   }
+  .bar.open .panel { display: none; }
+  .bar:has(.bar__top[aria-expanded="true"]) .panel { display: block; }
+
+  .panel__cols {
+    padding: 22px 16px 26px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px 32px;
+  }
+  .panel__col h3 { margin-bottom: 8px; }
+}
+
+@media screen and (max-width: 1117px) {
+  .panel__col.dim { opacity: 1; }
 }
