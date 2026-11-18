@@ -120,6 +120,25 @@
     justify-content: center;
 }
 
+/* 처음엔 맵을 숨겨 둠 (디지몬을 고르면 보임). CSS 순서와 상관없이 숨겨지도록 .hidden 보다 강하게 지정
+   (같은 강도면 나중에 읽힌 display: flex 가 이겨서 빈 맵 이미지가 깨진 채 보일 수 있음) */
+.map-img-wrap.hidden {
+    display: none;
+}
+
+/* PC: 맵 옆에 정보 카드 2장(816px)이 오는데, 화면이 좁으면 맵이 줄어들다 폭 0 이 되어 사라졌음 (기존 사이트도 같음).
+   맵 자리가 300px 보다 좁아지면 카드를 맵 아래로 내림. 넓은 화면에서는 예전처럼 맵 옆에 그대로 */
+@media (min-width: 768px) {
+    .flex:has(> .map-img-wrap) {
+        flex-wrap: wrap;
+        row-gap: 24px;
+    }
+    .map-img-wrap {
+        flex: 1 1 300px;
+        max-width: 500px;
+    }
+}
+
 #mapImage {
     width: 100%;
     height: 100%;
