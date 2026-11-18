@@ -1,10 +1,10 @@
 // Cloudflare Workers 배포 설정 (정적 사이트)
 // - npm run build 로 만든 dist/ 폴더를 그대로 올림
-// - 임시 주소: https://dsr-wiki.<계정 이름>.workers.dev
+// - 임시 주소: https://dsrwiki.s97716.workers.dev (Cloudflare 의 Worker 이름과 같아야 함)
 // - 관리자 저장용 API(기존 Netlify 함수)는 3단계에서 main 스크립트로 추가 예정
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "dsr-wiki",
+  "name": "dsrwiki",
   "compatibility_date": "2026-11-01",
   "assets": {
     "directory": "./dist",

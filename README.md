@@ -15,7 +15,7 @@ npm run deploy   # 빌드 후 Cloudflare 에 바로 배포 (처음 한 번 npx w
 
 ## 배포 (Cloudflare Workers)
 
-- 설정: `wrangler.jsonc` (정적 사이트, 이름 `dsr-wiki` → 임시 주소 `https://dsr-wiki.<계정>.workers.dev`)
+- 설정: `wrangler.jsonc` (정적 사이트, 이름 `dsrwiki` → 임시 주소 `https://dsrwiki.s97716.workers.dev`)
 - 주소 규칙: `public/_redirects` (예전 .html 주소 → 확장자 없는 주소로 301)
 - 캐시: `public/_headers`
 - GitHub 저장소를 Cloudflare 에 연결해 두면 커밋할 때마다 자동 배포됩니다
