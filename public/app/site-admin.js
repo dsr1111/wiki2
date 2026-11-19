@@ -82,6 +82,14 @@
     .cpa-list-row .cpa-btn { padding: 4px 8px; font-size: 12px; flex: none; }
     .cpa-chip { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .cpa-empty { padding: 16px; text-align: center; color: #888; font-size: 13px; }
+    .cpa-adminbar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 2500;
+      display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 14px; border-radius: 999px;
+      background: #1d2433; color: #fff; box-shadow: 0 10px 30px -8px rgba(16,20,30,.45); font-size: 13px; white-space: nowrap; }
+    .cpa-adminbar b { margin-right: 4px; font-weight: bold; }
+    .cpa-adminbar .cpa-btn { border-radius: 999px; padding: 6px 12px; font-size: 12px; background: #fff; border-color: #fff; color: #1d2433; }
+    .cpa-adminbar .cpa-btn:hover { background: #e8ebef; }
+    .cpa-adminbar .cpa-btn.cpa-ghost { background: transparent; border-color: rgba(255,255,255,.35); color: #fff; }
+    .cpa-adminbar .cpa-btn.cpa-ghost:hover { background: rgba(255,255,255,.12); }
     .cpa-fb-filters { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
     .cpa-fb-filters .cpa-btn[aria-pressed="true"] { background: #2c3e50; border-color: #2c3e50; color: #fff; }
     .cpa-fb { padding: 10px 12px; border-top: 1px solid #eee; }
@@ -215,9 +223,13 @@
     if (document.querySelector(".cpa-toolbar")) return;
     addToolbar(document.querySelector(".coupon-container"), [
       el("button", { type: "button", class: "cpa-btn cpa-primary", text: "+ 쿠폰 등록", onclick: () => showCouponEditor(null) }),
-      feedbackButton,
-      el("button", { type: "button", class: "cpa-btn", text: "관리 종료", onclick: () => exitAdmin() }),
     ]);
+    // 쿠폰과 상관없는 피드백·관리 종료는 화면 아래 관리자 막대에 (스크롤해도 항상 보임)
+    document.body.appendChild(el("div", { class: "cpa-adminbar", role: "toolbar", "aria-label": "관리자 모드" }, [
+      el("b", { text: "관리자 모드" }),
+      feedbackButton,
+      el("button", { type: "button", class: "cpa-btn cpa-ghost", text: "관리 종료", onclick: () => exitAdmin() }),
+    ]));
     addToolbar(document.getElementById("raid-timers"), [
       el("button", { type: "button", class: "cpa-btn cpa-primary", text: "레이드 관리", onclick: openRaidManager }),
     ], "cpa-section-bar");
@@ -237,7 +249,7 @@
   async function exitAdmin(expired) {
     clearToken();
     C.adminActive = false;
-    document.querySelectorAll(".cpa-toolbar").forEach((n) => n.remove());
+    document.querySelectorAll(".cpa-toolbar, .cpa-adminbar").forEach((n) => n.remove());
     if (expired === true) alert("관리자 로그인이 만료되었습니다. 다시 로그인하려면 주소 끝에 #admin 을 붙여 접속하세요.");
     try { C.renderCoupons(await C.fetchPublicCoupons()); } catch (e) { C.showCouponMessage("쿠폰 정보를 불러올 수 없습니다."); }
   }

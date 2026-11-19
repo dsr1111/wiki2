@@ -26,11 +26,35 @@ const preloadPageImports = (pages) => ({
   },
 });
 
+// 로컬 전용 데이터: 개발 서버(npm run dev)에서만 local/ 폴더(git 제외) 파일을 /__local/<이름> 으로 보여 줌.
+// 빌드·배포에는 이 기능도 파일도 들어가지 않음 (astro:server:setup 은 개발 서버에서만 실행됨)
+const localOnlyData = () => ({
+  name: 'local-only-data',
+  hooks: {
+    'astro:server:setup': ({ server }) => {
+      const dir = new URL('./local/', import.meta.url);
+      server.middlewares.use('/__local/', async (req, res, next) => {
+        const name = decodeURIComponent((req.url || '').split('?')[0].replace(/^\/+/, ''));
+        if (!/^[\w.-]+\.json$/.test(name)) return next();
+        try {
+          const body = await readFile(new URL(name, dir));
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          res.setHeader('Cache-Control', 'no-store');
+          res.end(body);
+        } catch {
+          res.statusCode = 404;
+          res.end();
+        }
+      });
+    },
+  },
+});
+
 // 다크 모드 자동 변환에서 뺄 CSS: 직접 고친 파일, 원래부터 어두운 화면(코스튬 각인 창, 가챠 연출)
 const SKIP_DARK = ['/src/styles/dark.css', '/src/styles/home-cards.css', '/pages/costume-slot/main.css', '/pages/gacha/presentation.css'];
 
 export default defineConfig({
-  integrations: [preloadPageImports(['index'])],
+  integrations: [preloadPageImports(['index']), localOnlyData()],
   site: 'https://dsrwiki.com',
   // 기존 주소(/digimon, /map …)를 그대로 쓰기 위해 digimon.html 형태로 만들고 끝 슬래시를 붙이지 않음
   // CSS 는 압축해서 페이지 HTML 안에 <style> 로 넣음: CSS 파일을 따로 기다리지 않고, 페이지를 옮길 때 CSS 순서도 섞이지 않음

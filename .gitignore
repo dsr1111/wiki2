@@ -6,3 +6,6 @@ dist/
 .wrangler/
 .dev.vars
 .dev.vars.*
+
+# 로컬 전용 데이터 (배포·커밋 금지): 개발 서버(npm run dev)에서만 /__local/ 로 읽음
+local/

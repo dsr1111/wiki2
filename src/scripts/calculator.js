@@ -420,6 +420,9 @@ const format = value => Number(value).toLocaleString('ko-KR', {maximumFractionDi
 const elements = ['강철','나무','흙','물','물리','바람','불','빛','어둠','얼음','천둥'];
 const imageBase = 'https://media.dsrwiki.com/dsrwiki/';
 let digimonData, mobData, calculationVersion = 0;
+// 디지몬 값을 이름별로 바꿔 쓸 때 (예: 개발 서버의 로컬 데이터). 없으면 null → 원래 데이터 그대로
+let digimonOverride = null;
+const effectiveDigimonData = () => digimonOverride ? {...digimonData, ...digimonOverride} : digimonData;
 
 function options(id, values, selected) {
   const nodes = values.map(entry => {const [value, label] = Array.isArray(entry) ? entry : [entry,entry]; return new Option(label, value);});
@@ -436,21 +439,27 @@ function portrait(id, name) {
   $(id).replaceChildren(img);
 }
 function attribute(id, name) { $(id).replaceChildren(...(name ? [icon(name), document.createTextNode(name)] : [document.createTextNode('없음')])); }
-function currentDigimon() { return digimonData[$('character-select').value]; }
+function currentDigimon() { const name = $('character-select').value; return digimonOverride?.[name] || digimonData[name]; }
 function currentSkill() { return currentDigimon()?.skills?.[Number($('skill-select').value.replace('skill',''))-1]; }
 function currentMob() {return mobData.find(row => row[0] === $('map1-select').value && row[1] === $('map2-select').value && row[2] === $('mob-select').value);}
 function populateCharacters(preferred) {
-  options('character-select', Object.keys(digimonData).filter(name => digimonData[name].evolution_stage === $('stage-select').value), preferred);
+  options('character-select', Object.keys(digimonData).filter(name => digimonData[name].evolution_stage === $('stage-select').value && (!digimonOverride || name in digimonOverride)), preferred);
   populateSkills();
 }
 function populateSkills() {
   const d = currentDigimon();
   $('character-name').textContent = $('character-select').value;
+  $('character-name').title = d.note || '';
   $('character-meta').replaceChildren(icon(d.type, d.type), document.createTextNode(`Lv.${d.stats.level}`));
   $('힘-cell').textContent = format(d.stats.STR);
   portrait('character-image-cell', $('character-select').value);
   options('skill-select', (d.skills || []).map((skill, i) => [`skill${i+1}`, `${i+1}. ${skill.name}`]));
-  $('skilllevel-select').value = '1레벨'; populateElements();
+  populateSkillLevels('1레벨'); populateElements();
+}
+// 스킬 레벨 수 = 계수 개수 (기본 10, 전생 디지몬은 13)
+function populateSkillLevels(selected) {
+  const count = Math.max(10, currentSkill()?.multipliers?.length || 0);
+  options('skilllevel-select', Array.from({length:count},(_,i)=>`${i+1}레벨`), selected);
 }
 function populateElements() {
   const skill = currentSkill();
@@ -473,10 +482,10 @@ function populateMobs() {
 function showMob() {
   const mob = currentMob(); if (!mob) return;
   $('mob-name').textContent = mob[2]; $('mob-meta').replaceChildren(icon(mob[4], mob[4]), document.createTextNode(`Lv.${mob[3]}`));
-  portrait('mob-image-cell', mob[2]); $('mob-hp').textContent = format(mob[5]); $('mob-def').textContent = format(mob[6]); attribute('mob-weak',mob[7]); attribute('mob-strong',mob[8]);
+  portrait('mob-image-cell', mob[9] || mob[2]); $('mob-hp').textContent = format(mob[5]); $('mob-def').textContent = format(mob[6]); attribute('mob-weak',mob[7]); attribute('mob-strong',mob[8]);
 }
 function getCalculationContext(context) { return context; }
-function contextFor(version) { return {hasStrengthResult:false,isCurrent:()=>version === calculationVersion,getDigimonData:async()=>digimonData,getMobData:async()=>mobData}; }
+function contextFor(version) { return {hasStrengthResult:false,isCurrent:()=>version === calculationVersion,getDigimonData:async()=>effectiveDigimonData(),getMobData:async()=>mobData}; }
 function clearResults(message) {
   $('needstr').textContent = '—'; $('result-caption').textContent = message; $('result-caption').hidden = false; $('probability-bar').style.width = '0%';
   for (const id of ['str-result','result-coefficient','normal-damage','critical-damage']) $(id).textContent = '—';
@@ -516,7 +525,7 @@ $('calculator-form').addEventListener('change', event => {
   const id = event.target.id;
   if (id === 'stage-select') populateCharacters();
   if (id === 'character-select') populateSkills();
-  if (id === 'skill-select') populateElements();
+  if (id === 'skill-select') { populateSkillLevels($('skilllevel-select').value); populateElements(); }
   if (id === 'map1-select') populateMaps();
   if (id === 'map2-select') populateMobs();
   if (id === 'mob-select') showMob();
@@ -535,6 +544,43 @@ async function load() {
     digimonData = json;
     mobData = (await csv.text()).trim().split(/\r?\n/).slice(1).map(row=>row.split(',').map(cell=>cell.trim())).filter(row=>row.length>=9 && row[2]);
     if (!Object.keys(digimonData).length || !mobData.length) throw new Error('계산 데이터가 비어 있습니다.');
+    // 개발 서버에서만: local/calculator.json (git 제외 파일) 의 몹을 더하고, 일반/전생 토글을 만듦.
+    // 배포 빌드에서는 이 부분이 통째로 빠짐 (토글도 화면에 없음)
+    if (import.meta.env.DEV) {
+      const extra = await fetch('/__local/calculator.json', {cache:'no-store'}).then(r => r.ok ? r.json() : null).catch(() => null);
+      if (extra) {
+        mobData = [...mobData, ...(extra.mob || [])];
+        // 전생은 최대 레벨(위키 레벨)이 100 인 디지몬만 가능 → 90·60 에서 멈추거나 레벨 정보가 없는(0) 디지몬은 뺌 (도감 전생 토글과 같은 기준)
+        const rebirth = Object.fromEntries(Object.entries(extra.rebirth || {}).filter(([name]) => String(digimonData[name]?.stats?.level) === '100'));
+        const level = Object.values(rebirth)[0]?.stats?.level;
+        if (Object.keys(rebirth).length && !$('rebirth-mode')) {
+          const label = document.createElement('label'); label.className = 'toggle';
+          const input = document.createElement('input'); input.type = 'checkbox'; input.id = 'rebirth-mode';
+          label.append(input, document.createTextNode(`전생 Lv${level}`));
+          label.title = '로컬 전용: 성숙기·완전체를 전생 1회 Lv' + level + ' 값으로 계산';
+          label.style.marginLeft = 'auto'; label.style.marginRight = '14px'; // 수동 입력 옆(오른쪽)에 붙임
+          $('manual-mode').closest('label').before(label);
+          const rebirthStages = new Set(Object.values(rebirth).map(d => d.evolution_stage));
+          const apply = () => {
+            digimonOverride = input.checked ? rebirth : null;
+            for (const o of $('stage-select').options) o.disabled = input.checked && !rebirthStages.has(o.value);
+            if ($('stage-select').selectedOptions[0]?.disabled) $('stage-select').value = '완전체';
+            // 같은 디지몬·스킬·속성을 유지하고, 스킬 레벨은 새 최대 레벨을 넘으면 최대 레벨로 (계산은 이후 폼 change 처리에서)
+            const keep = {name: $('character-select').value, skill: $('skill-select').value, level: parseInt($('skilllevel-select').value, 10), element: $('skill-element').value};
+            populateCharacters(keep.name);
+            if ($('character-select').value !== keep.name) return;
+            $('skill-select').value = keep.skill;
+            if ($('skill-select').value !== keep.skill) return;
+            const max = Math.max(10, currentSkill()?.multipliers?.length || 0);
+            populateSkillLevels(`${Math.min(keep.level, max)}레벨`); populateElements();
+            if ([...$('skill-element').options].some(o => o.value === keep.element)) $('skill-element').value = keep.element;
+          };
+          input.addEventListener('change', apply, { signal });
+          // 입력 초기화를 누르면 토글이 꺼지므로 일반으로 되돌림 (reset 이벤트는 값이 초기화되기 전에 옴)
+          $('calculator-form').addEventListener('reset', () => { input.checked = false; digimonOverride = null; for (const o of $('stage-select').options) o.disabled = false; }, { signal });
+        }
+      }
+    }
     options('skilllevel-select', Array.from({length:10},(_,i)=>`${i+1}레벨`));
     options('manual-skill-element', elements, '물리');
     options('map1-select', [...new Set(mobData.map(row=>row[0]))]);

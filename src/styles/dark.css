@@ -47,3 +47,8 @@
 /* 메인 캘린더(FullCalendar): 칸 배경을 다크 색으로 바꾸면서 가려진 "오늘" 표시를 다시 보이게 */
 :root[data-theme="dark"] .fc .fc-daygrid-day.fc-day-today { background-color: rgba(255, 220, 40, 0.12); }
 :root[data-theme="dark"] .fc { --fc-border-color: #2f3238; --fc-page-bg-color: #1b1e24; --fc-neutral-bg-color: #23262c; }
+
+/* 도감 전생 토글 스위치 (개발 서버 전용): 자동 변환하면 손잡이가 트랙과 같이 어두워져 안 보임 (.fv 를 붙여 자동 규칙보다 우선) */
+:root[data-theme="dark"] .fv .fv-switch { background: #4b5563; }
+:root[data-theme="dark"] .fv .fv-switch::after { background: #f3f4f6; }
+:root[data-theme="dark"] .fv .fv-rebirth[aria-pressed="true"] .fv-switch { background: #3b82f6; }

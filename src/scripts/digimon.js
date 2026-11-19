@@ -39,6 +39,33 @@ export function init(signal, onReady) {
   // 표의 줄마다 필터 판단에 쓰는 값을 미리 정리해 둔 것 (필터를 누를 때마다 data-* 글자를 다시 쪼개지 않게)
   let rowModels = [];
 
+  // 전생 토글 (개발 서버 전용): local/calculator.json 의 rebirth (이름 → 전생 Lv50 값, 성숙기·완전체만)
+  // 배포 빌드에서는 이 값을 불러오는 코드가 통째로 빠지므로 rebirthStats 는 늘 null
+  let rebirthStats = null;
+  let rebirthOn = false;
+  const REBIRTH_KEY = 'dsrDigimonRebirth';
+  // 레벨·HP·SP·힘·지능·수비·저항·속도 칸 (열 번호) 과 데이터의 키
+  const STAT_CELLS = [1, 4, 5, 6, 7, 8, 9, 10];
+  const STAT_KEYS = ['level', 'hp', 'sp', 'STR', 'INT', 'DEF', 'RES', 'SPD'];
+  const NO_VALUE = '—'; // 전생 값이 없는 디지몬 (성장기·궁극체 등)
+  // 전생은 최대 레벨(표의 레벨 칸)이 100 인 디지몬만 가능 → 90·60 에서 멈추는 디지몬, 레벨 정보가 없는(0) 디지몬은 '—'
+  const REBIRTH_LEVEL = '100';
+
+  function applyRebirth() {
+    const on = rebirthOn && !!rebirthStats;
+    document.querySelector('.result-table')?.classList.toggle('is-rebirth', on);
+    rowModels.forEach((m) => {
+      const r = on && m.stats[0] === REBIRTH_LEVEL ? rebirthStats[m.row.dataset.name]?.stats : null;
+      STAT_CELLS.forEach((c, i) => {
+        const v = !on ? m.stats[i] : r && r[STAT_KEYS[i]] != null ? String(r[STAT_KEYS[i]]) : NO_VALUE;
+        const cell = m.row.cells[c];
+        if (cell.textContent !== v) cell.textContent = v;
+      });
+    });
+    // 정렬 중이면 바뀐 값으로 다시 정렬
+    if (currentSortState.direction !== 'none') applySort();
+  }
+
   // 커스텀 툴팁 표시 함수
   function showCustomTooltip(e, text, isHtml = false) {
     const tooltip = document.getElementById('custom-tooltip');
@@ -187,6 +214,8 @@ export function init(signal, onReady) {
     const d = row.dataset;
     return {
       row,
+      // 원래 스탯 글자 (전생 토글을 끌 때 되돌릴 값)
+      stats: STAT_CELLS.map((c) => row.cells[c].textContent),
       name: d.name ? d.name.toLowerCase() : '',
       evolution: d.evolution,
       type: d.type,
@@ -589,6 +618,7 @@ export function init(signal, onReady) {
 
         originalRows = Array.from(tableBody.rows);
         rowModels = originalRows.map(toRowModel);
+        if (rebirthStats) applyRebirth();
 
         // 로딩 완료 후 로딩 표시 숨김
         this.hideLoading();
@@ -737,10 +767,6 @@ export function init(signal, onReady) {
   // 5. Sorting Module
   // ====================================================
   function sortTable(column) {
-    const table = document.getElementById("characterTable");
-    const rows = Array.from(table.rows);
-    const typeOrder = ["백신", "데이터", "바이러스", "프리", "언노운", "노데이터"];
-
     if (currentSortState.column === column) {
       if (currentSortState.direction === 'none') {
         currentSortState.direction = 'asc';
@@ -754,6 +780,17 @@ export function init(signal, onReady) {
       currentSortState.direction = 'asc';
     }
 
+    applySort();
+    updateSortIndicator(column);
+  }
+
+  // 지금 정렬 상태(currentSortState)대로 표 줄 순서를 맞춤
+  function applySort() {
+    const table = document.getElementById("characterTable");
+    if (!table) return;
+    const rows = Array.from(table.rows);
+    const typeOrder = ["백신", "데이터", "바이러스", "프리", "언노운", "노데이터"];
+    const column = currentSortState.column;
     if (currentSortState.direction !== 'none') {
       const dir = currentSortState.direction === 'asc' ? 1 : -1;
       // 비교할 값을 줄마다 한 번만 읽어 둠 (비교할 때마다 innerText 를 읽으면 화면 배치 계산이 일어나 느림)
@@ -764,20 +801,21 @@ export function init(signal, onReady) {
           const i = typeOrder.indexOf(cell.querySelector("img")?.alt.trim());
           return i === -1 ? typeOrder.length : i;
         }
+        // 전생 값이 없는 칸('—')은 오름차순·내림차순 모두 맨 뒤로
+        if (cell.textContent === NO_VALUE) return null;
         // 숫자가 아니면 양쪽 모두 0 으로 봄 (예전엔 한쪽만 0 이라 순서가 뒤섞였음)
         const n = parseFloat(cell.textContent);
         return isNaN(n) ? 0 : n;
       };
       const keyed = rows.map((row) => [keyOf(row), row]);
       keyed.sort(([a], [b]) =>
+        a === null || b === null ? (a === null) - (b === null) :
         dir * (typeof a === 'string' ? a.localeCompare(b) : a < b ? -1 : a > b ? 1 : 0)
       );
       table.replaceChildren(...keyed.map(([, row]) => row));
     } else {
       table.replaceChildren(...originalRows);
     }
-
-    updateSortIndicator(column);
   }
 
   function updateSortIndicator(column) {
@@ -837,8 +875,43 @@ export function init(signal, onReady) {
 
     TableDataManager.fetchData();
     initTableTooltips();
+    if (import.meta.env.DEV) initRebirthToggle();
     initAdminLoader(signal, 'digimon-admin', 'DSRDigimonAdmin');
   };
+
+  // 개발 서버 전용: 전생 값을 불러오고 필터 줄(검색창 줄)의 [상세 필터] 앞에 토글을 붙임
+  // (필터 화면은 이 init 바로 뒤에 같은 흐름에서 그려지므로, fetch 가 끝날 땐 .fv-bar 가 있음)
+  function initRebirthToggle() {
+    fetch('/__local/calculator.json', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null)
+      .then((extra) => {
+        const rebirth = extra?.rebirth;
+        const bar = document.querySelector('.fv-bar');
+        if (signal.aborted || !bar || !rebirth || !Object.keys(rebirth).length) return;
+        rebirthStats = rebirth;
+        try { rebirthOn = localStorage.getItem(REBIRTH_KEY) === '1'; } catch (e) { /* 저장소 차단 */ }
+        const level = Object.values(rebirth)[0]?.stats?.level;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'fv-rebirth';
+        btn.title = `로컬 전용: 최대 레벨 100 인 성숙기·완전체를 전생 1회 Lv${level} 스탯으로 표시 (나머지는 ${NO_VALUE})`;
+        const sw = document.createElement('span');
+        sw.className = 'fv-switch';
+        sw.setAttribute('aria-hidden', 'true');
+        btn.append(sw, document.createTextNode(`전생 Lv${level}`));
+        const sync = () => btn.setAttribute('aria-pressed', String(rebirthOn));
+        btn.addEventListener('click', () => {
+          rebirthOn = !rebirthOn;
+          try { localStorage.setItem(REBIRTH_KEY, rebirthOn ? '1' : '0'); } catch (e) { /* 저장소 차단 */ }
+          sync();
+          applyRebirth();
+        });
+        sync();
+        bar.insertBefore(btn, bar.querySelector('.fv-more'));
+        applyRebirth();
+      });
+  }
 
   // 필터 화면(digimon-filter.js)과 관리자 도구(digimon-admin.js)가 쓰는 공개 API
   window.DSRDigimon = {
