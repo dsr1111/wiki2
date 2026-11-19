@@ -25,7 +25,10 @@
   },
   // media.dsrwiki.com 이 연결된 R2 버킷 (관리자 저장이 여기에 씀). 예전 Netlify 의 R2_BUCKET 과 같은 이름
   "r2_buckets": [
-    { "binding": "MEDIA", "bucket_name": "dsrwiki" }
+    { "binding": "MEDIA", "bucket_name": "dsrwiki" },
+    // 피드백 첨부 이미지 (비공개: 공개 도메인을 연결하지 말 것. 관리자 로그인 후 /api/feedback 으로만 봄)
+    // 배포 전에 Cloudflare 대시보드 → R2 에서 이 이름으로 버킷을 만들어 둬야 함
+    { "binding": "FEEDBACK", "bucket_name": "dsrwiki-feedback" }
   ],
   "vars": {
     // 공개 주소라 비밀값 아님 (브라우저 코드 index.js 에도 들어 있음)

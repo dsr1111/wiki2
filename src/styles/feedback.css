@@ -1,0 +1,106 @@
+/* 피드백 창 (Nav.astro 의 <dialog class="fbk">) — 메뉴의 shadow DOM 안에서만 쓰임.
+   색은 메뉴 색 변수(--nav-*)를 그대로 써서 다크 모드에서도 메뉴와 같이 바뀜 (값은 nav-menu.css / dark.css) */
+
+.fbk {
+  width: min(480px, calc(100% - 32px));
+  max-height: calc(100% - 48px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--nav-line);
+  border-radius: 14px;
+  background: var(--nav-bg);
+  color: var(--nav-ink);
+  font-family: "Pretendard", sans-serif;
+  box-shadow: 0 24px 60px -20px rgba(16, 20, 30, 0.45);
+  overflow: auto;
+}
+.fbk::backdrop { background: rgba(16, 20, 30, 0.5); }
+.fbk [hidden] { display: none !important; }
+
+.fbk__form,
+.fbk__done { padding: 18px 20px 18px; }
+
+.fbk__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.fbk h2 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+.fbk__x {
+  width: 32px; height: 32px; margin-right: -6px; display: grid; place-items: center;
+  border: 0; border-radius: 8px; background: none; color: var(--nav-muted); cursor: pointer;
+}
+.fbk__x:hover { background: var(--nav-paper); color: var(--nav-ink); }
+.fbk__x svg { width: 18px; height: 18px; }
+.fbk__lead { margin: 6px 0 16px; font-size: 13px; line-height: 1.5; color: var(--nav-muted); }
+
+.fbk__label { display: block; margin: 0 0 6px; padding: 0; font-size: 13px; font-weight: 700; }
+.fbk__label small { margin-left: 4px; font-size: 12px; font-weight: 500; color: var(--nav-muted); }
+
+/* 종류: 세 칸짜리 고르기 */
+.fbk__kinds { margin: 0 0 14px; padding: 0; border: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.fbk__kinds label { position: relative; cursor: pointer; }
+.fbk__kinds input { position: absolute; opacity: 0; pointer-events: none; }
+.fbk__kinds span {
+  display: block; padding: 8px 4px; border: 1px solid var(--nav-line); border-radius: 8px;
+  text-align: center; font-size: 14px; font-weight: 700; color: var(--nav-muted);
+}
+.fbk__kinds label:hover span { color: var(--nav-ink); }
+.fbk__kinds input:checked + span { border-color: var(--nav-ink); background: var(--nav-ink); color: var(--nav-bg); }
+.fbk__kinds input:focus-visible + span { outline: 2px solid var(--nav-ink); outline-offset: 2px; }
+
+.fbk__field { display: block; position: relative; margin: 0 0 14px; }
+.fbk textarea,
+.fbk input[type="text"] {
+  display: block; width: 100%; box-sizing: border-box; margin: 0; padding: 9px 11px;
+  border: 1px solid var(--nav-line); border-radius: 8px; background: var(--nav-paper); color: var(--nav-ink);
+  font: inherit; font-size: 14px; line-height: 1.5;
+}
+.fbk textarea { min-height: 120px; resize: vertical; padding-bottom: 24px; }
+.fbk textarea::placeholder { color: var(--nav-muted); }
+.fbk textarea:focus,
+.fbk input[type="text"]:focus { outline: none; border-color: var(--nav-ink); background: var(--nav-bg); }
+.fbk__count { position: absolute; right: 10px; bottom: 7px; font-size: 11px; color: var(--nav-muted); pointer-events: none; }
+
+/* 첨부 이미지: 작은 정사각형 썸네일 + 추가 칸 */
+.fbk__shots { display: flex; flex-wrap: wrap; gap: 8px; }
+.fbk__shot, .fbk__add {
+  position: relative; width: 76px; height: 76px; box-sizing: border-box; border-radius: 8px; flex: none;
+}
+.fbk__shot { border: 1px solid var(--nav-line); background: var(--nav-paper); overflow: hidden; }
+.fbk__shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fbk__shot.is-busy::after {
+  content: ""; position: absolute; inset: 0; margin: auto; width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--nav-line); border-top-color: var(--nav-ink); animation: fbk-spin 0.8s linear infinite;
+}
+@keyframes fbk-spin { to { transform: rotate(360deg); } }
+.fbk__shot-x {
+  position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%;
+  background: rgba(16, 20, 30, 0.7); color: #fff; font-size: 16px; line-height: 22px; cursor: pointer;
+}
+.fbk__add {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 1px dashed var(--nav-line); color: var(--nav-muted); font-size: 11px; font-weight: 700; cursor: pointer;
+}
+.fbk__add:hover { border-color: var(--nav-ink); color: var(--nav-ink); }
+.fbk__add:focus-within { outline: 2px solid var(--nav-ink); outline-offset: 2px; }
+.fbk__add svg { width: 20px; height: 20px; }
+.fbk__add input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+.fbk__hp { position: absolute !important; left: -9999px !important; width: 1px; height: 1px; opacity: 0; }
+
+.fbk__error { min-height: 1em; margin: 0; font-size: 13px; color: var(--nav-danger); }
+.fbk__error a { color: inherit; font-weight: 700; }
+
+.fbk__foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.fbk__btn {
+  padding: 9px 16px; border: 1px solid var(--nav-line); border-radius: 999px; background: var(--nav-bg); color: var(--nav-ink);
+  font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.fbk__btn:hover { background: var(--nav-paper); }
+.fbk__btn--main { border-color: var(--nav-fb-bg); background: var(--nav-fb-bg); color: var(--nav-fb-ink); }
+.fbk__btn--main:hover { background: var(--nav-fb-bg); opacity: 0.88; }
+.fbk__btn:disabled { opacity: 0.55; cursor: default; }
+.fbk :focus-visible { outline: 2px solid var(--nav-ink); outline-offset: 2px; }
+
+.fbk__done p { margin: 8px 0 4px; font-size: 14px; line-height: 1.5; color: var(--nav-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fbk__shot.is-busy::after { animation-duration: 2s; }
+}

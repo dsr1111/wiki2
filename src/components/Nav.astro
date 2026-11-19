@@ -7,6 +7,7 @@
 // - 높이는 예전과 같음 (모바일 44px, 1118px 이상 76px). 페이지들이 이 높이에 맞춰 위쪽을 비워 둠
 import baseCss from '../styles/styles1.css?raw';
 import navCss from '../styles/nav-menu.css?raw'; // 메뉴 전용 규칙 (페이지에는 안 들어감)
+import feedbackCss from '../styles/feedback.css?raw'; // 피드백 창
 
 type Item = { label: string; href: string; external?: boolean };
 type Group = { label: string; items: Item[] };
@@ -46,10 +47,12 @@ const GROUPS: Group[] = [
   },
 ];
 
+// 피드백 버튼은 사이트 안의 피드백 창(아래 <dialog>, scripts/feedback.ts)을 엶.
+// 구글폼 주소는 스크립트가 안 돌 때와 전송이 실패했을 때 대신 쓰는 곳
 const FEEDBACK_URL = 'https://forms.gle/7xSaJBz4A28CPY4z9';
 
 // styles1.css 맨 위의 글꼴 @import 는 페이지에서 이미 불러오므로 메뉴 안에서는 뺌
-const shadowCss = baseCss.replace(/@import[^;]+;/g, '') + navCss;
+const shadowCss = baseCss.replace(/@import[^;]+;/g, '') + navCss + feedbackCss;
 ---
 <custom-nav transition:persist="site-nav">
   <template shadowrootmode="open">
@@ -77,7 +80,7 @@ const shadowCss = baseCss.replace(/@import[^;]+;/g, '') + navCss;
             <button type="button" role="radio" data-mode="dark" aria-checked="false" aria-label="다크 모드" title="다크 모드"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
             <button type="button" role="radio" data-mode="system" aria-checked="true" aria-label="기기 설정 따르기" title="기기 설정 따르기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></button>
           </div>
-          <a class="bar__fb" href={FEEDBACK_URL} target="_blank" rel="noopener">피드백</a>
+          <a class="bar__fb" href={FEEDBACK_URL} target="_blank" rel="noopener" data-feedback>피드백</a>
           <button type="button" class="bar__menu" aria-expanded="false">메뉴</button>
         </div>
       </div>
@@ -96,15 +99,71 @@ const shadowCss = baseCss.replace(/@import[^;]+;/g, '') + navCss;
               )}
             </div>
           ))}
-          <a class="panel__fb" href={FEEDBACK_URL} target="_blank" rel="noopener">피드백 보내기</a>
+          <a class="panel__fb" href={FEEDBACK_URL} target="_blank" rel="noopener" data-feedback>피드백 보내기</a>
         </div>
       </div>
     </header>
+
+    <!-- 피드백 창: 메뉴 색 변수를 같이 써서 다크 모드도 메뉴와 같이 바뀜. 동작은 scripts/feedback.ts -->
+    <dialog class="fbk" aria-labelledby="fbk-title" data-fallback={FEEDBACK_URL}>
+      <form class="fbk__form" novalidate>
+        <div class="fbk__head">
+          <h2 id="fbk-title">피드백 보내기</h2>
+          <button type="button" class="fbk__x" data-close aria-label="닫기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <p class="fbk__lead">잘못된 정보나 오류, 있었으면 하는 기능을 알려 주세요. 보낸 내용은 운영자만 봐요.</p>
+
+        <fieldset class="fbk__kinds">
+          <legend class="fbk__label">종류</legend>
+          <label><input type="radio" name="category" value="bug" checked /><span>오류 제보</span></label>
+          <label><input type="radio" name="category" value="idea" /><span>건의</span></label>
+          <label><input type="radio" name="category" value="etc" /><span>기타</span></label>
+        </fieldset>
+
+        <label class="fbk__field">
+          <span class="fbk__label">내용</span>
+          <textarea name="message" rows="6" maxlength="2000" placeholder="어느 페이지에서 무엇이 어떻게 됐는지 적어 주시면 빨리 고칠 수 있어요."></textarea>
+          <span class="fbk__count" aria-live="polite">0 / 2000</span>
+        </label>
+
+        <div class="fbk__field">
+          <span class="fbk__label">이미지 <small>선택, 3장까지. 캡처한 화면을 붙여넣어도 돼요</small></span>
+          <div class="fbk__shots">
+            <label class="fbk__add">
+              <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              <span>이미지 추가</span>
+            </label>
+          </div>
+        </div>
+
+        <label class="fbk__field">
+          <span class="fbk__label">연락처 <small>선택. 답변이 필요하면 디스코드 아이디 등</small></span>
+          <input type="text" name="contact" maxlength="100" autocomplete="off" />
+        </label>
+
+        <!-- 사람 눈에는 안 보이는 칸: 봇이 채우면 서버가 저장하지 않음 -->
+        <input class="fbk__hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
+
+        <p class="fbk__error" role="alert"></p>
+        <div class="fbk__foot">
+          <button type="button" class="fbk__btn" data-close>취소</button>
+          <button type="submit" class="fbk__btn fbk__btn--main">보내기</button>
+        </div>
+      </form>
+
+      <div class="fbk__done" hidden>
+        <h2>보냈어요</h2>
+        <p>알려 주셔서 고마워요. 확인하고 반영할게요.</p>
+        <div class="fbk__foot"><button type="button" class="fbk__btn fbk__btn--main" data-close>닫기</button></div>
+      </div>
+    </dialog>
   </template>
 </custom-nav>
 
 <script>
   import { prefetch } from 'astro:prefetch';
+  import { initFeedback } from '../scripts/feedback';
 
   const host = document.querySelector('custom-nav') as HTMLElement | null;
 
@@ -150,6 +209,17 @@ const shadowCss = baseCss.replace(/@import[^;]+;/g, '') + navCss;
     menuBtn.addEventListener('click', () => setMobile(!bar.classList.contains('open')));
 
     const closeAll = () => { openCol(null); setMobile(false); };
+
+    /* 피드백 버튼 → 사이트 안의 피드백 창 (스크립트가 안 돌면 링크대로 구글폼이 열림) */
+    const feedback = initFeedback(root);
+    root.querySelectorAll<HTMLAnchorElement>('[data-feedback]').forEach((a) => {
+      a.addEventListener('click', (e) => {
+        if (!feedback) return;
+        e.preventDefault();
+        closeAll();
+        feedback.open();
+      });
+    });
 
     /* 바깥을 누르거나 Esc 를 누르면 닫기 */
     document.addEventListener('click', (e) => {

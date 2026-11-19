@@ -14,6 +14,7 @@
   --nav-fb-ink: #fff;
   --nav-track: #ECEEF4;
   --nav-knob: #fff;
+  --nav-danger: #C2412D; /* 피드백 창 오류 글자 */
   --nav-h: var(--header-height);
   /* 다크 모드 값은 src/styles/dark.css 에서 custom-nav 에 넣음 (바깥 규칙이 :host 보다 우선) */
 }

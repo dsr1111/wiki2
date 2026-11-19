@@ -41,6 +41,16 @@ npm run deploy   # 빌드 후 Cloudflare 에 바로 배포 (처음 한 번 npx w
 4. 기존 사이트와 같은지 확인
 5. dsrwiki.com 연결 전환 (기존 Netlify 사이트는 되돌리기용으로 유지)
 
+## 피드백
+
+메뉴의 "피드백" 버튼은 사이트 안의 피드백 창을 엶 (`src/components/Nav.astro` 의 `<dialog>`, `src/scripts/feedback.ts`, `src/styles/feedback.css`).
+보내면 `/api/feedback` (`worker/functions/feedback.mjs`) 이 Supabase `site_feedback` 테이블에 저장하고, 첨부 이미지는 R2 비공개 버킷 `dsrwiki-feedback` 에 저장함.
+관리자는 메인 페이지 `#admin` 으로 로그인한 뒤 "피드백" 버튼에서 확인 (읽음 표시·삭제).
+
+처음 한 번 할 일:
+1. Supabase SQL Editor 에서 `supabase/site_feedback.sql` 실행
+2. Cloudflare 대시보드 → R2 에서 `dsrwiki-feedback` 버킷 만들기 (공개 접근·도메인 연결은 하지 않음). 버킷이 없으면 `wrangler deploy` 가 실패함
+
 ## 관리자 기능 로컬 시험
 
 진짜 데이터를 건드리지 않도록 로컬의 가짜 R2 에 공개 데이터 사본을 넣고 시험합니다.

@@ -82,6 +82,20 @@
     .cpa-list-row .cpa-btn { padding: 4px 8px; font-size: 12px; flex: none; }
     .cpa-chip { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .cpa-empty { padding: 16px; text-align: center; color: #888; font-size: 13px; }
+    .cpa-fb-filters { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
+    .cpa-fb-filters .cpa-btn[aria-pressed="true"] { background: #2c3e50; border-color: #2c3e50; color: #fff; }
+    .cpa-fb { padding: 10px 12px; border-top: 1px solid #eee; }
+    .cpa-fb:first-child { border-top: none; }
+    .cpa-fb.cpa-fb-unread { background: #f3f8fc; box-shadow: inset 3px 0 0 #2f8fcb; }
+    .cpa-fb-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 12px; color: #777; }
+    .cpa-fb-kind { display: inline-block; padding: 1px 7px; border-radius: 999px; font-weight: bold; font-size: 11px; color: #fff; }
+    .cpa-fb-kind.bug { background: #c0392b; } .cpa-fb-kind.idea { background: #2f8fcb; } .cpa-fb-kind.etc { background: #7f8c8d; }
+    .cpa-fb-msg { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.5; color: #222; }
+    .cpa-fb-contact { margin-top: 4px; font-size: 12px; color: #555; overflow-wrap: anywhere; }
+    .cpa-fb-shots { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .cpa-fb-shots a { display: block; width: 88px; height: 88px; border-radius: 6px; overflow: hidden; border: 1px solid #ddd; background: #f2f2f2; }
+    .cpa-fb-shots img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .cpa-fb .cpa-row-actions { justify-content: flex-end; }
     @media (max-width: 480px) {
       .cpa-item, .cpa-item-head { grid-template-columns: 32px 1fr 56px 56px 26px; gap: 4px; }
       .cpa-thumb { width: 32px; height: 32px; }
@@ -201,6 +215,7 @@
     if (document.querySelector(".cpa-toolbar")) return;
     addToolbar(document.querySelector(".coupon-container"), [
       el("button", { type: "button", class: "cpa-btn cpa-primary", text: "+ 쿠폰 등록", onclick: () => showCouponEditor(null) }),
+      feedbackButton,
       el("button", { type: "button", class: "cpa-btn", text: "관리 종료", onclick: () => exitAdmin() }),
     ]);
     addToolbar(document.getElementById("raid-timers"), [
@@ -215,6 +230,7 @@
     C.adminActive = true;
     installToolbars();
     C.showCouponMessage("불러오는 중...");
+    refreshFeedbackCount();
     await reloadCoupons();
   }
 
@@ -728,6 +744,113 @@
         await refresh(true);
       },
     });
+  }
+
+  // ======================================================================
+  // 피드백 (메뉴의 "피드백" 창으로 들어온 것. API: worker/functions/feedback.mjs)
+  // ======================================================================
+  const FEEDBACK_API = "/api/feedback";
+  const FEEDBACK_KINDS = { bug: "오류 제보", idea: "건의", etc: "기타" };
+  const feedbackButton = el("button", { type: "button", class: "cpa-btn", text: "피드백", onclick: () => openFeedbackManager() });
+
+  function setFeedbackCount(rows) {
+    const unread = rows.filter((r) => !r.is_read).length;
+    feedbackButton.textContent = unread ? `피드백 (새 글 ${unread})` : "피드백";
+  }
+  async function refreshFeedbackCount() {
+    try { setFeedbackCount((await request(`${FEEDBACK_API}?list=1`, "GET")).rows); } catch (e) { /* 표시만 못 함 */ }
+  }
+
+  /** 첨부 이미지는 비공개라 로그인 토큰을 붙여 받아서 보여 줌 */
+  async function loadFeedbackImage(key) {
+    const token = getToken();
+    const res = await fetch(`${FEEDBACK_API}?image=${encodeURIComponent(key)}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (!res.ok) throw new Error(String(res.status));
+    return URL.createObjectURL(await res.blob());
+  }
+
+  function openFeedbackManager() {
+    let rows = [];
+    let filter = "unread";
+    const blobUrls = [];
+    const list = el("div", { class: "cpa-list" }, el("div", { class: "cpa-empty", text: "불러오는 중..." }));
+    const FILTERS = [["unread", "안 읽음"], ["all", "전체"], ["bug", "오류 제보"], ["idea", "건의"], ["etc", "기타"]];
+    const filterButtons = FILTERS.map(([key, label]) => el("button", {
+      type: "button", class: "cpa-btn", "aria-pressed": String(key === filter), text: label,
+      onclick() { filter = key; filterButtons.forEach((b, i) => b.setAttribute("aria-pressed", String(FILTERS[i][0] === key))); render(); },
+    }));
+    const body = el("div", {}, [
+      el("div", { class: "cpa-fb-filters" }, filterButtons),
+      list,
+      el("div", { class: "cpa-footer" }, [el("button", { type: "button", class: "cpa-btn", text: "닫기", onclick: () => modal.tryClose() })]),
+    ]);
+    const modal = openModal("피드백", body, {
+      wide: true,
+      onRequestClose(close) { blobUrls.forEach((u) => URL.revokeObjectURL(u)); close(); },
+    });
+
+    function render() {
+      const shown = rows.filter((r) => filter === "all" || (filter === "unread" ? !r.is_read : r.category === filter));
+      list.replaceChildren();
+      if (!shown.length) list.appendChild(el("div", { class: "cpa-empty", text: filter === "unread" ? "새 피드백이 없습니다." : "피드백이 없습니다." }));
+      shown.forEach((row) => list.appendChild(renderRow(row)));
+      setFeedbackCount(rows);
+    }
+
+    function renderRow(row) {
+      const shots = el("div", { class: "cpa-fb-shots" });
+      (row.images || []).forEach((key) => {
+        const link = el("a", { href: "#", target: "_blank", rel: "noopener", title: "크게 보기" });
+        shots.appendChild(link);
+        loadFeedbackImage(key).then((url) => {
+          blobUrls.push(url);
+          link.href = url;
+          link.appendChild(el("img", { src: url, alt: "첨부 이미지" }));
+        }).catch(() => { link.replaceWith(el("span", { class: "cpa-hint", text: "이미지를 불러오지 못함" })); });
+      });
+      const toggle = el("button", { type: "button", class: "cpa-btn", text: row.is_read ? "안 읽음으로" : "읽음",
+        onclick: () => update(row, { action: "read", id: row.id, is_read: !row.is_read }) });
+      const remove = el("button", { type: "button", class: "cpa-btn cpa-danger", text: "삭제",
+        onclick() {
+          if (!confirm("이 피드백을 삭제할까요?\n첨부 이미지도 같이 지워지고 되돌릴 수 없습니다.")) return;
+          update(row, { action: "delete", id: row.id });
+        } });
+      return el("div", { class: `cpa-fb${row.is_read ? "" : " cpa-fb-unread"}` }, [
+        el("div", { class: "cpa-fb-meta" }, [
+          el("span", { class: `cpa-fb-kind ${row.category}`, text: FEEDBACK_KINDS[row.category] || row.category }),
+          el("span", { text: formatKst(row.created_at) }),
+          row.page ? el("a", { href: row.page, target: "_blank", rel: "noopener", text: row.page }) : null,
+        ]),
+        el("p", { class: "cpa-fb-msg", text: row.message }),
+        row.contact ? el("div", { class: "cpa-fb-contact", text: `연락처: ${row.contact}` }) : null,
+        row.images?.length ? shots : null,
+        el("div", { class: "cpa-row-actions" }, [toggle, remove]),
+      ]);
+    }
+
+    async function update(row, payload) {
+      try {
+        if (payload.action === "delete") {
+          await request(FEEDBACK_API, "POST", payload);
+          rows = rows.filter((r) => r.id !== row.id);
+        } else {
+          const { row: next } = await request(FEEDBACK_API, "POST", payload);
+          rows = rows.map((r) => (r.id === row.id ? next : r));
+        }
+        render();
+      } catch (err) {
+        handleError(err, alert);
+      }
+    }
+
+    (async () => {
+      try {
+        rows = (await request(`${FEEDBACK_API}?list=1`, "GET")).rows;
+        render();
+      } catch (err) {
+        handleError(err, (m) => list.replaceChildren(el("div", { class: "cpa-empty", text: `불러오지 못했습니다: ${m}` })));
+      }
+    })();
   }
 
   // ---------- 시작 ----------
