@@ -452,6 +452,9 @@ function populateSkills() {
   $('character-name').title = d.note || '';
   $('character-meta').replaceChildren(icon(d.type, d.type), document.createTextNode(`Lv.${d.stats.level}`));
   $('힘-cell').textContent = format(d.stats.STR);
+  // 힘 값에 붙는 설명(계산식)이 있으면 '힘 값' 아래 줄에 작게 표시하고, 앞 글자를 '기본 힘' → '힘' 으로
+  $('힘-cell').previousSibling.textContent = d.strNote ? '힘 ' : '기본 힘 ';
+  if (d.strNote) { const note = document.createElement('small'); note.textContent = `(${d.strNote})`; note.style.cssText = 'display:block;font-weight:normal;white-space:nowrap'; $('힘-cell').append(note); }
   portrait('character-image-cell', $('character-select').value);
   options('skill-select', (d.skills || []).map((skill, i) => [`skill${i+1}`, `${i+1}. ${skill.name}`]));
   populateSkillLevels('1레벨'); populateElements();

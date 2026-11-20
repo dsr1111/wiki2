@@ -66,6 +66,14 @@ const mapOptions = {
     "빛의 언덕 과거(밤)",
     "네트워크"
   ],
+  "파워디지몬 PART1": [
+    "그랜드 캐니언",
+    "불꽃의 늪",
+    "산타 게리아",
+    "드라고몬의 바다",
+    "학교 컴퓨터 교실",
+    "디지몬 카이저 기지",
+  ],
 };
 
 // 이미지 업데이트 함수
@@ -118,10 +126,17 @@ let mapDataLoaded = false;
 // JSON 데이터 처리
 Promise.all([
   fetch("https://media.dsrwiki.com/data/csv/map.json").then(response => response.json()),
-  getDigimonData()
+  getDigimonData(),
+  // 파워디지몬 PART1 신규 맵 (이 저장소 public/data/map_p1.json, 데이터 큐브 제외)
+  fetch("/data/map_p1.json").then(response => (response.ok ? response.json() : {})).catch(() => ({}))
 ])
-  .then(([mapData, digimonData]) => {
-    maps = mapData;
+  .then(async ([mapData, digimonData, part1Maps]) => {
+    maps = {...mapData, ...part1Maps};
+    // 로컬 전용(개발 서버에서만): local/map_p1.json(데이터 큐브 포함)으로 PART1 맵을 덮어씀. 빌드에서는 이 블록이 통째로 빠짐
+    if (import.meta.env.DEV) {
+      const extra = await fetch('/__local/map_p1.json').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      if (extra?.maps && !signal.aborted) Object.assign(maps, extra.maps);
+    }
     window.digimonData = digimonData; // 전역 변수로 저장
     initializeDropdownOptions(); // 드롭다운 옵션 초기화
   })
@@ -601,6 +616,8 @@ function showDatacubeTooltip(event, imageElement, tooltipText) {
   datacubeImage.src = datacubeImagePath;
   datacubeImage.alt = tooltipText;
   datacubeImage.className = "datacube-main-img";
+  // 위치 사진이 아직 없는 큐브는 빈 사진 상자를 띄우지 않음
+  datacubeImage.onerror = () => imageContainer.remove();
 
   // Append the image to the image container
   imageContainer.appendChild(datacubeImage);
