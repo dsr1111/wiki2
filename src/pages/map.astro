@@ -31,6 +31,11 @@ import '../styles/styles1.css';
         </button>
         <div class="dropdown-content" id="dropdown-content"></div>
       </div>
+      <!-- 드랍 아이템 제보 안내: 드랍 정보가 없는 몹이 있는 지역(지금은 파워디지몬 PART1)에서만 보임 (scripts/map.js) -->
+      <div class="map-notice" id="drop-notice" hidden>
+        <span>파워디지몬 PART1 악역 디지몬의 드랍 아이템은 아직 확인 중이에요. 얻은 아이템을 제보해 주세요!</span>
+        <button type="button" id="drop-report">제보하기</button>
+      </div>
     </div>
 
     <div id="image-container">

@@ -221,6 +221,13 @@ const shadowCss = baseCss.replace(/@import[^;]+;/g, '') + navCss + feedbackCss;
       });
     });
 
+    // 페이지 안의 버튼에서도 피드백 창을 열 수 있게 (예: 맵의 드랍 제보 버튼). detail.text = 미리 채울 글
+    document.addEventListener('dsr:feedback', (e) => {
+      const text = (e as CustomEvent<{ text?: string }>).detail?.text;
+      if (feedback) { closeAll(); feedback.open(text); }
+      else window.open(root.querySelector<HTMLElement>('dialog.fbk')?.dataset.fallback || 'https://forms.gle/7xSaJBz4A28CPY4z9', '_blank', 'noopener');
+    });
+
     /* 바깥을 누르거나 Esc 를 누르면 닫기 */
     document.addEventListener('click', (e) => {
       if (!e.composedPath().includes(bar)) closeAll();

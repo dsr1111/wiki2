@@ -206,9 +206,10 @@ export function initFeedback(root: ShadowRoot) {
   });
 
   return {
-    open() {
+    open(prefill?: string) {
       if (dialog.open) return;
       if (!done.hidden) reset();
+      if (prefill && !message.value.trim()) { message.value = prefill; updateCount(); }
       dialog.showModal();
       message.focus();
     },
