@@ -379,25 +379,29 @@ body {
 }
 
 
-/* 드랍 아이템 제보 안내 (지도 아래). 안내가 보일 때만 어두운 판을 조금 늘림 */
-.main:has(.map-notice:not([hidden])) { height: 862px; }
+/* 드랍 아이템 제보 안내 (지도 판 위). 안내가 보일 때는 아래 지도 판의 윗여백을 줄여 안내가 그 자리를 씀 */
 .map-notice {
-  position: absolute;
-  top: 820px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 700px;
+  box-sizing: border-box;
+  max-width: 740px;
+  margin: 90px auto 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  color: #c9d3e6;
-  font-size: 13px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  color: #444;
+  font-weight: 500;
+  background-color: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 .map-notice[hidden] { display: none; }
+.map-notice:not([hidden]) + .container1 { margin-top: 10px; }
 .map-notice button {
   font-family: inherit;
-  font-size: 12px;
+  font-size: 0.85rem;
   color: #fff;
   background: #12aaf7;
   border: none;
