@@ -142,14 +142,13 @@ let mapDataLoaded = false;
 
 // JSON 데이터 처리
 Promise.all([
-  fetch("https://media.dsrwiki.com/data/csv/map.json").then(response => response.json()),
+  // R2 파일에 Cache-Control 이 없어 브라우저가 옛 map.json 을 오래 쓰므로, 매번 서버에 바뀌었는지 확인(바뀌지 않았으면 304 로 가볍게 끝남)
+  fetch("https://media.dsrwiki.com/data/csv/map.json", { cache: "no-cache" }).then(response => response.json()),
   getDigimonData(),
-  // 파워디지몬 PART1 신규 맵 (이 저장소 public/data/map_p1.json, 데이터 큐브 제외)
-  fetch("/data/map_p1.json").then(response => (response.ok ? response.json() : {})).catch(() => ({}))
 ])
-  .then(async ([mapData, digimonData, part1Maps]) => {
-    maps = {...mapData, ...part1Maps};
-    // 로컬 전용(개발 서버에서만): local/map_p1.json(데이터 큐브 포함)으로 PART1 맵을 덮어씀. 빌드에서는 이 블록이 통째로 빠짐
+  .then(async ([mapData, digimonData]) => {
+    maps = mapData;
+    // 로컬 미리보기(개발 서버에서만): local/map_p1.json(R2 에 올리기 전 생성본)으로 PART1 맵을 덮어씀. 빌드에서는 이 블록이 통째로 빠짐
     if (import.meta.env.DEV) {
       const extra = await fetch('/__local/map_p1.json').then((r) => (r.ok ? r.json() : null)).catch(() => null);
       if (extra?.maps && !signal.aborted) Object.assign(maps, extra.maps);
