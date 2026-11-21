@@ -7,7 +7,18 @@ import { getDigimonData } from './page.js';
 export function init(signal, onReady) {
 // ===== 기존 app/map.js =====
 const selectElement = document.getElementById("con-dropdown");
-const selectContainer = document.querySelector(".dropdown-con");
+const selectContainer = document.querySelector(".dropdown-region");
+
+const worldSelectElement = document.getElementById("world-dropdown");
+const worldSelectContainer = document.querySelector(".dropdown-world");
+
+worldSelectElement.addEventListener("click", function () {
+  worldSelectContainer.classList.toggle("open");
+});
+
+worldSelectElement.addEventListener("blur", function () {
+  worldSelectContainer.classList.remove("open");
+});
 
 const mapSelectElement = document.getElementById("map-dropdown");
 const mapSelectContainer = document.querySelector(".dropdown-map");
@@ -32,25 +43,31 @@ const conDropdown = document.getElementById("con-dropdown");
 const mapDropdown = document.getElementById("map-dropdown");
 const mapSelect = document.getElementById("map-dropdown");
 
-// 각 지역에 대한 맵 옵션 데이터
+// 각 지역에 대한 맵 옵션 데이터 (게임 클라이언트 분류: 월드 > 대륙(지역) > 맵, 지역 이름은 41_Continent)
+//  - 디지털 월드: 파일섬, 서버대륙, 스파이럴 마운틴 / 현실 세계: 도쿄 / 시공간의 균열: 데이터 세계
+//  - 드롭다운 3개: 월드(world-dropdown) → 지역(con-dropdown) → 맵(map-dropdown)
+const worldOptions = {
+  "디지털 월드": ["파일섬", "서버대륙", "스파이럴 마운틴"],
+  "현실 세계": ["도쿄"],
+  "시공간의 균열": ["데이터 세계"],
+};
 const mapOptions = {
-  파일섬: ["용의 눈 호수", "기어 사바나", "시작의 마을", "무한 산"],
+  파일섬: [
+    "용의 눈 호수",
+    "기어 사바나",
+    "시작의 마을",
+    "무한 산",
+    "그랜드 캐니언",
+    "불꽃의 늪",
+    "산타 게리아",
+    "디지몬 카이저 기지",
+  ],
   서버대륙: [
     "사막 지대",
     "어둠성 계곡",
     "개굴몬 성 1F",
     "개굴몬 성 2F",
     "어둠성 내부",
-  ],
-  "현실 세계": [
-    "캠핑장",
-    "빛의 언덕",
-    "지하철 역",
-    "오다이바 입구",
-    "오다이바 북부",
-    "시부야",
-    "오다이바 남부",
-    "국제 전시장",
   ],
   "스파이럴 마운틴": [
     "네트워크 바다",
@@ -61,18 +78,22 @@ const mapOptions = {
     "스파이럴 마운틴 정상",
     "???",
   ],
+  도쿄: [
+    "캠핑장",
+    "빛의 언덕",
+    "지하철 역",
+    "오다이바 입구",
+    "오다이바 북부",
+    "시부야",
+    "오다이바 남부",
+    "국제 전시장",
+    "드라고몬의 바다",
+    "학교 컴퓨터 교실",
+  ],
   "데이터 세계": [
     "테이머의 집",
     "빛의 언덕 과거(밤)",
     "네트워크"
-  ],
-  "파워디지몬 PART1": [
-    "그랜드 캐니언",
-    "불꽃의 늪",
-    "산타 게리아",
-    "드라고몬의 바다",
-    "학교 컴퓨터 교실",
-    "디지몬 카이저 기지",
   ],
 };
 
@@ -90,8 +111,12 @@ function updateImage(selectedMap) {
 }
 
 // 데이터 로딩 전 임시 표시와 로딩 후 지도 표시를 한 곳에서 처리
-// 드랍 아이템 제보 안내를 보일 지역 (드랍 정보가 아직 없는 몹이 있는 곳)
-const DROP_REPORT_REGIONS = ["파워디지몬 PART1"];
+// 드랍 아이템 제보 안내를 보일 맵 (드랍 정보가 아직 없는 몹이 있는 파워디지몬 PART1 신규 맵)
+const DROP_REPORT_MAPS = ["그랜드 캐니언", "불꽃의 늪", "산타 게리아", "드라고몬의 바다", "학교 컴퓨터 교실", "디지몬 카이저 기지"];
+function updateDropNotice() {
+  const notice = document.getElementById("drop-notice");
+  if (notice) notice.hidden = !DROP_REPORT_MAPS.includes(mapSelect.value);
+}
 // 드랍 표시 이름과 media 이미지 파일 이름이 다른 아이템 (표시 이름 → media item/<값>.webp)
 const ITEM_IMAGE_ALIAS = {
   "적막 귀걸이": "완벽한 적막 귀걸이",
@@ -105,10 +130,20 @@ document.getElementById("drop-report")?.addEventListener("click", () => {
   }));
 });
 
+// 월드를 바꾸면 지역 목록을 바꾸고 첫 지역의 맵 목록으로 이어짐
+worldSelectElement.addEventListener("change", function () {
+  conDropdown.innerHTML = "";
+  worldOptions[worldSelectElement.value].forEach((region) => {
+    const opt = document.createElement("option");
+    opt.value = region;
+    opt.textContent = region;
+    conDropdown.appendChild(opt);
+  });
+  conDropdown.dispatchEvent(new Event("change"));
+});
+
 conDropdown.addEventListener("change", function () {
   const selectedRegion = conDropdown.value;
-  const notice = document.getElementById("drop-notice");
-  if (notice) notice.hidden = !DROP_REPORT_REGIONS.includes(selectedRegion);
   const options = mapOptions[selectedRegion];
 
   // map-dropdown 옵션을 업데이트
@@ -122,11 +157,15 @@ conDropdown.addEventListener("change", function () {
 
   // 로딩 완료 후에는 기존과 동일하게 첫 번째 지도를 선택
   mapSelect.value = mapDataLoaded ? options[0] : options[1];
+  updateDropNotice();
   renderSelectedMap();
 });
 
 // 지도 선택 이벤트는 최초 한 번만 등록
-mapSelect.addEventListener("change", renderSelectedMap);
+mapSelect.addEventListener("change", () => {
+  updateDropNotice();
+  renderSelectedMap();
+});
 
 // 페이지 로드 시 초기 이미지 설정
 // (Astro) 기존 window.onload → onReady
@@ -148,10 +187,10 @@ Promise.all([
 ])
   .then(async ([mapData, digimonData]) => {
     maps = mapData;
-    // 로컬 미리보기(개발 서버에서만): local/map_p1.json(R2 에 올리기 전 생성본)으로 PART1 맵을 덮어씀. 빌드에서는 이 블록이 통째로 빠짐
+    // 로컬 미리보기(개발 서버에서만): R2 에 올리기 전 생성본 local/map_merged.json(전체 맵)이 있으면 그걸로 봄. 빌드에서는 이 블록이 통째로 빠짐
     if (import.meta.env.DEV) {
-      const extra = await fetch('/__local/map_p1.json').then((r) => (r.ok ? r.json() : null)).catch(() => null);
-      if (extra?.maps && !signal.aborted) Object.assign(maps, extra.maps);
+      const merged = await fetch('/__local/map_merged.json').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      if (merged && !signal.aborted) maps = merged;
     }
     window.digimonData = digimonData; // 전역 변수로 저장
     initializeDropdownOptions(); // 드롭다운 옵션 초기화

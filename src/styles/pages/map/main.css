@@ -248,10 +248,19 @@ body {
   transform: translateY(-50%) rotate(180deg);
 }
 
+/* 드롭다운 3개: 월드(대분류) → 지역 → 맵 */
+.dropdown-world {
+  left: 20px;
+}
+
+.dropdown-region {
+  left: 150px;
+}
+
 .dropdown-map {
   position: absolute;
   top: 64px;
-  left: 150px;
+  left: 280px;
   background-color: #060a15;
   color: white;
   width: 120px;
