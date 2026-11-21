@@ -1243,3 +1243,9 @@ body {
   cursor: pointer;
   vertical-align: middle;
 }
+/* 도감 모달 안(iframe, ?embed=1)에서 열 때: 메뉴와 위 여백을 없애고 카드가 모달을 꽉 채우게 (detail.astro) */
+html.is-embed { --nav-h: 0px; } /* 스크롤바 위쪽의 메뉴 높이만큼 칠한 부분도 없앰 (Layout.astro) */
+html.is-embed custom-nav { display: none; }
+html.is-embed body { background-color: #fff; }
+html.is-embed .container1 { max-width: none; margin: 0; padding: 0; }
+html.is-embed .filters { margin: 0; border-radius: 0; }

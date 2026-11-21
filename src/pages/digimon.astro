@@ -5,6 +5,7 @@ import Layout from '../layouts/Layout.astro';
 import '../styles/styles1.css';
 import '../styles/pages/digimon/main.css';
 import '../styles/pages/digimon/filter.css';
+import '../styles/pages/digimon/detail-modal.css';
 ---
 <Layout title="도감">
 
@@ -69,6 +70,7 @@ import '../styles/pages/digimon/filter.css';
     import { onPage } from '../scripts/page.js';
     import { init } from '../scripts/digimon.js';
     import { initFilter } from '../scripts/digimon-filter.js';
-    onPage('digimon', init, initFilter);
+    import { initDetailModal } from '../scripts/digimon-detail-modal.js';
+    onPage('digimon', init, initFilter, initDetailModal);
   </script>
 </Layout>

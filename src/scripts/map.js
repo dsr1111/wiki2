@@ -92,6 +92,10 @@ function updateImage(selectedMap) {
 // 데이터 로딩 전 임시 표시와 로딩 후 지도 표시를 한 곳에서 처리
 // 드랍 아이템 제보 안내를 보일 지역 (드랍 정보가 아직 없는 몹이 있는 곳)
 const DROP_REPORT_REGIONS = ["파워디지몬 PART1"];
+// 드랍 표시 이름과 media 이미지 파일 이름이 다른 아이템 (표시 이름 → media item/<값>.webp)
+const ITEM_IMAGE_ALIAS = {
+  "적막 귀걸이": "완벽한 적막 귀걸이",
+};
 document.getElementById("drop-report")?.addEventListener("click", () => {
   // 메뉴의 피드백 창을 엶 (Nav.astro 가 받음). 입력칸이 비어 있으면 양식을 미리 채움
   document.dispatchEvent(new CustomEvent("dsr:feedback", {
@@ -559,7 +563,7 @@ function showSpecialTooltipAtImage(
           : itemName;
         const itemImageSrc = itemName.includes("조합법")
           ? "https://media.dsrwiki.com/dsrwiki/item/조합법.webp"
-          : `https://media.dsrwiki.com/dsrwiki/item/${imageName}.webp`;
+          : `https://media.dsrwiki.com/dsrwiki/item/${ITEM_IMAGE_ALIAS[itemName] ?? imageName}.webp`;
         return `
                         <li class="drop-item">
                             <img loading="lazy" src=\"${itemImageSrc}\"  alt=\" ${itemName}\" class="drop-item-img">
