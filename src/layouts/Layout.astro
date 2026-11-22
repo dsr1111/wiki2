@@ -22,7 +22,7 @@ const fullTitle = title ? `${title} | DSR WIKI` : 'DSR WIKI';
 // 기존 nav.js 의 initPageClass 와 같은 규칙으로 <body> 클래스를 정함
 // (페이지 CSS 가 body.page-xxx 로 구분하는 경우가 있어서 그대로 유지)
 const path = Astro.url.pathname;
-const PAGE_CLASSES = ['digimon', 'deck', 'evolution', 'map', 'detector', 'overflow', 'calculator', 'exp', 'gacha', 'costume-slot'];
+const PAGE_CLASSES = ['digimon', 'deck', 'evolution', 'map', 'detector', 'overflow', 'calculator', 'exp', 'gacha', 'costume-slot', 'quest'];
 const pageClass = 'page-' + (PAGE_CLASSES.find((p) => path.includes(p)) ?? 'index');
 // 페이지 JS 가 "지금 내 페이지인지" 확인하는 이름 (/detail → 'detail', / → 'index').
 // 위 클래스는 기존과 같게 두려고 상세 페이지도 page-index 라서 따로 둠
