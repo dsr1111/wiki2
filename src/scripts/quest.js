@@ -81,6 +81,13 @@ const startSteps = (q) => {
         goal: { kind: 'item', list: [{ ...sb.item, count: 1 }] },
         place: s.place,
       });
+    } else if (s.kind === 'mob') {
+      out.push({
+        text: `「${esc(s.name)}」 처치해서 「${it}」 얻기${alt}`,
+        sub: s.place?.map ? `<span>📍 ${esc(s.place.map)}</span>` : '',
+        goal: { kind: 'item', list: [{ ...sb.item, count: 1 }], from: s.name },
+        place: s.place,
+      });
     } else if (s.kind === 'quest') {
       out.push({ text: `「${esc(s.title)}」 퀘스트에서 「${it}」 받기${alt}`, sub: s.task ? `<span>「${esc(s.task)}」 단계 보상</span>` : '', goal: { kind: 'item', list: [{ ...sb.item, count: 1 }] } });
     }
