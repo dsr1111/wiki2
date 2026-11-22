@@ -20,11 +20,29 @@ const mini = (p) => {
 };
 
 // 맵 크게 보기 (화면 아무 곳이나 누르거나 Esc 로 닫기)
+// 확대한 맵에는 맵 페이지와 같은 포탈·워프·상점·오버플로우·던전 아이콘도 얹음 (map.json, 맵 이미지 700px 기준 좌표)
+const MAP_URL = 'https://media.dsrwiki.com/data/csv/map.json';
+const MARKS = { portals: '포탈', warps: '워프', shops: '상점', overflows: '오버플로우', dungeon: '던전' };
+let mapData = null;
+const loadMaps = () => (mapData ||= fetch(MAP_URL, { cache: 'no-cache' }).then((r) => r.json()).catch(() => ({})));
+const fileOf = (u) => decodeURIComponent(String(u).split('/').pop());
+async function addMarks(boxEl, url) {
+  const maps = await loadMaps();
+  const m = Object.values(maps).find((x) => x.backgroundImage && fileOf(x.backgroundImage) === fileOf(url));
+  if (!m) return;
+  const html = Object.keys(MARKS).flatMap((k) => (m[k] || []).map((it) => {
+    const tip = String(it.tooltip || MARKS[k]).replace(/<br\s*\/?>/gi, ' · ').replace(/<[^>]+>/g, '');
+    return `<img class="mk mk-${k}" src="${esc(it.src)}" alt="" title="${esc(tip)}" style="left:${((it.left + 20.5) / 700) * 100}%;top:${((it.top + 41) / 700) * 100}%">`;
+  })).join('');
+  boxEl.querySelector('.bg')?.insertAdjacentHTML('afterend', html);
+}
+
 function openZoom(el, signal) {
   const pos = el.dataset.pos ? el.dataset.pos.split(',').map(Number) : null;
   const box = document.createElement('div');
   box.className = 'qp-zoom';
-  box.innerHTML = `<div class="box"><img src="${esc(el.dataset.url)}" alt="">${pin(pos)}<div class="cap">${esc(el.dataset.name)}</div></div>`;
+  box.innerHTML = `<div class="box"><img class="bg" src="${esc(el.dataset.url)}" alt="">${pin(pos)}<div class="cap">${esc(el.dataset.name)}</div></div>`;
+  addMarks(box.querySelector('.box'), el.dataset.url);
   const ctl = new AbortController();
   const close = () => { box.remove(); ctl.abort(); };
   box.addEventListener('click', close, { signal: ctl.signal });
