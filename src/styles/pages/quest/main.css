@@ -83,3 +83,13 @@ details.qp-dlg summary { cursor:pointer; font-size:13px; color:var(--accent); fo
 @media (max-width: 760px) { .qp-body { grid-template-columns:1fr; } .qp-side { position:static; } .qp-list { max-height:260px; } .qp-detail { padding:16px; } }
   
 .qp-place { color:var(--muted); font-size:13px; }
+
+/* 단계 목표 (처치·획득·전투) */
+.qp-goal { display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin-top:6px; font-size:12px; }
+.qp-goal > b { font-size:11px; font-weight:700; padding:2px 7px; border-radius:6px; background:rgba(239,68,68,.12); color:#ef4444; }
+.qp-goal .qp-chip .face { width:22px; height:22px; border-radius:50%; object-fit:cover; background:var(--line, #ddd); }
+.qp-goal .qp-chip small { color:var(--muted); font-size:10px; margin-left:2px; }
+.qp-goal .ex { color:var(--muted); }
+
+/* 시작 전 단계 (아이템으로 시작하는 퀘스트) */
+.qp-alt.pre { background:rgba(234,179,8,.15); color:#b45309; }

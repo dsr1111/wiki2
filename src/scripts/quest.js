@@ -33,7 +33,7 @@ function openZoom(el, signal) {
   document.body.append(box);
 }
 
-// 보상 칩. 개발 서버에서는 media 에 없는 아이템 이미지를 로컬 추출본(/__local/item/<id>.webp)으로 대신 보여 줌
+// 보상 칩. 개발 서버에서는 media 에 없는 아이템 이미지를 로컬 이미지(/__local/item/<id>.webp)으로 대신 보여 줌
 const itemImg = (it) => {
   const fallback = import.meta.env.DEV
     ? `data-local="/__local/item/${it.id}.webp" onerror="if(this.dataset.local){this.src=this.dataset.local;this.dataset.local=''}else{this.style.visibility='hidden'}"`
@@ -47,6 +47,46 @@ const chips = (rw) => {
   if (rw.bit) out.push(`<span class="qp-chip plain">${rw.bit.toLocaleString()} BIT</span>`);
   for (const it of rw.items || []) out.push(`<span class="qp-chip">${itemImg(it)}${esc(it.name)} ×${it.count}</span>`);
   return out.length ? `<div class="qp-rw">${out.join('')}</div>` : '';
+};
+
+// 단계 목표: 잡을 몹·모을 아이템·이길 전투 (초상화/아이템 그림 + 이름 + 개수)
+const GOAL = { mob: '처치', item: '획득', use: '사용', battle: '전투' };
+const face = (name) => {
+  // [돌연변이]가지몬 처럼 앞에 [..] 가 붙은 몹은 원래 디지몬(가지몬) 그림을 씀
+  const f = encodeURIComponent(name.replace(/^\s*\[[^\]]*\]\s*/, '').replace(/:/g, '_'));
+  return `<img class="face" src="${MEDIA}/digimon/${f}/${f}.webp" alt="" loading="lazy" onerror="this.onerror=null;this.src='${MEDIA}/digimon/default.webp'">`;
+};
+const goal = (g) => {
+  if (!g) return '';
+  const isItem = g.kind === 'item' || g.kind === 'use';
+  const list = g.list.map((x) => `<span class="qp-chip">${isItem ? itemImg(x) : face(x.name)}${esc(x.name)}${x.level ? `<small>Lv.${x.level}</small>` : ''}${x.count > 1 || g.kind !== 'battle' ? ` ×${x.count}` : ''}</span>`).join('');
+  const extra = [g.from ? `${esc(g.from)}에게서` : '', g.times > 1 ? `${g.times}회` : ''].filter(Boolean).join(' · ');
+  return `<div class="qp-goal"><b>${GOAL[g.kind]}</b>${list}${extra ? `<span class="ex">${extra}</span>` : ''}</div>`;
+};
+
+// 아이템으로 시작하는 퀘스트: 진행 단계 앞에 '시작 아이템 얻기 → 사용하기' 단계를 붙임
+// (프랍·퀘스트 보상으로 얻는 경우는 얻는 곳도 보여 줌. 그 밖에는 사용 단계만)
+const startSteps = (q) => {
+  const sb = q.startBy;
+  if (!sb?.item?.name) return [];
+  const it = esc(sb.item.name);
+  const out = [];
+  const src = sb.from || [];
+  src.forEach((s, i) => {
+    const alt = src.length > 1 ? `<span class="qp-alt">택1 · ${i + 1}/${src.length}</span>` : '';
+    if (s.kind === 'prop') {
+      out.push({
+        text: `「${esc(s.name)}」 조사해서 「${it}」 얻기${alt}`,
+        sub: `${s.place?.map ? `<span>📍 ${esc(s.place.map)}</span>` : ''}${s.after ? `<span>「${esc(s.after.title)}」의 「${esc(s.after.task)}」 단계를 마치면 나타남</span>` : ''}`,
+        goal: { kind: 'item', list: [{ ...sb.item, count: 1 }] },
+        place: s.place,
+      });
+    } else if (s.kind === 'quest') {
+      out.push({ text: `「${esc(s.title)}」 퀘스트에서 「${it}」 받기${alt}`, sub: s.task ? `<span>「${esc(s.task)}」 단계 보상</span>` : '', goal: { kind: 'item', list: [{ ...sb.item, count: 1 }] } });
+    }
+  });
+  out.push({ text: `「${it}」 사용하기`, goal: { kind: 'use', list: [{ ...sb.item, count: 1 }] } });
+  return out;
 };
 
 // 대사: NPC 대사 + 플레이어 선택지, 안내 문구
@@ -116,6 +156,7 @@ export async function init(signal) {
     if (!q) return;
     history.replaceState(history.state, '', `#q${id}`);
     const startPlace = q.start.npc?.place || q.start.place;
+    const pre = startSteps(q);
     detail.innerHTML = `
       <div class="qp-badges"><span class="qp-badge ${q.kind}">${KIND[q.kind]}</span><span class="qp-badge">📍 ${esc(q.mapName)}</span>${q.level > 1 ? `<span class="qp-badge">Lv.${q.level} 이상</span>` : ''}${q.repeat ? `<span class="qp-badge">반복 ${esc(q.repeat)}</span>` : ''}</div>
       <div class="qp-title">${q.kind === 'main' ? q.order + '. ' : ''}${esc(q.title)}</div>
@@ -127,10 +168,17 @@ export async function init(signal) {
       </div>
       ${startPlace?.pos ? `<div class="qp-loc">${mini(startPlace)}</div>` : ''}
       <div class="qp-h2">진행 단계</div>
-      <ol class="qp-steps">${q.tasks.map((t, i) => `
-        <li class="qp-step${t.branch > 1 ? ' alt' : ''}" data-n="${i + 1}">
+      <ol class="qp-steps">${pre.map((p, i) => `
+        <li class="qp-step pre" data-n="${i + 1}">
+          <div class="obj">${p.text}<span class="qp-alt pre">시작 전</span></div>
+          ${p.sub ? `<div class="sub">${p.sub}</div>` : ''}
+          ${p.goal ? goal(p.goal) : ''}
+          ${p.place?.pos ? mini(p.place) : ''}
+        </li>`).join('')}${q.tasks.map((t, i) => `
+        <li class="qp-step${t.branch > 1 ? ' alt' : ''}" data-n="${pre.length + i + 1}">
           <div class="obj">${esc(t.text)}${t.count ? ` (${t.count})` : ''}${t.branchOf ? `<span class="qp-alt">택1 · ${t.branch}/${t.branchOf}</span>` : ''}</div>
           <div class="sub">${t.place?.map ? `<span>📍 ${esc(t.place.map)}</span>` : ''}${t.npc ? `<span>💬 ${esc(t.npc.name)}</span>` : ''}</div>
+          ${goal(t.goal)}
           ${t.place?.pos ? mini(t.place) : ''}
           ${chips(t.rewards)}
           ${t.start || t.end ? `<details class="qp-dlg"><summary>대사 보기</summary><div class="qp-lines">${t.start ? lines(t.start) : ''}${t.end ? lines(t.end) : ''}</div></details>` : ''}

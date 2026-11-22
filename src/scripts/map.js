@@ -43,7 +43,7 @@ const conDropdown = document.getElementById("con-dropdown");
 const mapDropdown = document.getElementById("map-dropdown");
 const mapSelect = document.getElementById("map-dropdown");
 
-// 각 지역에 대한 맵 옵션 데이터 (게임 클라이언트 분류: 월드 > 대륙(지역) > 맵, 지역 이름은 41_Continent)
+// 각 지역에 대한 맵 옵션 데이터 (분류: 월드 > 지역 > 맵)
 //  - 디지털 월드: 파일섬, 서버대륙, 스파이럴 마운틴 / 현실 세계: 도쿄 / 시공간의 균열: 데이터 세계
 //  - 드롭다운 3개: 월드(world-dropdown) → 지역(con-dropdown) → 맵(map-dropdown)
 const worldOptions = {
@@ -499,7 +499,7 @@ function createCheckbox(
       });
     } else {
       // 포탈을 누르면 도착하는 맵으로 이동
-      //  - item.target {map, x, y}: 클라이언트 포탈 NPC 의 도착 위치(같은 맵 안 이동 포함). 도착 지점을 잠깐 표시
+      //  - item.target {map, x, y}: 포탈 NPC 의 도착 위치(같은 맵 안 이동 포함). 도착 지점을 잠깐 표시
       //  - 없으면 툴팁 첫 줄(도착지 이름)로 다른 맵만 연결
       const portalTarget = checkboxId === "toggle-portals"
         ? (item.target && maps[item.target.map] && findMapLocation(item.target.map) ? item.target : portalTargetMap(item.tooltip))
