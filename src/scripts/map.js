@@ -120,6 +120,13 @@ function updateDropNotice() {
 // 드랍 표시 이름과 media 이미지 파일 이름이 다른 아이템 (표시 이름 → media item/<값>.webp)
 const ITEM_IMAGE_ALIAS = {
   "적막 귀걸이": "완벽한 적막 귀걸이",
+  "적막 팔찌": "완벽한 적막 팔찌",
+  "적막 목걸이": "완벽한 적막 목걸이",
+  "적막 반지": "완벽한 적막 반지",
+  "녹염 목걸이": "완벽한 녹염 목걸이",
+  "녹염 귀걸이": "완벽한 녹염 귀걸이",
+  "녹염 팔찌": "완벽한 녹염 팔찌",
+  "녹염 반지": "완벽한 녹염 반지",
 };
 document.getElementById("drop-report")?.addEventListener("click", () => {
   // 메뉴의 피드백 창을 엶 (Nav.astro 가 받음). 입력칸이 비어 있으면 양식을 미리 채움
