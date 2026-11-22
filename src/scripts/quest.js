@@ -1,0 +1,188 @@
+// 퀘스트 페이지 (pages/quest.astro)
+// 왼쪽: 메인/서브/히든 탭, 맵 선택, 목록(메인은 진행 순서 또는 맵별 묶음, 묶음은 펴고 접기)
+// 오른쪽: 고른 퀘스트의 진행률, 시작 NPC·위치, 선행 퀘스트, 보상, 단계별 목표·위치·대사
+const MEDIA = 'https://media.dsrwiki.com/dsrwiki';
+const DATA_URL = 'https://media.dsrwiki.com/data/csv/quest.json';
+const KIND = { main: '메인', sub: '서브', hidden: '히든' };
+const HOW = { AutoStart: '이전 퀘스트 완료 시 자동 시작', UseItem: '아이템 사용으로 시작', NONE: 'NPC에게 받기' };
+
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// 맵 이미지 주소: 층이 나뉜 맵·이름이 다른 맵은 데이터의 img, 아니면 맵 이름(공백 제거).webp
+const mapUrl = (p) => `${MEDIA}/map/${encodeURIComponent(p.img || p.map.replace(/\s+/g, '') + '.webp')}`;
+const pin = (pos) => (pos ? `<i style="left:${pos[0] * 100}%;top:${pos[1] * 100}%"></i>` : '');
+
+// 맵 이미지 위에 핑 (pos = 맵 이미지 기준 0~1). 누르면 크게 보기
+const mini = (p) => {
+  if (!p || !p.map) return '';
+  const url = mapUrl(p);
+  return `<div class="qp-mini" title="크게 보기" data-url="${esc(url)}" data-name="${esc(p.map)}" data-pos="${p.pos ? p.pos.join(',') : ''}" style="background-image:url('${url}')">${pin(p.pos)}</div>`;
+};
+
+// 맵 크게 보기 (화면 아무 곳이나 누르거나 Esc 로 닫기)
+function openZoom(el, signal) {
+  const pos = el.dataset.pos ? el.dataset.pos.split(',').map(Number) : null;
+  const box = document.createElement('div');
+  box.className = 'qp-zoom';
+  box.innerHTML = `<div class="box"><img src="${esc(el.dataset.url)}" alt="">${pin(pos)}<div class="cap">${esc(el.dataset.name)}</div></div>`;
+  const ctl = new AbortController();
+  const close = () => { box.remove(); ctl.abort(); };
+  box.addEventListener('click', close, { signal: ctl.signal });
+  document.addEventListener('keydown', (e) => e.key === 'Escape' && close(), { signal: ctl.signal });
+  signal.addEventListener('abort', close, { signal: ctl.signal }); // 다른 페이지로 옮기면 닫음
+  document.body.append(box);
+}
+
+// 보상 칩. 개발 서버에서는 media 에 없는 아이템 이미지를 로컬 추출본(/__local/item/<id>.webp)으로 대신 보여 줌
+const itemImg = (it) => {
+  const fallback = import.meta.env.DEV
+    ? `data-local="/__local/item/${it.id}.webp" onerror="if(this.dataset.local){this.src=this.dataset.local;this.dataset.local=''}else{this.style.visibility='hidden'}"`
+    : `onerror="this.style.visibility='hidden'"`;
+  return `<img src="${MEDIA}/item/${encodeURIComponent(it.name)}.webp" alt="" loading="lazy" ${fallback}>`;
+};
+const chips = (rw) => {
+  if (!rw) return '';
+  const out = [];
+  if (rw.exp) out.push(`<span class="qp-chip plain">EXP ${rw.exp.toLocaleString()}</span>`);
+  if (rw.bit) out.push(`<span class="qp-chip plain">${rw.bit.toLocaleString()} BIT</span>`);
+  for (const it of rw.items || []) out.push(`<span class="qp-chip">${itemImg(it)}${esc(it.name)} ×${it.count}</span>`);
+  return out.length ? `<div class="qp-rw">${out.join('')}</div>` : '';
+};
+
+// 대사: NPC 대사 + 플레이어 선택지, 안내 문구
+const lines = (arr) => arr.map((l) => `<div class="qp-line${l.guide ? ' guide' : ''}"><span class="who">${esc(l.who || '???')}</span>${esc(l.text)}${
+  l.choices ? `<div class="qp-choices">${l.choices.map((c) => `<span>${esc(c)}</span>`).join('')}</div>` : ''}</div>`).join('');
+
+export async function init(signal) {
+  const list = document.getElementById('qp-list');
+  const detail = document.getElementById('qp-detail');
+  const mapSel = document.getElementById('qp-map');
+  const viewBox = document.getElementById('qp-view');
+  const tabs = document.querySelectorAll('.qp-tabs button');
+
+  const url = import.meta.env.DEV ? '/__local/quest.json' : DATA_URL;
+  const data = await fetch(url, { cache: 'no-cache', signal }).then((r) => r.json());
+  const byId = new Map(data.quests.map((q) => [q.id, q]));
+
+  let kind = 'main';
+  let current = null;
+  let mapFilter = '';
+  let mainView = 'order'; // 메인 탭 보기: 진행 순서(한 줄로) / 맵별(맵 묶음)
+  // 펼친 맵 묶음 (탭마다). 처음에는 선택된 퀘스트가 있는 맵만 펼침
+  const opened = { main: new Set(), sub: new Set(), hidden: new Set() };
+
+  function renderMapSelect() {
+    const qs = data.quests.filter((q) => q.kind === kind);
+    const cnt = {};
+    qs.forEach((q) => (cnt[q.mapName] = (cnt[q.mapName] || 0) + 1));
+    if (mapFilter && !cnt[mapFilter]) mapFilter = '';
+    mapSel.innerHTML = `<option value="">전체 맵 (${qs.length})</option>` + data.maps.filter((m) => cnt[m])
+      .map((m) => `<option value="${esc(m)}"${m === mapFilter ? ' selected' : ''}>${esc(m)} (${cnt[m]})</option>`).join('');
+  }
+
+  function renderList() {
+    viewBox.hidden = kind !== 'main';
+    const qs = data.quests.filter((q) => q.kind === kind && (!mapFilter || q.mapName === mapFilter));
+    if (kind === 'main' && mainView === 'order') {
+      qs.sort((a, b) => a.order - b.order);
+      if (!qs.some((q) => q.id === current) && qs[0]) current = qs[0].id;
+      list.innerHTML = qs.map((q) => `<li data-id="${q.id}" class="${current === q.id ? 'on' : ''}">
+        <span class="qp-num">${q.order}</span>
+        <span class="t">${esc(q.title)}</span>
+        <span class="m">진행률 ${q.progress}% · ${esc(q.mapName)}<div class="qp-bar"><i style="width:${q.progress}%"></i></div></span></li>`).join('');
+      if (current) select(current);
+      return;
+    }
+    // 맵 순서대로 묶음 (메인은 묶음 안에서 진행 순서 유지)
+    const groups = new Map(data.maps.map((m) => [m, []]));
+    qs.forEach((q) => groups.get(q.mapName)?.push(q));
+    const ordered = [...groups.values()].flat();
+    if (!ordered.some((q) => q.id === current) && ordered[0]) current = ordered[0].id;
+    const cur = byId.get(current);
+    const isOpen = (m) => opened[kind].has(m) || mapFilter === m || (!opened[kind].size && cur?.mapName === m && cur.kind === kind);
+    const item = (q, m) => `<li data-id="${q.id}" data-map="${esc(m)}" class="${current === q.id ? 'on' : ''}${q.kind === 'main' ? '' : ' nonum'}${isOpen(m) ? '' : ' hide'}">
+      ${q.kind === 'main' ? `<span class="qp-num">${q.order}</span>` : ''}
+      <span class="t">${esc(q.title)}</span>
+      <span class="m">${q.kind === 'main' ? `진행률 ${q.progress}%<div class="qp-bar"><i style="width:${q.progress}%"></i></div>` : esc(q.start.npc?.name || '')}</span></li>`;
+    list.innerHTML = [...groups].filter(([, a]) => a.length).map(([m, a]) =>
+      `<li class="qp-group${isOpen(m) ? '' : ' closed'}" data-group="${esc(m)}"><span class="arr">▼</span>${esc(m)} · ${a.length}</li>` + a.map((q) => item(q, m)).join('')).join('');
+    if (current) select(current);
+  }
+
+  function select(id) {
+    current = id;
+    list.querySelectorAll('li').forEach((li) => li.classList.toggle('on', li.dataset.id === id));
+    const q = byId.get(id);
+    if (!q) return;
+    history.replaceState(history.state, '', `#q${id}`);
+    const startPlace = q.start.npc?.place || q.start.place;
+    detail.innerHTML = `
+      <div class="qp-badges"><span class="qp-badge ${q.kind}">${KIND[q.kind]}</span><span class="qp-badge">📍 ${esc(q.mapName)}</span>${q.level > 1 ? `<span class="qp-badge">Lv.${q.level} 이상</span>` : ''}${q.repeat ? `<span class="qp-badge">반복 ${esc(q.repeat)}</span>` : ''}</div>
+      <div class="qp-title">${q.kind === 'main' ? q.order + '. ' : ''}${esc(q.title)}</div>
+      ${q.kind === 'main' ? `<div class="qp-prog"><div class="qp-bar"><i style="width:${q.progress}%"></i></div><span>메인 퀘스트 ${q.order} / ${data.mainTotal} · 진행률 ${q.progress}%</span></div>` : ''}
+      <div class="qp-meta">
+        <div class="qp-box"><b>시작</b>${q.start.npc ? esc(q.start.npc.name) : esc(HOW[q.startEvent] || '')}${startPlace?.map ? `<div class="qp-place">${esc(startPlace.map)}</div>` : ''}</div>
+        <div class="qp-box"><b>선행 퀘스트</b>${q.requires ? esc(q.requires.title) : '없음'}</div>
+        <div class="qp-box"><b>총 보상</b>${chips({ ...q.total, items: q.totalItems }) || '없음'}</div>
+      </div>
+      ${startPlace?.pos ? `<div class="qp-loc">${mini(startPlace)}</div>` : ''}
+      <div class="qp-h2">진행 단계</div>
+      <ol class="qp-steps">${q.tasks.map((t, i) => `
+        <li class="qp-step${t.branch > 1 ? ' alt' : ''}" data-n="${i + 1}">
+          <div class="obj">${esc(t.text)}${t.count ? ` (${t.count})` : ''}${t.branchOf ? `<span class="qp-alt">택1 · ${t.branch}/${t.branchOf}</span>` : ''}</div>
+          <div class="sub">${t.place?.map ? `<span>📍 ${esc(t.place.map)}</span>` : ''}${t.npc ? `<span>💬 ${esc(t.npc.name)}</span>` : ''}</div>
+          ${t.place?.pos ? mini(t.place) : ''}
+          ${chips(t.rewards)}
+          ${t.start || t.end ? `<details class="qp-dlg"><summary>대사 보기</summary><div class="qp-lines">${t.start ? lines(t.start) : ''}${t.end ? lines(t.end) : ''}</div></details>` : ''}
+        </li>`).join('')}</ol>`;
+  }
+
+  // 고른 퀘스트가 목록 가운데 오게 (목록 안에서만 스크롤, 페이지는 그대로)
+  function centerSelected() {
+    const li = list.querySelector('li.on');
+    if (li) list.scrollTop = li.offsetTop - list.clientHeight / 2 + li.offsetHeight / 2;
+  }
+
+  function setKind(k) {
+    kind = k;
+    tabs.forEach((x) => x.classList.toggle('on', x.dataset.kind === k));
+    renderMapSelect();
+    renderList();
+  }
+
+  tabs.forEach((b) => b.addEventListener('click', () => { setKind(b.dataset.kind); list.scrollTop = 0; }, { signal }));
+  viewBox.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    mainView = b.dataset.view;
+    viewBox.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    renderList();
+    centerSelected();
+  }, { signal });
+  detail.addEventListener('click', (e) => {
+    const m = e.target.closest('.qp-mini');
+    if (m) openZoom(m, signal);
+  }, { signal });
+  mapSel.addEventListener('change',() => { mapFilter = mapSel.value; renderList(); list.scrollTop = 0; }, { signal });
+  list.addEventListener('click', (e) => {
+    const g = e.target.closest('li.qp-group');
+    if (g) {
+      const m = g.dataset.group;
+      const set = opened[kind];
+      list.querySelectorAll('li.qp-group:not(.closed)').forEach((x) => set.add(x.dataset.group)); // 처음 펼쳐져 있던 묶음도 기억
+      const close = !g.classList.contains('closed');
+      close ? set.delete(m) : set.add(m);
+      g.classList.toggle('closed', close);
+      list.querySelectorAll(`li[data-map="${CSS.escape(m)}"]`).forEach((li) => li.classList.toggle('hide', close));
+      return;
+    }
+    const li = e.target.closest('li[data-id]');
+    if (li) select(li.dataset.id);
+  }, { signal });
+
+  // 주소의 #q<퀘스트 번호> 로 바로 열기 (공유용)
+  const fromHash = byId.get(location.hash.replace(/^#q/, ''));
+  if (fromHash) current = fromHash.id;
+  setKind(fromHash ? fromHash.kind : 'main');
+  centerSelected();
+}

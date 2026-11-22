@@ -1,0 +1,34 @@
+---
+// 퀘스트 페이지: 메인(진행 순서·진행률)·서브·히든 퀘스트의 단계, 대사, 보상, NPC, 위치
+// 데이터: media.dsrwiki.com/data/csv/quest.json (클라이언트 테이블에서 local/make_quest_local.py 로 만듦)
+import Layout from '../layouts/Layout.astro';
+import '../styles/pages/quest/main.css';
+---
+<Layout title="퀘스트">
+  <div class="qp">
+    <div class="qp-head">
+      <h1>퀘스트</h1>
+    </div>
+    <div class="qp-body">
+      <aside class="qp-side">
+        <div class="qp-tabs" role="tablist">
+          <button data-kind="main" class="on">메인</button>
+          <button data-kind="sub">서브</button>
+          <button data-kind="hidden">히든</button>
+        </div>
+        <div class="qp-mapsel">
+          <div class="qp-view" id="qp-view"><button data-view="order" class="on">진행 순서</button><button data-view="map">맵별</button></div>
+          <select id="qp-map" aria-label="맵 선택"></select>
+        </div>
+        <ol class="qp-list" id="qp-list"></ol>
+      </aside>
+      <main class="qp-detail" id="qp-detail"></main>
+    </div>
+  </div>
+
+  <script>
+    import { onPage } from '../scripts/page.js';
+    import { init } from '../scripts/quest.js';
+    onPage('quest', init);
+  </script>
+</Layout>
