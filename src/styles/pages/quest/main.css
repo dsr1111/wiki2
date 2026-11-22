@@ -41,7 +41,7 @@
 .qp-detail { padding:22px 24px; min-height:400px; }
 .qp-badges { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
 .qp-badge { font-size:12px; font-weight:600; padding:3px 8px; border-radius:999px; background:var(--soft); color:#374151; }
-.qp-badge.main { background:#e8f6fe; color:#0b7fbf; } .qp-badge.sub { background:#ecfdf3; color:#15803d; } .qp-badge.hidden { background:#f5f0ff; color:#7c3aed; }
+.qp-badge.main { background:#e8f6fe; color:#0b7fbf; } .qp-badge.sub { background:#ecfdf3; color:#15803d; }
 .qp-title { font-size:22px; font-weight:800; margin-bottom:12px; }
 .qp-prog { margin:6px 0 18px; } .qp-prog .qp-bar { height:8px; } .qp-prog span { font-size:13px; color:var(--muted); }
 .qp-meta { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin-bottom:18px; }

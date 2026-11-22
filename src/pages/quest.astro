@@ -1,5 +1,5 @@
 ---
-// 퀘스트 페이지: 메인(진행 순서·진행률)·서브·히든 퀘스트의 단계, 대사, 보상, NPC, 위치
+// 퀘스트 페이지: 메인(진행 순서·진행률)·서브 퀘스트의 단계, 대사, 보상, NPC, 위치
 // 데이터: media.dsrwiki.com/data/csv/quest.json
 import Layout from '../layouts/Layout.astro';
 import '../styles/pages/quest/main.css';
@@ -14,7 +14,6 @@ import '../styles/pages/quest/main.css';
         <div class="qp-tabs" role="tablist">
           <button data-kind="main" class="on">메인</button>
           <button data-kind="sub">서브</button>
-          <button data-kind="hidden">히든</button>
         </div>
         <div class="qp-mapsel">
           <div class="qp-view" id="qp-view"><button data-view="order" class="on">진행 순서</button><button data-view="map">맵별</button></div>

@@ -1,9 +1,9 @@
 // 퀘스트 페이지 (pages/quest.astro)
-// 왼쪽: 메인/서브/히든 탭, 맵 선택, 목록(메인은 진행 순서 또는 맵별 묶음, 묶음은 펴고 접기)
+// 왼쪽: 메인/서브 탭, 맵 선택, 목록(메인은 진행 순서 또는 맵별 묶음, 묶음은 펴고 접기)
 // 오른쪽: 고른 퀘스트의 진행률, 시작 NPC·위치, 선행 퀘스트, 보상, 단계별 목표·위치·대사
 const MEDIA = 'https://media.dsrwiki.com/dsrwiki';
 const DATA_URL = 'https://media.dsrwiki.com/data/csv/quest.json';
-const KIND = { main: '메인', sub: '서브', hidden: '히든' };
+const KIND = { main: '메인', sub: '서브' };
 const HOW = { AutoStart: '이전 퀘스트 완료 시 자동 시작', UseItem: '아이템 사용으로 시작', NONE: 'NPC에게 받기' };
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -116,7 +116,7 @@ export async function init(signal) {
   let mapFilter = '';
   let mainView = 'order'; // 메인 탭 보기: 진행 순서(한 줄로) / 맵별(맵 묶음)
   // 펼친 맵 묶음 (탭마다). 처음에는 선택된 퀘스트가 있는 맵만 펼침
-  const opened = { main: new Set(), sub: new Set(), hidden: new Set() };
+  const opened = { main: new Set(), sub: new Set() };
 
   function renderMapSelect() {
     const qs = data.quests.filter((q) => q.kind === kind);
