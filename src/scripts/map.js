@@ -491,11 +491,81 @@ function createCheckbox(
         evolIcon: evolIcon,
       });
     } else {
+      // 포탈을 누르면 도착하는 맵으로 이동
+      //  - item.target {map, x, y}: 클라이언트 포탈 NPC 의 도착 위치(같은 맵 안 이동 포함). 도착 지점을 잠깐 표시
+      //  - 없으면 툴팁 첫 줄(도착지 이름)로 다른 맵만 연결
+      const portalTarget = checkboxId === "toggle-portals"
+        ? (item.target && maps[item.target.map] && findMapLocation(item.target.map) ? item.target : portalTargetMap(item.tooltip))
+        : null;
+      if (portalTarget) {
+        imgElement.classList.add("portal-link");
+        imgElement.addEventListener("click", () => {
+          hideTooltip();
+          const target = typeof portalTarget === "string" ? { map: portalTarget } : portalTarget;
+          if (target.map !== mapDropdown.value) goToMap(target.map);
+          if (target.x != null) showPortalArrival(target.x, target.y);
+        });
+      }
       addTooltipToImage(imgElement, item.tooltip);
       imageContainer.appendChild(imgElement);
       currentArray.push(imgElement);
     }
   });
+}
+
+// 포탈 툴팁 첫 줄(도착지 이름)이 위키 맵 이름과 다른 것들
+const PORTAL_TARGET_ALIAS = {
+  "어둠 성 계곡": "어둠성 계곡",
+  "사막 지대 이동 포탈": "사막 지대",
+  "개굴몬 성 내부": "개굴몬 성 1F",
+  "강철 도시 지하 1층": "강철 도시 지하",
+  "빛의 언덕 과거": "빛의 언덕 과거(밤)",
+};
+
+// 맵 이름 → [월드, 지역]
+function findMapLocation(mapName) {
+  for (const [world, regions] of Object.entries(worldOptions)) {
+    for (const region of regions) {
+      if (mapOptions[region]?.includes(mapName)) return [world, region];
+    }
+  }
+  return null;
+}
+
+// 포탈이 데려가는 위키 맵 이름 (같은 맵 안의 이동이나 위키에 없는 맵이면 null)
+function portalTargetMap(tooltip) {
+  const first = String(tooltip).split("<br>")[0].trim();
+  const target = PORTAL_TARGET_ALIAS[first] ?? first;
+  if (target === mapDropdown.value || !maps[target] || !findMapLocation(target)) return null;
+  return target;
+}
+
+// 포탈 도착 지점을 지도 위에 잠깐 표시 (x, y: 700px 지도 좌표)
+function showPortalArrival(x, y) {
+  imageContainer.querySelector(".portal-arrival")?.remove();
+  const mark = document.createElement("div");
+  mark.className = "portal-arrival";
+  mark.style.left = `${x}px`;
+  mark.style.top = `${y}px`;
+  imageContainer.appendChild(mark);
+  setTimeout(() => mark.remove(), 2400);
+}
+
+// 월드·지역·맵 드롭다운을 그 맵으로 바꿔서 표시
+function goToMap(mapName) {
+  const loc = findMapLocation(mapName);
+  if (!loc) return;
+  const [world, region] = loc;
+  if (worldSelectElement.value !== world) {
+    worldSelectElement.value = world;
+    worldSelectElement.dispatchEvent(new Event("change"));
+  }
+  if (conDropdown.value !== region) {
+    conDropdown.value = region;
+    conDropdown.dispatchEvent(new Event("change"));
+  }
+  mapSelect.value = mapName;
+  mapSelect.dispatchEvent(new Event("change"));
 }
 
 function addSpecialTooltipToMobs(

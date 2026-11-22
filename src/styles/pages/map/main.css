@@ -110,6 +110,31 @@ body {
   z-index: 1;
 }
 
+/* 다른 맵으로 이동하는 포탈 (scripts/map.js goToMap) */
+.portal-link {
+  cursor: pointer;
+}
+
+/* 포탈 도착 지점 표시 (잠깐 퍼지는 원) */
+.portal-arrival {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
+  background: rgba(18, 170, 247, 0.55);
+  border: 2px solid #fff;
+  box-shadow: 0 0 10px rgb(0, 217, 255);
+  z-index: 5;
+  pointer-events: none;
+  animation: portal-arrival 0.8s ease-out 3;
+}
+
+@keyframes portal-arrival {
+  0% { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
 .warp-image {
   position: absolute;
   display: none;
