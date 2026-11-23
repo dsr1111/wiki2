@@ -74,7 +74,7 @@ function readCoupon(body) {
     const grade = Number(raw?.grade);
     if (!itemName) return { error: '구성품 이름을 입력해주세요. (최대 60자)' };
     if (!Number.isInteger(qty) || qty < 1 || qty > 999999) return { error: `"${itemName}" 수량이 올바르지 않습니다.` };
-    if (!Number.isInteger(grade) || grade < 1 || grade > 4) return { error: `"${itemName}" 등급이 올바르지 않습니다.` };
+    if (!Number.isInteger(grade) || grade < 1 || grade > 5) return { error: `"${itemName}" 등급이 올바르지 않습니다.` };
     items.push({ name: itemName, qty, grade });
   }
   return { value: { name, code, ends_at, items } };

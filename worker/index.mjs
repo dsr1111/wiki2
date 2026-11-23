@@ -8,6 +8,7 @@ import digimonAdmin from './functions/digimon-admin.mjs';
 import detectorAdmin from './functions/detector-admin.mjs';
 import evolutionAdmin from './functions/evolution-admin.mjs';
 import itemImage from './functions/item-image.mjs';
+import itemGrade from './functions/item-grade.mjs';
 import feedback from './functions/feedback.mjs';
 import { json } from './lib/admin-auth.mjs';
 import process from 'node:process';
@@ -26,6 +27,7 @@ const API = {
   'detector-admin': detectorAdmin,
   'evolution-admin': evolutionAdmin,
   'item-image': itemImage,
+  'item-grade': itemGrade,
   feedback,
 };
 

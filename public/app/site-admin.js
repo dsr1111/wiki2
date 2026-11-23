@@ -5,7 +5,7 @@
   if (!C || window.DSRSiteAdmin) return;
 
   const API = "/api/site-admin";
-  const GRADES = [1, 2, 3, 4];
+  const GRADES = [1, 2, 3, 4, 5];
   const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
   const RAID_TYPES = [
     ["daily", "매일"],
@@ -59,6 +59,14 @@
     .cpa-item { display: grid; grid-template-columns: 36px 1fr 70px 64px 28px; gap: 6px; align-items: center; }
     .cpa-item-note { display: flex; align-items: center; gap: 6px; margin: 2px 0 4px 42px; font-size: 11px; color: #d35400; flex-wrap: wrap; }
     .cpa-item-note.cpa-ok { color: #27ae60; }
+    .cpa-name-box { position: relative; min-width: 0; }
+    .cpa-suggest { position: absolute; left: 0; right: 0; top: calc(100% + 2px); z-index: 5; max-height: 260px; overflow-y: auto;
+      background: #fff; border: 1px solid #c0c0c0; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+    .cpa-suggest-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px; cursor: pointer; font-size: 13px; }
+    .cpa-suggest-row:hover, .cpa-suggest-row.on { background: #e8ebef; }
+    .cpa-suggest .cpa-suggest-thumb { width: 26px; height: 26px; flex: none; }
+    .cpa-suggest-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cpa-suggest-grade { flex: none; font-size: 11px; color: #888; }
     .cpa-item-note .cpa-btn { padding: 2px 7px; font-size: 11px; }
     .cpa-modal .cpa-item select, .cpa-modal .cpa-item input { padding: 6px; }
     .cpa-slot { display: grid; grid-template-columns: 90px 1fr 28px; gap: 6px; align-items: center; }
@@ -190,6 +198,47 @@
       if (res.status === 401) clearToken();
       throw Object.assign(new Error(`"${name}" 이미지 업로드 실패: ${json.error || res.status}`), { status: res.status });
     }
+  }
+
+  // ---------- 아이템 등급표 ----------
+  // 이름을 넣으면 등급을 자동으로 채우고 이름을 추천함 (관리자 로그인 때만 받아옴). 직접 고른 등급은 건드리지 않음
+  // 등급표: { "아이템 이름": 등급 } → { byKey: 정리한 이름 → 등급, list: [{ name, grade, s: 띄어쓰기 뺀 이름 }] }
+  const ITEM_GRADE_API = "/api/item-grade";
+  let gradeTable = null;
+  function loadGrades() {
+    if (!gradeTable) {
+      const token = getToken();
+      gradeTable = fetch(ITEM_GRADE_API, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+        .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+        .then((raw) => {
+          const byKey = {};
+          const list = [];
+          for (const [name, grade] of Object.entries(raw)) {
+            const k = gradeKey(name);
+            if (!(k in byKey)) byKey[k] = grade;
+            list.push({ name, grade, s: squash(name) });
+          }
+          return { byKey, list };
+        })
+        .catch(() => { gradeTable = null; return { byKey: {}, list: [] }; });
+    }
+    return gradeTable;
+  }
+  const squash = (s) => String(s).replace(/\s+/g, "").toLowerCase();
+  /** 등급표 키: (N시간)/(N일) 꼬리, [기간제] 머리, 띄어쓰기를 뺀 이름 */
+  const gradeKey = (name) => squash(String(name).trim()
+    .replace(/\s*\(\d+\s*(일|시간|분)\)\s*$/, "").replace(/^\[기간제\]\s*/, ""));
+  /** 이름 일부 → 추천 이름 (앞부분이 같은 것 먼저, 짧은 것 먼저) */
+  function suggestItems(table, text, max = 8) {
+    const q = squash(text);
+    if (!q) return [];
+    const hits = [];
+    for (const it of table.list) {
+      const at = it.s.indexOf(q);
+      if (at >= 0 && it.s !== q) hits.push([at === 0 ? 0 : 1, it.s.length, it]);
+    }
+    hits.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    return hits.slice(0, max).map((h) => h[2]);
   }
 
   // ---------- 시간 ----------
@@ -337,11 +386,10 @@
   /** "이름x수량x등급" 줄 단위 텍스트 → 구성품 목록 (예전 coupon.json 형식) */
   function parseItemLines(text) {
     return text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((line) => {
-      const parts = line.split(/\s*[xX×]\s*/);
-      if (parts.length < 3) return { name: line, qty: 1, grade: 1 };
-      const grade = Number(parts.pop());
-      const qty = Number(parts.pop());
-      return { name: parts.join("x").trim(), qty: qty || 1, grade: GRADES.includes(grade) ? grade : 1 };
+      // 등급·수량은 빼도 됨 (이름x수량 → 등급 자동, 이름만 → 수량 1). 이름 속 X(예: X-항체)는 그대로 둠
+      const [, name, qty, g] = line.match(/^(.*?)(?:\s*[xX×]\s*(\d+))?(?:\s*[xX×]\s*(\d+))?$/);
+      const grade = Number(g);
+      return { name: name.trim(), qty: Number(qty) || 1, grade: GRADES.includes(grade) ? grade : undefined };
     });
   }
 
@@ -358,12 +406,31 @@
     noEnd.addEventListener("change", () => { ends.disabled = noEnd.checked; });
 
     const list = el("div", { class: "cpa-items" });
-    function addItemRow(item = { name: "", qty: 1, grade: 1 }) {
+    function addItemRow(item = { name: "", qty: 1 }) {
       const thumb = el("div", { class: "cpa-thumb", "aria-hidden": "true" });
       const iname = el("input", { type: "text", maxlength: "60", value: item.name, placeholder: "아이템 이름" });
       const qty = el("input", { type: "number", min: "1", max: "999999", step: "1", value: String(item.qty || 1), "aria-label": "수량" });
       const grade = el("select", { "aria-label": "등급" }, GRADES.map((g) => el("option", { value: String(g), text: `${g}등급` })));
       grade.value = String(GRADES.includes(Number(item.grade)) ? item.grade : 1);
+      // 등급을 정해서 넣은 항목(기존 쿠폰, 이름x수량x등급)이나 직접 고른 등급은 자동으로 바꾸지 않음
+      let gradeFixed = GRADES.includes(Number(item.grade));
+      const gradeNote = el("div", { class: "cpa-item-note", hidden: true });
+      let gradeSeq = 0;
+      const autoGrade = async () => {
+        const seq = ++gradeSeq;
+        const n = iname.value.trim();
+        if (gradeFixed || !n) { gradeNote.hidden = true; return; }
+        const g = (await loadGrades()).byKey[gradeKey(n)];
+        if (seq !== gradeSeq || gradeFixed) return;
+        if (GRADES.includes(g)) {
+          grade.value = String(g);
+          updateThumb();
+          gradeNote.hidden = true;
+        } else {
+          gradeNote.textContent = "등급표에 없는 아이템입니다. 등급을 직접 골라주세요.";
+          gradeNote.hidden = false;
+        }
+      };
 
       // CDN에 아이템 이미지가 없으면 여기서 올릴 수 있음 (쿠폰 저장 때 같이 업로드)
       const note = el("div", { class: "cpa-item-note", hidden: true });
@@ -400,12 +467,63 @@
         img.src = C.itemImageUrl(n);
       };
       let probeTimer = null;
-      iname.addEventListener("input", () => {
+      // 이름 추천: 일부만 입력해도 등급표에서 비슷한 이름을 보여줌 (↑↓ 고르기, Enter 넣기, Esc 닫기)
+      const sugBox = el("div", { class: "cpa-suggest", hidden: true, role: "listbox" });
+      let sugItems = [];
+      let sugAt = -1;
+      const closeSug = () => { sugBox.hidden = true; sugItems = []; sugAt = -1; };
+      const markSug = () => [...sugBox.children].forEach((c, i) => c.classList.toggle("on", i === sugAt));
+      const pickSug = (it) => {
+        iname.value = it.name;
+        if (!gradeFixed) { grade.value = String(it.grade); gradeNote.hidden = true; }
+        closeSug();
         updateThumb();
         clearTimeout(probeTimer);
-        probeTimer = setTimeout(probe, 400);
+        probe();
+        autoGrade();
+      };
+      const showSug = async () => {
+        const text = iname.value;
+        const table = await loadGrades();
+        if (text !== iname.value || document.activeElement !== iname) return;
+        sugItems = suggestItems(table, text);
+        sugAt = -1;
+        sugBox.replaceChildren(...sugItems.map((it) => el("div", {
+          class: "cpa-suggest-row", role: "option",
+          onmousedown: (e) => { e.preventDefault(); pickSug(it); },
+        }, [
+          el("span", { class: "cpa-thumb cpa-suggest-thumb", style: { backgroundImage: `url("${C.itemFrameUrl(it.grade)}"), url("${C.itemImageUrl(it.name)}")` } }),
+          el("span", { class: "cpa-suggest-name", text: it.name }),
+          el("span", { class: "cpa-suggest-grade", text: `${it.grade}등급` }),
+        ])));
+        sugBox.hidden = !sugItems.length;
+      };
+      iname.addEventListener("keydown", (e) => {
+        if (sugBox.hidden || !sugItems.length) return;
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          const n = sugItems.length;
+          sugAt = e.key === "ArrowDown" ? (sugAt + 1) % n : (sugAt - 1 + n) % n;
+          markSug();
+          sugBox.children[sugAt]?.scrollIntoView({ block: "nearest" });
+        } else if (e.key === "Enter" && sugAt >= 0) {
+          e.preventDefault();
+          pickSug(sugItems[sugAt]);
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          closeSug();
+        }
       });
-      grade.addEventListener("change", updateThumb);
+      iname.addEventListener("blur", closeSug);
+      iname.addEventListener("focus", showSug);
+      iname.addEventListener("input", () => {
+        updateThumb();
+        showSug();
+        clearTimeout(probeTimer);
+        probeTimer = setTimeout(() => { probe(); autoGrade(); }, 400);
+      });
+      grade.addEventListener("change", () => { gradeFixed = true; gradeNote.hidden = true; updateThumb(); });
       fileInput.addEventListener("change", async () => {
         const file = fileInput.files[0];
         fileInput.value = "";
@@ -421,13 +539,15 @@
       });
       updateThumb();
       probe();
+      autoGrade();
 
       const row = el("div", { class: "cpa-item-wrap" }, [
         el("div", { class: "cpa-item" }, [
-          thumb, iname, qty, grade,
+          thumb, el("div", { class: "cpa-name-box" }, [iname, sugBox]), qty, grade,
           el("button", { type: "button", class: "cpa-remove", title: "구성품 삭제", "aria-label": "구성품 삭제", text: "×", onclick: () => row.remove() }),
         ]),
         note,
+        gradeNote,
         fileInput,
       ]);
       row.pendingImage = () => (pending && pending.name === iname.value.trim() && iname.value.trim() ? pending : null);
@@ -436,7 +556,7 @@
     }
     (coupon?.items?.length ? coupon.items : [undefined]).forEach((it) => addItemRow(it));
 
-    const bulk = el("textarea", { placeholder: "한 줄에 하나씩: 이름x수량x등급\n예) 궁극체 스킬 강화석x5x4" });
+    const bulk = el("textarea", { placeholder: "한 줄에 하나씩: 이름x수량 (등급은 자동, 직접 정하려면 이름x수량x등급)\n예) 궁극체 스킬 강화석x5" });
     const bulkBox = el("div", { class: "cpa-field", hidden: true }, [
       bulk,
       el("div", { class: "cpa-toolbar", style: { justifyContent: "flex-end", margin: "6px 0 0" } }, [
