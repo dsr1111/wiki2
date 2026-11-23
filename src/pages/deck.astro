@@ -11,12 +11,12 @@ import '../styles/styles1.css';
     <div class="search-container">
       <div class="search-row">
         <div class="search-group">
-          <label for="digimon-search">디지몬 검색</label>
+          <label for="digimon-search" data-en="Search Digimon">디지몬 검색</label>
           <input type="text" id="digimon-search" placeholder="디지몬 이름 입력...">
         </div>
 
         <div class="search-group">
-          <label for="effect-search">효과 검색</label>
+          <label for="effect-search" data-en="Search Effects">효과 검색</label>
           <input type="text" id="effect-search" placeholder="효과 키워드 입력...">
         </div>
       </div>
@@ -30,6 +30,11 @@ import '../styles/styles1.css';
   <script>
     import { onPage } from '../scripts/page.js';
     import { init } from '../scripts/deck.js';
-    onPage('deck', init);
+    import { applyStatic, t } from '../scripts/i18n.js';
+    onPage('deck', () => {
+      applyStatic(document, 'Deck');
+      document.getElementById('digimon-search').placeholder = t('디지몬 이름 입력...', 'Digimon name...');
+      document.getElementById('effect-search').placeholder = t('효과 키워드 입력...', 'Effect keyword...');
+    }, init);
   </script>
 </Layout>

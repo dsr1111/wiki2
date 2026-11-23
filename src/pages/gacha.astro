@@ -15,19 +15,19 @@ import '../styles/tw/gacha.css';
         <!-- 상자 선택 -->
         <div class="box-selector">
           <select id="box-select">
-            <option value="">상자를 선택하세요...</option>
+            <option value="" data-en="Select a box...">상자를 선택하세요...</option>
           </select>
         </div>
 
         <!-- 상자 열기 영역 -->
         <div class="box-open-container" id="box-open-container" style="opacity: 0.5; pointer-events: none;">
           <div class="box-image-container">
-            <div class="box-image-placeholder" id="box-image-placeholder">상자</div>
+            <div class="box-image-placeholder" id="box-image-placeholder" data-en="Box">상자</div>
             <img id="box-image" src="" alt="상자 이미지" style="display: none;">
           </div>
           <div class="box-info">
-            <div class="box-info-name" id="box-name">상자를 선택하세요</div>
-            <div class="box-info-description" id="box-description">위에서 상자를 선택해주세요</div>
+            <div class="box-info-name" id="box-name" data-en="Select a box">상자를 선택하세요</div>
+            <div class="box-info-description" id="box-description" data-en="Select a box above">위에서 상자를 선택해주세요</div>
           </div>
           <div class="box-controls">
             <div class="count-controls">
@@ -35,14 +35,14 @@ import '../styles/tw/gacha.css';
               <input type="number" id="gacha-count" class="count-input" value="1" min="1" max="1000">
               <button class="count-btn" id="count-plus-btn">+</button>
             </div>
-            <button class="open-btn" id="open-btn">개봉</button>
+            <button class="open-btn" id="open-btn" data-en="Open">개봉</button>
           </div>
         </div>
 
         <div class="presentation-options">
-          <label><input id="presentation-enabled" type="checkbox" checked> 개봉 연출</label>
-          <label><input id="presentation-sound" type="checkbox"> 연출 소리</label>
-          <button id="presentation-reopen" type="button" disabled>지난 결과 다시 보기</button>
+          <label data-en="Opening Animation"><input id="presentation-enabled" type="checkbox" checked> 개봉 연출</label>
+          <label data-en="Sound"><input id="presentation-sound" type="checkbox"> 연출 소리</label>
+          <button id="presentation-reopen" type="button" disabled data-en="Show Last Result">지난 결과 다시 보기</button>
         </div>
         <!-- 콘솔 영역 -->
 
@@ -53,10 +53,10 @@ import '../styles/tw/gacha.css';
             </div>
           </div>
           <div class="console-footer">
-            <button class="clear-btn" id="clear-btn">로그 지우기</button>
-            <button class="stats-btn" id="stats-btn">통계 보기</button>
+            <button class="clear-btn" id="clear-btn" data-en="Clear Log">로그 지우기</button>
+            <button class="stats-btn" id="stats-btn" data-en="Statistics">통계 보기</button>
             <div class="counter-display">
-              <span class="counter-label">총 개봉 횟수:</span>
+              <span class="counter-label" data-en="Total Opens:">총 개봉 횟수:</span>
               <span id="total-count">0</span>
             </div>
           </div>
@@ -80,6 +80,7 @@ import '../styles/tw/gacha.css';
   <script>
     import { onPage } from '../scripts/page.js';
     import { init } from '../scripts/gacha.js';
-    onPage('gacha', init);
+    import { applyStatic } from '../scripts/i18n.js';
+    onPage('gacha', () => applyStatic(document, 'Gacha Simulator'), init);
   </script>
 </Layout>

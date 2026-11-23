@@ -4,6 +4,7 @@
 // onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
 import { initAdminLoader } from './page.js';
+import { t, tr, term, loadNames, digimonNameEn } from './i18n.js';
 export function init(signal, onReady) {
 // ===== 기존 app/evolution.js =====
 (() => {
@@ -282,10 +283,10 @@ export function init(signal, onReady) {
 
         // 이름 툴팁 표시
         img.addEventListener("mouseover", (event) => {
-          TooltipManager.showNameTooltip(event, digimon.name);
+          TooltipManager.showNameTooltip(event, tr(digimon.name));
         });
         img.addEventListener("mousemove", (event) => {
-          TooltipManager.showNameTooltip(event, digimon.name);
+          TooltipManager.showNameTooltip(event, tr(digimon.name));
         });
         img.addEventListener("mouseout", (event) => {
           TooltipManager.hideNameTooltip();
@@ -343,10 +344,10 @@ export function init(signal, onReady) {
         img.alt = name;
         img.classList.add("digimon-img-responsive");
         img.addEventListener("mouseover", (event) => {
-          TooltipManager.showNameTooltip(event, name);
+          TooltipManager.showNameTooltip(event, tr(name));
         });
         img.addEventListener("mousemove", (event) => {
-          TooltipManager.showNameTooltip(event, name);
+          TooltipManager.showNameTooltip(event, tr(name));
         });
         img.addEventListener("mouseout", () => {
           TooltipManager.hideNameTooltip();
@@ -397,7 +398,7 @@ export function init(signal, onReady) {
       const query = document.getElementById("search-input").value.toLowerCase();
       const terms = query.split(",").map(term => term.trim());
       const filtered = DataModule.allData.filter(d =>
-        terms.some(term => d.name.toLowerCase().includes(term))
+        terms.some(term => d.name.toLowerCase().includes(term) || digimonNameEn(d.name).toLowerCase().includes(term))
       );
       this.createDigimonImageList(filtered);
     },
@@ -505,7 +506,7 @@ export function init(signal, onReady) {
       if (!currentDigimon) return;
       const parentNode = event.target.closest(".digimon-container")?.parentElement
         ?.closest(".digimon-container");
-      let parentName = parentNode ? parentNode.querySelector("img:not(.type-image)")?.alt : null;
+      let parentName = parentNode ? parentNode.dataset.digimonName : null;
       const parentData = DataModule.allData.find(d => d.name === parentName);
       if (!parentData) return;
       if (DataModule.allData.some(d => d.조그레스 === digimonName)) {
@@ -535,15 +536,15 @@ export function init(signal, onReady) {
       if (!digimonInfo) return;
 
       let tableHtml = `<table class="tooltip-table">
-                         <tr><th colspan="2">진화 조건</th></tr>`;
+                         <tr><th colspan="2">${t('진화 조건', 'Evolution Conditions')}</th></tr>`;
       if (digimonInfo["name"]) {
-        tableHtml += `<tr><th>디지몬</th><td>${digimonInfo["name"]}</td></tr>`;
+        tableHtml += `<tr><th>${t('디지몬', 'Digimon')}</th><td>${tr(digimonInfo["name"])}</td></tr>`;
       }
       if (digimonInfo["레벨"]) {
-        tableHtml += `<tr><th>레벨</th><td>${digimonInfo["레벨"]}</td></tr>`;
+        tableHtml += `<tr><th>${t('레벨', 'Level')}</th><td>${digimonInfo["레벨"]}</td></tr>`;
       }
       if (digimonInfo["유대감"]) {
-        tableHtml += `<tr><th>유대감</th><td>${digimonInfo["유대감"]}%</td></tr>`;
+        tableHtml += `<tr><th>${t('유대감', 'Bond')}</th><td>${digimonInfo["유대감"]}%</td></tr>`;
       }
       const stats = [
         { stat: "힘", percent: "힘%" },
@@ -554,17 +555,17 @@ export function init(signal, onReady) {
       ];
       stats.forEach(s => {
         if (digimonInfo[s.stat]) {
-          tableHtml += `<tr><th>${s.stat}</th><td>${digimonInfo[s.stat]}${digimonInfo[s.percent] ? ` (${digimonInfo[s.percent]}%)` : ""}</td></tr>`;
+          tableHtml += `<tr><th>${term(s.stat)}</th><td>${digimonInfo[s.stat]}${digimonInfo[s.percent] ? ` (${digimonInfo[s.percent]}%)` : ""}</td></tr>`;
         }
       });
       if (evoType === "normal" && digimonInfo["진화재료"]?.trim()) {
-        tableHtml += `<tr><th>진화 재료</th><td>${digimonInfo["진화재료"]}</td></tr>`;
+        tableHtml += `<tr><th>${t('진화 재료', 'Evolution Material')}</th><td>${tr(digimonInfo["진화재료"])}</td></tr>`;
       } else if (evoType === "dark" && digimonInfo["암흑진화재료"]?.trim()) {
-        tableHtml += `<tr><th>진화 재료</th><td>${digimonInfo["암흑진화재료"]}</td></tr>`;
+        tableHtml += `<tr><th>${t('진화 재료', 'Evolution Material')}</th><td>${tr(digimonInfo["암흑진화재료"])}</td></tr>`;
       } else if (evoType === "special" && digimonInfo["특수진화재료"]?.trim()) {
-        tableHtml += `<tr><th>진화 재료</th><td>${digimonInfo["특수진화재료"]}</td></tr>`;
+        tableHtml += `<tr><th>${t('진화 재료', 'Evolution Material')}</th><td>${tr(digimonInfo["특수진화재료"])}</td></tr>`;
       } else if (evoType === "burst" && digimonInfo["버스트진화재료"]?.trim()) {
-        tableHtml += `<tr><th>진화 재료</th><td>${digimonInfo["버스트진화재료"]}</td></tr>`;
+        tableHtml += `<tr><th>${t('진화 재료', 'Evolution Material')}</th><td>${tr(digimonInfo["버스트진화재료"])}</td></tr>`;
       }
       tableHtml += `</table>`;
       let tooltip = document.querySelector('.tooltip');
@@ -583,9 +584,9 @@ export function init(signal, onReady) {
     showJogressTooltip(event, jogressEntry) {
       const tooltip = document.getElementById("tooltip");
       let tableHtml = `<table class="jogress-tooltip-table">
-                         <tr><th colspan="3">조그레스 진화 조건</th></tr>`;
+                         <tr><th colspan="3">${t('조그레스 진화 조건', 'Jogress Evolution Conditions')}</th></tr>`;
       if (jogressEntry.digimon1 || jogressEntry.digimon2) {
-        tableHtml += `<tr><th>디지몬</th><th>${jogressEntry.digimon1 || ""}</th><th>${jogressEntry.digimon2 || ""}</th></tr>`;
+        tableHtml += `<tr><th>${t('디지몬', 'Digimon')}</th><th>${tr(jogressEntry.digimon1 || "")}</th><th>${tr(jogressEntry.digimon2 || "")}</th></tr>`;
       }
       const rows = [
         { label: "레벨", key1: "level1", key2: "level2" },
@@ -600,7 +601,7 @@ export function init(signal, onReady) {
         const value1 = jogressEntry[row.key1];
         const value2 = jogressEntry[row.key2];
         if (value1 || value2) {
-          let rowHtml = `<tr><th>${row.label}</th>`;
+          let rowHtml = `<tr><th>${term(row.label)}</th>`;
           if (row.suffix) {
             rowHtml += `<td>${value1 ? value1 + row.suffix : ""}</td><td>${value2 ? value2 + row.suffix : ""}</td>`;
           } else {
@@ -616,7 +617,7 @@ export function init(signal, onReady) {
         const ingredients = jogressEntry.ingredient1
           ? `${jogressEntry.ingredient1}${jogressEntry.ingredient2 ? `, ${jogressEntry.ingredient2}` : ""}`
           : jogressEntry.ingredient2 || "";
-        tableHtml += `<tr><th>진화 재료</th><td colspan="2">${ingredients}</td></tr>`;
+        tableHtml += `<tr><th>${t('진화 재료', 'Evolution Material')}</th><td colspan="2">${tr(ingredients)}</td></tr>`;
       }
       tableHtml += `</table>`;
       tooltip.innerHTML = tableHtml;
@@ -869,7 +870,7 @@ export function init(signal, onReady) {
         if (selectedDigimon) {
           this.createSpecialEvolutionTree(selectedDigimon);
         } else {
-          alert("해당 디지몬의 진화트리를 찾을 수 없습니다.");
+          alert(t("해당 디지몬의 진화트리를 찾을 수 없습니다.", "Evolution tree not found for this Digimon."));
         }
       }
     },
@@ -998,7 +999,7 @@ export function init(signal, onReady) {
       specialContainer.classList.add("special-evolution-container");
 
       const title = document.createElement("h3");
-      title.textContent = `${digimon.name} - 특수 진화 조건`;
+      title.textContent = t(`${digimon.name} - 특수 진화 조건`, `${tr(digimon.name)} - Special Evolution Conditions`);
       title.classList.add("special-evolution-title");
 
       const infoContainer = document.createElement("div");
@@ -1007,7 +1008,7 @@ export function init(signal, onReady) {
 
       // 진화 단계 정보
       const stageInfo = document.createElement("p");
-      stageInfo.innerHTML = `<strong>진화 단계:</strong> ${this.getStageName(digimon.evolution_stage)}`;
+      stageInfo.innerHTML = `<strong>${t('진화 단계', 'Evolution Stage')}:</strong> ${term(this.getStageName(digimon.evolution_stage))}`;
       stageInfo.classList.add("special-stage-info");
 
       // 진화 가능한 디지몬들
@@ -1031,7 +1032,7 @@ export function init(signal, onReady) {
 
       if (evolutions.length > 0) {
         const evoTitle = document.createElement("h4");
-        evoTitle.textContent = "진화 가능한 디지몬:";
+        evoTitle.textContent = t("진화 가능한 디지몬:", "Evolution Possible:");
         evoTitle.classList.add("special-evo-title");
 
         const evoList = document.createElement("div");
@@ -1042,10 +1043,10 @@ export function init(signal, onReady) {
           evoItem.classList.add("special-evo-item");
 
 
-          let evoText = evo.name;
-          if (evo.evoType === "dark") evoText += " (암흑진화)";
-          else if (evo.evoType === "special") evoText += " (특수진화)";
-          else if (evo.evoType === "burst") evoText += " (버스트진화)";
+          let evoText = tr(evo.name);
+          if (evo.evoType === "dark") evoText += ` (${term("암흑진화")})`;
+          else if (evo.evoType === "special") evoText += ` (${term("특수진화")})`;
+          else if (evo.evoType === "burst") evoText += ` (${term("버스트진화")})`;
 
           evoText += ` - ${evo.percent}%`;
           evoItem.textContent = evoText;
@@ -1061,7 +1062,7 @@ export function init(signal, onReady) {
       const conditionInfo = DataModule.conditionData.find(c => c.name === digimon.name);
       if (conditionInfo) {
         const conditionTitle = document.createElement("h4");
-        conditionTitle.textContent = "진화 조건:";
+        conditionTitle.textContent = t("진화 조건:", "Evolution Conditions:");
         conditionTitle.classList.add("special-condition-title");
 
         const conditionList = document.createElement("div");
@@ -1069,43 +1070,43 @@ export function init(signal, onReady) {
 
         if (conditionInfo.레벨) {
           const levelItem = document.createElement("div");
-          levelItem.innerHTML = `<strong>레벨:</strong> ${conditionInfo.레벨}`;
+          levelItem.innerHTML = `<strong>${t('레벨', 'Level')}:</strong> ${conditionInfo.레벨}`;
           conditionList.appendChild(levelItem);
         }
 
         if (conditionInfo.유대감) {
           const bondItem = document.createElement("div");
-          bondItem.innerHTML = `<strong>유대감:</strong> ${conditionInfo.유대감}%`;
+          bondItem.innerHTML = `<strong>${t('유대감', 'Bond')}:</strong> ${conditionInfo.유대감}%`;
           conditionList.appendChild(bondItem);
         }
 
         if (conditionInfo.진화재료) {
           const materialItem = document.createElement("div");
-          materialItem.innerHTML = `<strong>진화 재료:</strong> ${conditionInfo.진화재료}`;
+          materialItem.innerHTML = `<strong>${t('진화 재료', 'Evolution Material')}:</strong> ${tr(conditionInfo.진화재료)}`;
           conditionList.appendChild(materialItem);
         }
 
         if (conditionInfo.버스트진화재료) {
           const burstMaterialItem = document.createElement("div");
-          burstMaterialItem.innerHTML = `<strong>버스트진화 재료:</strong> ${conditionInfo.버스트진화재료}`;
+          burstMaterialItem.innerHTML = `<strong>${t('버스트진화 재료', 'Burst EVO Material')}:</strong> ${tr(conditionInfo.버스트진화재료)}`;
           conditionList.appendChild(burstMaterialItem);
         }
 
         if (conditionInfo.특수진화재료) {
           const specialMaterialItem = document.createElement("div");
-          specialMaterialItem.innerHTML = `<strong>특수진화 재료:</strong> ${conditionInfo.특수진화재료}`;
+          specialMaterialItem.innerHTML = `<strong>${t('특수진화 재료', 'Special EVO Material')}:</strong> ${tr(conditionInfo.특수진화재료)}`;
           conditionList.appendChild(specialMaterialItem);
         }
 
         if (conditionInfo.암흑진화재료) {
           const darkMaterialItem = document.createElement("div");
-          darkMaterialItem.innerHTML = `<strong>암흑진화 재료:</strong> ${conditionInfo.암흑진화재료}`;
+          darkMaterialItem.innerHTML = `<strong>${t('암흑진화 재료', 'Dark EVO Material')}:</strong> ${tr(conditionInfo.암흑진화재료)}`;
           conditionList.appendChild(darkMaterialItem);
         }
 
         if (conditionInfo.진화타입) {
           const typeItem = document.createElement("div");
-          typeItem.innerHTML = `<strong>진화 타입:</strong> ${conditionInfo.진화타입}`;
+          typeItem.innerHTML = `<strong>${t('진화 타입', 'Evolution Type')}:</strong> ${term(conditionInfo.진화타입)}`;
           conditionList.appendChild(typeItem);
         }
 
@@ -1129,7 +1130,7 @@ export function init(signal, onReady) {
         "5": "완전체",
         "6": "궁극체"
       };
-      return stageNames[stage] || `단계 ${stage}`;
+      return stageNames[stage] || t(`단계 ${stage}`, `Stage ${stage}`);
     },
     createDigimonNode(digimon, lowerEvolutions, evoType = "normal") {
       const container = document.createElement("div");
@@ -1151,11 +1152,11 @@ export function init(signal, onReady) {
         digimonDiv.appendChild(typeImg);
       }
       img.addEventListener("mouseover", (event) => {
-        TooltipManager.showNameTooltip(event, digimon.name);
+        TooltipManager.showNameTooltip(event, tr(digimon.name));
         TooltipManager.showDigimonTooltip(event, digimon.name, evoType);
       });
       img.addEventListener("mousemove", (event) => {
-        TooltipManager.showNameTooltip(event, digimon.name);
+        TooltipManager.showNameTooltip(event, tr(digimon.name));
         TooltipManager.showDigimonTooltip(event, digimon.name, evoType);
       });
       img.addEventListener("mouseout", () => {
@@ -1215,7 +1216,7 @@ export function init(signal, onReady) {
                   const evoLabel = document.createElement("div");
                   evoLabel.classList.add("evo-label");
                   evoLabel.setAttribute("data-evo-type", evo.evoType);
-                  evoLabel.textContent = evo.evoType === "dark" ? "암흑진화" : "특수진화";
+                  evoLabel.textContent = term(evo.evoType === "dark" ? "암흑진화" : "특수진화");
                   horizontalConnector.appendChild(evoLabel);
                 }
 
@@ -1224,7 +1225,7 @@ export function init(signal, onReady) {
                   const evoLabel = document.createElement("div");
                   evoLabel.classList.add("evo-label");
                   evoLabel.setAttribute("data-evo-type", evo.evoType);
-                  evoLabel.textContent = "버스트진화";
+                  evoLabel.textContent = term("버스트진화");
                   horizontalConnector.appendChild(evoLabel);
                 }
 
@@ -1296,8 +1297,9 @@ export function init(signal, onReady) {
   };
 
 
-  onReady(() => {
+  onReady(async () => {
     UIManager.init();
+    await loadNames();
     DataModule.loadCSVFiles();
     initAdminLoader(signal, 'evolution-admin', 'DSREvolutionAdmin');
     const tree = document.getElementById('evolution-tree');

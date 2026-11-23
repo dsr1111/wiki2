@@ -1,3 +1,4 @@
+import { t, tr, isEn, loadNames } from '../i18n.js';
 // 메인 페이지: 오늘의 장소 + 환율 계산기
 // (메인 페이지에 들어올 때마다 init(signal, onReady) 가 실행됨 — page.js 의 onPage)
 export function init(signal, onReady) {
@@ -21,13 +22,15 @@ async function initLocationSchedule() {
     "데이터 세계": "/overflow?map=데이터 세계"
   };
 
+  // 오버플로우 맵 이름 (게임 영어판 표기)
+  const OVERFLOW_EN = { "무한 산": "Infinity Mountain", "사막 지대": "Desert Area", "어둠성 계곡": "Dark Castle Valley", "현실 세계": "Real World", "스파이럴 마운틴": "Spiral Mt.", "데이터 세계": "Data World" };
   const days = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
   const todayDay = days[window.DSRTime.kst().weekday]; // 한국 시간 기준 요일
 
   const locationsToday = [];
   for (const location in schedule) {
     if (schedule[location].includes(todayDay)) {
-      locationsToday.push(`<a href="${locationLinks[location]}">${location}</a>`);
+      locationsToday.push(`<a href="${locationLinks[location]}">${OVERFLOW_EN[location] && isEn() ? OVERFLOW_EN[location] : location}</a>`);
     }
   }
 
@@ -63,10 +66,10 @@ function initCalculator() {
 
     if (conversionTypeValue === "crown-to-bit") {
       result = inputValue * (rateInput / 100) * 10000;
-      unit = " 비트";
+      unit = t(" 비트", " BIT");
     } else {
       result = inputValue / ((rateInput * 10000) / 100);
-      unit = " 크라운";
+      unit = t(" 크라운", " Crown");
     }
 
     conversionResult.textContent = Math.round(result).toLocaleString() + unit;

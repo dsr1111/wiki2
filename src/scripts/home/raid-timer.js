@@ -1,3 +1,4 @@
+import { t, tr, isEn, loadNames } from '../i18n.js';
 // 메인 페이지: 레이드 타이머 (기존 app/raid-timer.js)
 // (메인 페이지에 들어올 때마다 init(signal, onReady) 가 실행됨 — page.js 의 onPage)
 export function init(signal, onReady) {
@@ -271,9 +272,9 @@ function formatTimeToKR(str) {
   if (!match) return str;
   const [, h, m, s] = match;
   let result = '';
-  if (h !== '00') result += `${parseInt(h)}시간 `;
-  if (m !== '00') result += `${parseInt(m)}분 `;
-  result += `${parseInt(s)}초`;
+  if (h !== '00') result += t(`${parseInt(h)}시간 `, `${parseInt(h)}h `);
+  if (m !== '00') result += t(`${parseInt(m)}분 `, `${parseInt(m)}m `);
+  result += t(`${parseInt(s)}초`, `${parseInt(s)}s`);
   return result.trim();
 }
 
@@ -412,11 +413,11 @@ function renderRaids() {
     div.style.fontSize = '0.8rem';
     div.innerHTML = `
       <div style="background:#0B0E1A; border-radius:3px; width:46px; height:46px; display:flex; align-items:center; justify-content:center; margin-right:10px;">
-        <img loading="lazy" src="${escapeRaidHtml(raid.image)}" alt="${escapeRaidHtml(raid.name)}" width="46" height="46" style="object-fit:contain; display:block;" onerror="this.onerror=null; this.src='/image/digimon/default.webp';">
+        <img loading="lazy" src="${escapeRaidHtml(raid.image)}" alt="${escapeRaidHtml(tr(raid.name))}" width="46" height="46" style="object-fit:contain; display:block;" onerror="this.onerror=null; this.src='/image/digimon/default.webp';">
       </div>
       <div style="display:flex; flex-direction:column; text-align:left;">
-        <span><strong>${escapeRaidHtml(raid.name)}</strong></span>
-        <span style="font-size:0.7rem; color:#666;">${raid.timeStr}, <span class="raid-location" data-map-image="${escapeRaidHtml(raid.mapImage || '')}" style="${raid.mapImage ? 'cursor:pointer; text-decoration:underline; color:#007bff;' : 'color:#666;'} font-weight:bold;">${escapeRaidHtml(raid.map)}${raid.mapImage ? ' <i class="ri-map-pin-line"></i>' : ''}</span></span>
+        <span><strong>${escapeRaidHtml(tr(raid.name))}</strong></span>
+        <span style="font-size:0.7rem; color:#666;">${raid.timeStr}, <span class="raid-location" data-map-image="${escapeRaidHtml(raid.mapImage || '')}" style="${raid.mapImage ? 'cursor:pointer; text-decoration:underline; color:#007bff;' : 'color:#666;'} font-weight:bold;">${escapeRaidHtml(tr(raid.map))}${raid.mapImage ? ' <i class="ri-map-pin-line"></i>' : ''}</span></span>
         <span class="remain">${getTimeDiffString(raid.nextTime)}</span>
       </div>
     `;
@@ -434,12 +435,12 @@ function renderRaids() {
     div.style.fontSize = '0.8rem';
     div.innerHTML = `
       <div style="background:#0B0E1A; border-radius:3px; width:46px; height:46px; display:flex; align-items:center; justify-content:center; margin-right:10px;">
-        <img loading="lazy" src="${escapeRaidHtml(raid.image)}" alt="${escapeRaidHtml(raid.name)}" width="46" height="46" style="object-fit:contain; display:block;" onerror="this.onerror=null; this.src='/image/digimon/default.webp';">
+        <img loading="lazy" src="${escapeRaidHtml(raid.image)}" alt="${escapeRaidHtml(tr(raid.name))}" width="46" height="46" style="object-fit:contain; display:block;" onerror="this.onerror=null; this.src='/image/digimon/default.webp';">
       </div>
       <div style="display:flex; flex-direction:column; text-align:left;">
-        <span><strong>${escapeRaidHtml(raid.name)}</strong></span>
-        <span style="font-size:0.7rem; color:#666;"><span class="raid-location" data-map-image="${escapeRaidHtml(raid.mapImage || '')}" style="${raid.mapImage ? 'cursor:pointer; text-decoration:underline; color:#007bff;' : 'color:#666;'} font-weight:bold;">${escapeRaidHtml(raid.map)}${raid.mapImage ? ' <i class="ri-map-pin-line"></i>' : ''}</span></span>
-        <span style="color:#8a6d1f;">인게임 타이머 확인</span>
+        <span><strong>${escapeRaidHtml(tr(raid.name))}</strong></span>
+        <span style="font-size:0.7rem; color:#666;"><span class="raid-location" data-map-image="${escapeRaidHtml(raid.mapImage || '')}" style="${raid.mapImage ? 'cursor:pointer; text-decoration:underline; color:#007bff;' : 'color:#666;'} font-weight:bold;">${escapeRaidHtml(tr(raid.map))}${raid.mapImage ? ' <i class="ri-map-pin-line"></i>' : ''}</span></span>
+        <span style="color:#8a6d1f;">${t('인게임 타이머 확인', 'Check the in-game timer')}</span>
       </div>
     `;
     container.appendChild(div);
@@ -521,7 +522,7 @@ function updateTimers() {
             const customAlert = document.getElementById('custom-raid-alert');
             const customAlertMessage = document.getElementById('custom-alert-message');
             if (customAlert && customAlertMessage) {
-              customAlertMessage.textContent = `${sortedRaids[i].name} 레이드가 ${formatTimeToKR(getTimeDiffString(sortedRaids[i].nextTime))} 남았습니다!`;
+              customAlertMessage.textContent = t(`${sortedRaids[i].name} 레이드가 ${formatTimeToKR(getTimeDiffString(sortedRaids[i].nextTime))} 남았습니다!`, `${tr(sortedRaids[i].name)} raid starts in ${formatTimeToKR(getTimeDiffString(sortedRaids[i].nextTime))}!`);
               customAlert.style.display = 'flex';
 
               // Attach snooze logic to the close button
@@ -556,7 +557,7 @@ function updateTimers() {
 
 onReady(async () => {
   // 페이지 로드 시 시간 동기화와 레이드 목록 불러오기를 함께 수행
-  const [, loadedRaids] = await Promise.all([window.DSRTime ? window.DSRTime.readyWithin(3000) : null, loadRaids()]);
+  const [, loadedRaids] = await Promise.all([window.DSRTime ? window.DSRTime.readyWithin(3000) : null, loadRaids(), loadNames()]);
   raids = loadedRaids;
 
   const alarmToggle = document.getElementById('raid-alarm-toggle');
@@ -604,7 +605,7 @@ onReady(async () => {
   // 재생 시간 슬라이더 이벤트 리스너
   if (durationInput && durationValueSpan) {
     durationInput.addEventListener('input', function () {
-      durationValueSpan.textContent = `${this.value}초`;
+      durationValueSpan.textContent = t(`${this.value}초`, `${this.value}s`);
     });
   }
 
@@ -644,11 +645,11 @@ onReady(async () => {
         const permission = await Notification.requestPermission();
         if (permission !== "granted") {
           this.checked = false;
-          alert("알림 권한이 필요합니다.");
+          alert(t("알림 권한이 필요합니다.", "Notification permission is required."));
         }
       } else if (Notification.permission === "denied") {
         this.checked = false;
-        alert("알림 권한이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요.");
+        alert(t("알림 권한이 거부되었습니다. 브라우저 설정에서 권한을 허용해주세요.", "Notification permission was denied. Please allow it in your browser settings."));
       }
     }
   });

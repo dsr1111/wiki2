@@ -1,3 +1,4 @@
+import { t, tr, isEn, loadNames } from '../i18n.js';
 // 메인 페이지: 이벤트 캘린더 (기존 app/calendar.js)
 // (메인 페이지에 들어올 때마다 init(signal, onReady) 가 실행됨 — page.js 의 onPage)
 export function init(signal, onReady) {
@@ -101,7 +102,7 @@ onReady(async () => {
   } catch (error) {
     console.error("캘린더 스크립트를 불러오지 못했습니다.", error);
     if (emptyMessageEl) {
-      emptyMessageEl.textContent = "캘린더 스크립트를 불러오지 못했습니다.";
+      emptyMessageEl.textContent = t("캘린더 스크립트를 불러오지 못했습니다.", "Could not load the calendar.");
       emptyMessageEl.hidden = false;
     }
     return;
@@ -218,7 +219,7 @@ onReady(async () => {
     const endDate = info.event.end;
 
     tooltipContent.innerHTML = `
-      <strong>${escapeCalendarHtml(info.event.title)}</strong><br>
+      <strong>${escapeCalendarHtml(tr(info.event.title))}</strong><br>
       <span>${buildEventPeriod(startDate, endDate)}</span>
     `;
     tooltip.style.display = "block";
@@ -244,7 +245,7 @@ onReady(async () => {
     if (signal.aborted) return;
     const setEmptyMessage = (events) => {
       if (!emptyMessageEl) return;
-      emptyMessageEl.textContent = "표시할 이벤트가 없습니다.";
+      emptyMessageEl.textContent = t("표시할 이벤트가 없습니다.", "No events to show.");
       emptyMessageEl.hidden = events.length > 0;
     };
 
@@ -260,20 +261,20 @@ onReady(async () => {
     if (window.DSRTime) await window.DSRTime.readyWithin(300);
     const calendar = new calendarLib.Calendar(calendarHost, {
       plugins: calendarLib.plugins,
-      locale: calendarLib.locale,
+      locale: isEn() ? 'en' : calendarLib.locale,
       timeZone: "UTC", // 이벤트 시각을 한국 시간 벽시계로 넘기므로 그대로 표시
       now: () => kstWallOf(serverNow()), // "오늘"과 현재 시각 선은 서버 시각(한국 시간)
       initialView: getIsMobile() ? "listWeek" : "dayGridMonth",
       headerToolbar: buildToolbarConfig(),
       buttonText: {
-        today: "오늘",
-        month: "월간",
-        week: "주간",
-        list: "목록",
+        today: t("오늘", "Today"),
+        month: t("월간", "Month"),
+        week: t("주간", "Week"),
+        list: t("목록", "List"),
       },
       customButtons: {
         customText: {
-          text: "이벤트 캘린더",
+          text: t("이벤트 캘린더", "Event Calendar"),
         },
         currentMonth: {
           text: "",
@@ -385,7 +386,7 @@ onReady(async () => {
   } catch (error) {
     console.error("이벤트 캘린더 데이터를 불러오는 중 오류가 발생했습니다.", error);
     if (emptyMessageEl) {
-      emptyMessageEl.textContent = "캘린더 데이터를 불러오지 못했습니다.";
+      emptyMessageEl.textContent = t("캘린더 데이터를 불러오지 못했습니다.", "Could not load calendar data.");
       emptyMessageEl.hidden = false;
     }
   }

@@ -16,22 +16,22 @@ import '../styles/tw/exp.css';
           <!-- 입력 폼 -->
           <div class="mb-6 md:mb-0">
             <div class="bg-[#f8f9fa] p-4 rounded-lg mb-6">
-              <h2 class="text-xl font-bold mb-4">초기 상태</h2>
+              <h2 class="text-xl font-bold mb-4" data-en="Initial State">초기 상태</h2>
               <div class="flex items-center gap-4 mb-4">
                 <div class="w-24">
-                  <label for="current-level" class="block mb-2">레벨</label>
+                  <label for="current-level" class="block mb-2" data-en="Level">레벨</label>
                   <input type="number" id="current-level" min="1" max="99" value="1"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md">
                 </div>
                 <div class="w-24">
-                  <label for="current-exp" class="block mb-2">경험치</label>
+                  <label for="current-exp" class="block mb-2" data-en="EXP">경험치</label>
                   <input type="number" id="current-exp" min="0" value="0"
                     class="w-full px-3 py-2 border border-gray-300 rounded-md">
                 </div>
                 <div id="evolution-checkbox-container" class="flex items-center">
                   <label class="flex items-center gap-2 mt-8">
                     <input type="checkbox" id="evolution-checkbox" class="w-4 h-4">
-                    <span id="evolution-checkbox-text">성숙기 진화 여부</span>
+                    <span id="evolution-checkbox-text" data-en="Evolve to Champion">성숙기 진화 여부</span>
                   </label>
                 </div>
               </div>
@@ -42,7 +42,7 @@ import '../styles/tw/exp.css';
                 <div class="potion-item" data-potion="300" data-max-level="65">
                   <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/300 EXP 물약.webp" alt="300 EXP 물약"
                     class="potion-img">
-                  <span>300 EXP 물약</span>
+                  <span data-en="300 EXP Potion">300 EXP 물약</span>
                   <div class="counter-container">
                     <button class="counter-btn minus-btn">-</button>
                     <input type="number" class="counter-value" value="0" min="0">
@@ -52,7 +52,7 @@ import '../styles/tw/exp.css';
                 <div class="potion-item" data-potion="600" data-max-level="65">
                   <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/600 EXP 물약.webp" alt="600 EXP 물약"
                     class="potion-img">
-                  <span>600 EXP 물약</span>
+                  <span data-en="600 EXP Potion">600 EXP 물약</span>
                   <div class="counter-container">
                     <button class="counter-btn minus-btn">-</button>
                     <input type="number" class="counter-value" value="0" min="0">
@@ -62,7 +62,7 @@ import '../styles/tw/exp.css';
                 <div class="potion-item" data-potion="900" data-max-level="65">
                   <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/900 EXP 물약.webp" alt="900 EXP 물약"
                     class="potion-img">
-                  <span>900 EXP 물약</span>
+                  <span data-en="900 EXP Potion">900 EXP 물약</span>
                   <div class="counter-container">
                     <button class="counter-btn minus-btn">-</button>
                     <input type="number" class="counter-value" value="0" min="0">
@@ -72,7 +72,7 @@ import '../styles/tw/exp.css';
                 <div class="potion-item" data-potion="3000" data-max-level="65">
                   <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/3000 EXP 물약.webp" alt="3000 EXP 물약"
                     class="potion-img">
-                  <span>3000 EXP 물약</span>
+                  <span data-en="3000 EXP Potion">3000 EXP 물약</span>
                   <div class="counter-container">
                     <button class="counter-btn minus-btn">-</button>
                     <input type="number" class="counter-value" value="0" min="0">
@@ -82,7 +82,7 @@ import '../styles/tw/exp.css';
                 <div class="potion-item" data-potion="6000" data-max-level="65">
                   <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/6000 EXP 물약.webp" alt="6000 EXP 물약"
                     class="potion-img">
-                  <span>6000 EXP 물약</span>
+                  <span data-en="6000 EXP Potion">6000 EXP 물약</span>
                   <div class="counter-container">
                     <button class="counter-btn minus-btn">-</button>
                     <input type="number" class="counter-value" value="0" min="0">
@@ -92,7 +92,7 @@ import '../styles/tw/exp.css';
                 <div class="potion-item" data-potion="9000" data-max-level="65">
                   <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/9000 EXP 물약.webp" alt="9000 EXP 물약"
                     class="potion-img">
-                  <span>9000 EXP 물약</span>
+                  <span data-en="9000 EXP Potion">9000 EXP 물약</span>
                   <div class="counter-container">
                     <button class="counter-btn minus-btn">-</button>
                     <input type="number" class="counter-value" value="0" min="0">
@@ -102,7 +102,7 @@ import '../styles/tw/exp.css';
                 <div class="potion-item" data-potion="12000" data-max-level="75">
                   <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/12000 EXP 물약.webp" alt="12000 EXP 물약"
                     class="potion-img">
-                  <span>12000 EXP 물약</span>
+                  <span data-en="12000 EXP Potion">12000 EXP 물약</span>
                   <div class="counter-container">
                     <button class="counter-btn minus-btn">-</button>
                     <input type="number" class="counter-value" value="0" min="0">
@@ -112,7 +112,7 @@ import '../styles/tw/exp.css';
                 <div class="potion-item" data-potion="15000" data-max-level="85">
                   <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/15000 EXP 물약.webp" alt="15000 EXP 물약"
                     class="potion-img">
-                  <span>15000 EXP 물약</span>
+                  <span data-en="15000 EXP Potion">15000 EXP 물약</span>
                   <div class="counter-container">
                     <button class="counter-btn minus-btn">-</button>
                     <input type="number" class="counter-value" value="0" min="0">
@@ -122,7 +122,7 @@ import '../styles/tw/exp.css';
                 <div class="potion-item" data-potion="18000" data-max-level="89">
                   <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/18000 EXP 물약.webp" alt="18000 EXP 물약"
                     class="potion-img">
-                  <span>18000 EXP 물약</span>
+                  <span data-en="18000 EXP Potion">18000 EXP 물약</span>
                   <div class="counter-container">
                     <button class="counter-btn minus-btn">-</button>
                     <input type="number" class="counter-value" value="0" min="0">
@@ -132,7 +132,7 @@ import '../styles/tw/exp.css';
                 <div class="potion-item" data-potion="21000" data-max-level="94">
                   <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/21000 EXP 물약.webp" alt="21000 EXP 물약"
                     class="potion-img">
-                  <span>21000 EXP 물약</span>
+                  <span data-en="21000 EXP Potion">21000 EXP 물약</span>
                   <div class="counter-container">
                     <button class="counter-btn minus-btn">-</button>
                     <input type="number" class="counter-value" value="0" min="0">
@@ -142,7 +142,7 @@ import '../styles/tw/exp.css';
                 <div class="potion-item" data-potion="24000" data-max-level="99">
                   <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/24000 EXP 물약.webp" alt="24000 EXP 물약"
                     class="potion-img">
-                  <span>24000 EXP 물약</span>
+                  <span data-en="24000 EXP Potion">24000 EXP 물약</span>
                   <div class="counter-container">
                     <button class="counter-btn minus-btn">-</button>
                     <input type="number" class="counter-value" value="0" min="0">
@@ -157,17 +157,17 @@ import '../styles/tw/exp.css';
           <div>
             <div class="bg-[#f8f9fa] p-4 rounded-lg h-full">
               <div id="level-simulation" class="mb-6 p-3 bg-white rounded-md">
-                <p>물약 사용 후 레벨: <span id="sim-final-level" class="font-bold">1</span></p>
-                <p>물약 사용 후 경험치: <span id="sim-final-exp" class="font-bold">0</span></p>
+                <p data-en="Level after potions: ">물약 사용 후 레벨: <span id="sim-final-level" class="font-bold">1</span></p>
+                <p data-en="EXP after potions: ">물약 사용 후 경험치: <span id="sim-final-exp" class="font-bold">0</span></p>
               </div>
 
               <div id="potion-result">
                 <table class="result-table">
                   <thead>
                     <tr>
-                      <th>물약 종류</th>
-                      <th>개수</th>
-                      <th>총 경험치</th>
+                      <th data-en="Potion">물약 종류</th>
+                      <th data-en="Count">개수</th>
+                      <th data-en="Total EXP">총 경험치</th>
                     </tr>
                   </thead>
                   <tbody id="potion-result-body">
@@ -185,6 +185,7 @@ import '../styles/tw/exp.css';
   <script>
     import { onPage } from '../scripts/page.js';
     import { init } from '../scripts/exp.js';
-    onPage('exp', init);
+    import { applyStatic } from '../scripts/i18n.js';
+    onPage('exp', () => applyStatic(document, 'EXP Potion Simulator'), init);
   </script>
 </Layout>

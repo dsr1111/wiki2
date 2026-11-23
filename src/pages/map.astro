@@ -9,25 +9,25 @@ import '../styles/styles1.css';
 
   <!-- 드랍 아이템 제보 안내: 드랍 정보가 없는 몹이 있는 맵(파워디지몬 PART1 신규 맵)에서만 지도 위에 보임 (scripts/map.js) -->
   <div class="map-notice" id="drop-notice" hidden>
-    <span>파워디지몬 PART1 악역 디지몬의 드랍 아이템은 아직 확인 중이에요. 얻은 아이템을 제보해 주세요!</span>
-    <button type="button" id="drop-report">제보하기</button>
+    <span data-en="Drop items of Power Digimon PART1 enemy Digimon are still being checked. Please report the items you get!">파워디지몬 PART1 악역 디지몬의 드랍 아이템은 아직 확인 중이에요. 얻은 아이템을 제보해 주세요!</span>
+    <button type="button" id="drop-report" data-en="Report">제보하기</button>
   </div>
   <div class="container1" style="position: relative" ;>
     <div class="main">
-      <p>지도</p>
+      <p data-en="Map">지도</p>
       <div class="dropdown">
         <div class="dropdown-con dropdown-world">
           <select id="world-dropdown">
-            <option value="디지털 월드" selected>디지털 월드</option>
-            <option value="현실 세계">현실 세계</option>
-            <option value="시공간의 균열">시공간의 균열</option>
+            <option value="디지털 월드" data-en="Digital World" selected>디지털 월드</option>
+            <option value="현실 세계" data-en="Real World">현실 세계</option>
+            <option value="시공간의 균열" data-en="Space-Time Rift">시공간의 균열</option>
           </select>
         </div>
         <div class="dropdown-con dropdown-region">
           <select id="con-dropdown">
-            <option value="파일섬" selected>파일섬</option>
-            <option value="서버대륙">서버대륙</option>
-            <option value="스파이럴 마운틴">스파이럴 마운틴</option>
+            <option value="파일섬" data-en="File Island" selected>파일섬</option>
+            <option value="서버대륙" data-en="Server Continent">서버대륙</option>
+            <option value="스파이럴 마운틴" data-en="Spiral Mt.">스파이럴 마운틴</option>
           </select>
         </div>
         <div class="dropdown-map">
@@ -36,7 +36,7 @@ import '../styles/styles1.css';
           </select>
         </div>
         <button class="dropdown-icon">
-          아이콘 필터 <span class="arrow">▼</span>
+          <span data-en="Icon Filter">아이콘 필터</span> <span class="arrow">▼</span>
         </button>
         <div class="dropdown-content" id="dropdown-content"></div>
       </div>
@@ -50,6 +50,7 @@ import '../styles/styles1.css';
   <script>
     import { onPage } from '../scripts/page.js';
     import { init } from '../scripts/map.js';
-    onPage('map', init);
+    import { applyStatic } from '../scripts/i18n.js';
+    onPage('map', () => applyStatic(document, 'Map'), init);
   </script>
 </Layout>

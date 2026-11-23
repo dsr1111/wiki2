@@ -8,18 +8,18 @@ import '../styles/styles1.css';
 <Layout title="진화트리">
 
   <div class="container1">
-    <p class="notice-text">진화 조건 %가 미기입된 디지몬의 수치 피드백으로 제보받습니다.</p>
+    <p class="notice-text" data-en="We take feedback for Digimon whose evolution condition % is missing.">진화 조건 %가 미기입된 디지몬의 수치 피드백으로 제보받습니다.</p>
     <div class="evolution-menu">
       <div class="menu-items">
-        <button class="menu-item active" data-stage="all">전체</button>
-        <button class="menu-item" data-stage="1">유년기1</button>
-        <button class="menu-item" data-stage="2">유년기2</button>
-        <button class="menu-item" data-stage="3">성장기</button>
-        <button class="menu-item" data-stage="4">성숙기</button>
-        <button class="menu-item" data-stage="5">완전체</button>
-        <button class="menu-item" data-stage="6">궁극체</button>
+        <button class="menu-item active" data-stage="all" data-en="All">전체</button>
+        <button class="menu-item" data-stage="1" data-en="Baby 1">유년기1</button>
+        <button class="menu-item" data-stage="2" data-en="Baby 2">유년기2</button>
+        <button class="menu-item" data-stage="3" data-en="Rookie">성장기</button>
+        <button class="menu-item" data-stage="4" data-en="Champion">성숙기</button>
+        <button class="menu-item" data-stage="5" data-en="Ultimate">완전체</button>
+        <button class="menu-item" data-stage="6" data-en="Mega">궁극체</button>
         <span class="menu-separator" aria-hidden="true"></span>
-        <button id="material-toggle" class="menu-item" data-mode="materials">진화 재료 보기</button>
+        <button id="material-toggle" class="menu-item" data-mode="materials" data-en="Show Evolution Materials">진화 재료 보기</button>
       </div>
     </div>
 
@@ -41,6 +41,10 @@ import '../styles/styles1.css';
   <script>
     import { onPage } from '../scripts/page.js';
     import { init } from '../scripts/evolution.js';
-    onPage('evolution', init);
+    import { applyStatic, t } from '../scripts/i18n.js';
+    onPage('evolution', () => {
+      applyStatic(document, 'Evolution Tree');
+      document.getElementById('search-input').placeholder = t('찾을 디지몬 검색', 'Search Digimon');
+    }, init);
   </script>
 </Layout>

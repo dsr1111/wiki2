@@ -125,8 +125,33 @@
 .bar__theme [data-mode="system"][aria-checked="true"] { color: var(--nav-ink); }
 .bar__theme [data-mode="dark"][aria-checked="true"] { color: #F2D27A; }
 @media (prefers-reduced-motion: reduce) {
-  .bar__knob, .bar__theme button { transition: none; }
+  .bar__knob, .bar__theme button, .bar__lang button { transition: none; }
 }
+
+/* 언어 고르기: 화면 모드와 같은 모양 (한 · EN 두 칸) */
+.bar__lang {
+  position: relative;
+  flex: none;
+  display: flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--nav-track);
+  box-shadow: inset 0 0 0 1px var(--nav-line);
+}
+.bar__lang .bar__knob { width: 32px; }
+.bar__lang[data-lang="en"] .bar__knob { transform: translateX(32px); }
+.bar__lang button {
+  position: relative;
+  width: 32px;
+  height: 24px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--nav-muted);
+  transition: color 0.2s;
+}
+.bar__lang button:hover,
+.bar__lang button[aria-checked="true"] { color: var(--nav-ink); }
 
 .bar__menu {
   padding: 5px 12px;
@@ -214,4 +239,13 @@
 
 @media screen and (max-width: 1117px) {
   .panel__col.dim { opacity: 1; }
+}
+
+/* 좁은 휴대폰: 메뉴 버튼이 두 줄로 눌리지 않게 언어 버튼을 조금 줄임 */
+.bar__menu { white-space: nowrap; }
+@media (max-width: 420px) {
+  .bar__end { gap: 6px; }
+  .bar__lang .bar__knob { width: 26px; }
+  .bar__lang[data-lang="en"] .bar__knob { transform: translateX(26px); }
+  .bar__lang button { width: 26px; font-size: 11px; }
 }

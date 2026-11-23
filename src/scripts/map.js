@@ -4,6 +4,17 @@
 // onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
 import { getDigimonData } from './page.js';
+import { t, tr, term, loadNames } from './i18n.js';
+// 월드·지역·맵 이름 중 이름 사전에 없는 것 (게임 영어판 표기)
+const MAP_EN = { '디지털 월드': 'Digital World', 파일섬: 'File Island', 도쿄: 'Tokyo', '시공간의 균열': 'Space-Time Rift', '개굴몬 성 1F': "Gekomon's Castle 1F", '개굴몬 성 2F': "Gekomon's Castle 2F", '사막 지대 이동 포탈': 'Desert Area Portal', '오다이바 입구 다리': 'Odaiba Entrance Bridge' };
+const mapName = (ko) => t(ko, MAP_EN[ko] ?? tr(ko));
+// 지도 아이콘 툴팁 (줄마다)
+const tipText = (s) => t(s, String(s).split('<br>').map((l) => MAP_EN[l.trim()] ?? tr(l)).join('<br>'));
+// 드랍 아이템 이름: 시즌 카드 상자는 시즌 이름 없이
+const dropName = (short) => {
+  const card = short.match(/^카드 상자 ([A-Z])$/);
+  return card ? t(short, `Card Pack ${card[1]}`) : tr(short);
+};
 export function init(signal, onReady) {
 // ===== 기존 app/map.js =====
 const selectElement = document.getElementById("con-dropdown");
@@ -143,7 +154,7 @@ worldSelectElement.addEventListener("change", function () {
   worldOptions[worldSelectElement.value].forEach((region) => {
     const opt = document.createElement("option");
     opt.value = region;
-    opt.textContent = region;
+    opt.textContent = mapName(region);
     conDropdown.appendChild(opt);
   });
   conDropdown.dispatchEvent(new Event("change"));
@@ -158,7 +169,7 @@ conDropdown.addEventListener("change", function () {
   options.forEach((option) => {
     const opt = document.createElement("option");
     opt.value = option;
-    opt.textContent = option;
+    opt.textContent = mapName(option);
     mapSelect.appendChild(opt);
   });
 
@@ -191,6 +202,7 @@ Promise.all([
   // R2 파일에 Cache-Control 이 없어 브라우저가 옛 map.json 을 오래 쓰므로, 매번 서버에 바뀌었는지 확인(바뀌지 않았으면 304 로 가볍게 끝남)
   fetch("https://media.dsrwiki.com/data/csv/map.json", { cache: "no-cache" }).then(response => response.json()),
   getDigimonData(),
+  loadNames(),
 ])
   .then(async ([mapData, digimonData]) => {
     maps = mapData;
@@ -236,7 +248,7 @@ function addTooltipToImage(imageElement, tooltipText) {
 function showTooltipAtImageBottomRight(event, imageElement, text) {
   let tooltip = document.createElement("div");
   tooltip.className = "tooltip";
-  tooltip.innerHTML = text;
+  tooltip.innerHTML = tipText(text);
 
   const rect = imageElement.getBoundingClientRect();
   const imageBottomRightX = rect.right + window.pageXOffset;
@@ -296,7 +308,7 @@ function renderSelectedMap() {
       // 카테고리별로 체크박스를 생성
       if (selectedMap.portals && selectedMap.portals.length > 0) {
         createCheckbox(
-          "포탈",
+          t("포탈", "Portal"),
           "toggle-portals",
           "포탈 아이콘",
           selectedMap.portals,
@@ -306,7 +318,7 @@ function renderSelectedMap() {
 
       if (selectedMap.warps && selectedMap.warps.length > 0) {
         createCheckbox(
-          "워프 포인트",
+          t("워프 포인트", "Warp Point"),
           "toggle-warps",
           "워프포인트 아이콘",
           selectedMap.warps,
@@ -316,7 +328,7 @@ function renderSelectedMap() {
 
       if (selectedMap.shops && selectedMap.shops.length > 0) {
         createCheckbox(
-          "상점",
+          t("상점", "Shop"),
           "toggle-shops",
           "상점 아이콘",
           selectedMap.shops,
@@ -326,7 +338,7 @@ function renderSelectedMap() {
 
       if (selectedMap.overflows && selectedMap.overflows.length > 0) {
         createCheckbox(
-          "오버플로우",
+          t("오버플로우", "Overflow"),
           "toggle-overflows",
           "오버플로우 아이콘",
           selectedMap.overflows,
@@ -336,7 +348,7 @@ function renderSelectedMap() {
 
       if (selectedMap.dungeon && selectedMap.dungeon.length > 0) {
         createCheckbox(
-          "던전",
+          t("던전", "Dungeon"),
           "toggle-dungeons",
           "던전 아이콘",
           selectedMap.dungeon,
@@ -346,7 +358,7 @@ function renderSelectedMap() {
 
       if (selectedMap.datacube && selectedMap.datacube.length > 0) {
         createCheckbox(
-          "데이터 큐브",
+          t("데이터 큐브", "Data Cube"),
           "toggle-datacube",
           "데이터큐브 아이콘",
           selectedMap.datacube,
@@ -356,7 +368,7 @@ function renderSelectedMap() {
 
       if (selectedMap.mobs && selectedMap.mobs.length > 0) {
         createCheckbox(
-          "악역 디지몬",
+          t("악역 디지몬", "Enemy Digimon"),
           "toggle-mob",
           "몬스터 아이콘",
           selectedMap.mobs,
@@ -641,33 +653,33 @@ function showSpecialTooltipAtImage(
   const 드랍아이템목록 = Array.isArray(items) ? items : [];
 
   tooltip.innerHTML = `
-        <div class="tooltip-title">${name}</div>
+        <div class="tooltip-title">${tr(name)}</div>
         <div class="tooltip-content">
             <img loading="lazy" src="${src}" alt="${name}" class="tooltip-main-img">
             <div class="tooltip-stats">
-                <div class="stat-row first"><span>레벨 :</span> ${level}</div>
-                <div class="stat-row"><span>체력 :</span> ${hp}</div>
-                <div class="stat-row"><span>강점 :</span>
+                <div class="stat-row first"><span>${t('레벨', 'Level')} :</span> ${level}</div>
+                <div class="stat-row"><span>${t('체력', 'HP')} :</span> ${hp}</div>
+                <div class="stat-row"><span>${t('강점', 'Strength')} :</span>
                   ${강점Parts.length ? `
                       <div class="bg-icon-container bg-strong">
                         <img loading="lazy" src=\"https://media.dsrwiki.com/dsrwiki/${강점Parts[0]}.webp\" alt=\" ${강점Parts[0]}\" class="small-icon">
                       </div>
-                      <span>${강점Parts[1] ? 강점Parts[1] : ''}</span>
+                      <span>${강점Parts[1] ? term(강점Parts[1]) : ''}</span>
                     ` : ''
     }
                 </div>
-                <div class="stat-row"><span>약점 :</span>
+                <div class="stat-row"><span>${t('약점', 'Weakness')} :</span>
                   ${약점Parts.length ? `
                       <div class="bg-icon-container bg-weak">
                         <img loading="lazy" src=\"https://media.dsrwiki.com/dsrwiki/${약점Parts[0]}.webp\" alt=\" ${약점Parts[0]}\" class="small-icon">
                       </div>
-                      <span>${약점Parts[1] ? 약점Parts[1] : ''}</span>
+                      <span>${약점Parts[1] ? term(약점Parts[1]) : ''}</span>
                     ` : ''
     }
                 </div>
             </div>
         </div>
-        <div class="drop-items-title"><strong>드랍 아이템</strong> 
+        <div class="drop-items-title"><strong>${t('드랍 아이템', 'Drop Items')}</strong> 
             <ul class="drop-items-list">
                 ${드랍아이템목록
       .map((item) => {
@@ -682,7 +694,7 @@ function showSpecialTooltipAtImage(
         return `
                         <li class="drop-item">
                             <img loading="lazy" src=\"${itemImageSrc}\"  alt=\" ${itemName}\" class="drop-item-img">
-                            ${itemName}
+                            ${dropName(itemName)}
                         </li>`;
       })
       .join("")}
@@ -690,7 +702,7 @@ function showSpecialTooltipAtImage(
         </div>
         ${evol
       ? `
-        <div class="condition-evol-title"><strong>조건 진화</strong></div>
+        <div class="condition-evol-title"><strong>${t('조건 진화', 'Conditional Evolution')}</strong></div>
         <div class="condition-evol-wrapper">
         <img loading="lazy" src=\"https://media.dsrwiki.com/dsrwiki/digimon/${evol}/${evol}.webp\"  alt=\" ${evol}\" class="condition-evol-img">
          </div>
@@ -727,7 +739,7 @@ function showDatacubeTooltip(event, imageElement, tooltipText) {
   // 툴팁 생성
   let tooltip = document.createElement("div");
   tooltip.className = "tooltip";
-  tooltip.innerHTML = `<div class="datacube-tooltip-text">${tooltipText}</div>`;
+  tooltip.innerHTML = `<div class="datacube-tooltip-text">${tipText(tooltipText)}</div>`;
   tooltip.style.pointerEvents = "none";
 
   // 데이터 큐브 이미지를 위한 별도의 컨테이너 생성

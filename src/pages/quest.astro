@@ -10,11 +10,11 @@ import '../styles/styles1.css'; // 사이트 공통 (메뉴 높이 등)
     <div class="qp-body">
       <aside class="qp-side">
         <div class="qp-tabs" role="tablist">
-          <button data-kind="main" class="on">메인</button>
-          <button data-kind="sub">서브</button>
+          <button data-kind="main" class="on" data-en="Main">메인</button>
+          <button data-kind="sub" data-en="Sub">서브</button>
         </div>
         <div class="qp-mapsel">
-          <div class="qp-view" id="qp-view"><button data-view="order" class="on">진행 순서</button><button data-view="map">맵별</button></div>
+          <div class="qp-view" id="qp-view"><button data-view="order" class="on" data-en="By Order">진행 순서</button><button data-view="map" data-en="By Map">맵별</button></div>
           <select id="qp-map" aria-label="맵 선택"></select>
         </div>
         <ol class="qp-list" id="qp-list"></ol>
@@ -26,6 +26,7 @@ import '../styles/styles1.css'; // 사이트 공통 (메뉴 높이 등)
   <script>
     import { onPage } from '../scripts/page.js';
     import { init } from '../scripts/quest.js';
-    onPage('quest', init);
+    import { applyStatic } from '../scripts/i18n.js';
+    onPage('quest', () => applyStatic(document, 'Quest'), init);
   </script>
 </Layout>

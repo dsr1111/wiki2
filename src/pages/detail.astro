@@ -26,21 +26,21 @@ import '../styles/styles1.css';
               <!-- 캐릭터 메타데이터 -->
               <div class="character-metadata">
                 <div class="metadata-group">
-                  <div class="metadata-label" id="evoution-name">진화 단계</div>
+                  <div class="metadata-label" id="evoution-name" data-en="Evolution Stage">진화 단계</div>
                   <div class="metadata-image evolution-image">
                     <img loading="lazy" id="evolution-img" src="" alt="진화등급 이미지">
                   </div>
                 </div>
 
                 <div class="metadata-group">
-                  <div class="metadata-label" id="type-name">타입</div>
+                  <div class="metadata-label" id="type-name" data-en="Type">타입</div>
                   <div class="metadata-image">
                     <img loading="lazy" id="type-img" src="" alt="타입 이미지">
                   </div>
                 </div>
 
                 <div class="metadata-group field-group">
-                  <div class="metadata-label" id="field-name">필드</div>
+                  <div class="metadata-label" id="field-name" data-en="Field">필드</div>
                   <div class="metadata-image field-images">
                     <img loading="lazy" id="field-img1" src="" alt="필드 이미지 1">
                     <img loading="lazy" id="field-img2" src="" alt="필드 이미지 2">
@@ -53,14 +53,14 @@ import '../styles/styles1.css';
               <table id="stat-table" class="stat-table">
                 <thead>
                   <tr>
-                    <th>레벨</th>
+                    <th data-en="Level">레벨</th>
                     <th>HP</th>
                     <th>SP</th>
-                    <th>힘</th>
-                    <th>지능</th>
-                    <th>수비</th>
-                    <th>저항</th>
-                    <th>속도</th>
+                    <th data-en="STR">힘</th>
+                    <th data-en="INT">지능</th>
+                    <th data-en="DEF">수비</th>
+                    <th data-en="RES">저항</th>
+                    <th data-en="SPD">속도</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -82,7 +82,7 @@ import '../styles/styles1.css';
 
         <!-- 강약점 섹션 -->
         <h2 class="section-title"><img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/title.webp"
-            class="section-title-icon" alt="타이틀 아이콘"> 강약점</h2>
+            class="section-title-icon" alt="타이틀 아이콘"> <span data-en="Strengths &amp; Weaknesses">강약점</span></h2>
         <div class="sw-container">
           <table id="sw" class="sw">
             <tbody></tbody>
@@ -91,7 +91,7 @@ import '../styles/styles1.css';
 
         <!-- 스킬 섹션 -->
         <h3 class="section-title"><img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/title.webp"
-            class="section-title-icon" alt="타이틀 아이콘"> 스킬</h3>
+            class="section-title-icon" alt="타이틀 아이콘"> <span data-en="Skills">스킬</span></h3>
         <div class="skill-container">
           <table id="skill-details" class="skill-table">
             <tbody></tbody>
@@ -100,14 +100,14 @@ import '../styles/styles1.css';
 
         <!-- 덱 섹션 -->
         <h2 class="section-title"><img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/title.webp"
-            class="section-title-icon" alt="타이틀 아이콘"> 덱</h2>
+            class="section-title-icon" alt="타이틀 아이콘"> <span data-en="Deck">덱</span></h2>
         <div id="deck-container" class="deck-container">
           <!-- 덱 카드들이 여기에 동적으로 추가됩니다 -->
         </div>
 
         <!-- 디지코어 화 섹션 -->
         <h2 class="section-title"><img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/title.webp"
-            class="section-title-icon" alt="타이틀 아이콘"> 디지코어화</h2>
+            class="section-title-icon" alt="타이틀 아이콘"> <span data-en="Digitize">디지코어화</span></h2>
         <div id="digicore-container" class="digicore-container">
           <!-- 디지코어 화 정보가 여기에 동적으로 추가됩니다 -->
         </div>

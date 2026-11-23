@@ -16,43 +16,43 @@ import '../styles/pages/digimon/detail-modal.css';
 
       <div class="text-container">
         <div class="text">
-          <p>* 디지몬 이름을 클릭하면 상세페이지로 이동합니다.</p>
+          <p data-en="* Click a Digimon name to open its detail page.">* 디지몬 이름을 클릭하면 상세페이지로 이동합니다.</p>
         </div>
 
         <div class="text2">
-          <p class="all-text">전체 공격</p>
-          <p class="casting-text">캐스팅</p>
-          <p class="hpcost-text">HP 소모</p>
+          <p class="all-text" data-en="AoE">전체 공격</p>
+          <p class="casting-text" data-en="Casting">캐스팅</p>
+          <p class="hpcost-text" data-en="HP Cost">HP 소모</p>
         </div>
       </div>
       <div class="results">
         <!-- 로딩 표시 -->
         <div id="loading-spinner" class="loading-spinner">
           <div class="spinner"></div>
-          <p>데이터를 불러오는 중입니다...</p>
+          <p data-en="Loading data...">데이터를 불러오는 중입니다...</p>
         </div>
 
         <table class="result-table" style="border: 2px solid darkgrey;">
           <thead>
             <tr style="border: 2px solid darkgrey;">
-              <th data-sort="0" class="sortable">이름 <span id="sort-name"></span></th>
-              <th>레벨</th>
-              <th>진화 단계</th>
-              <th>타입</th>
+              <th data-sort="0" class="sortable" data-en="Name">이름 <span id="sort-name"></span></th>
+              <th data-en="Level">레벨</th>
+              <th data-en="Evolution Stage">진화 단계</th>
+              <th data-en="Type">타입</th>
               <th data-sort="4" class="sortable" style="border-left: 2px solid darkgrey;">HP <span
                   id="sort-hp"></span></th>
               <th data-sort="5" class="sortable">SP <span id="sort-sp"></span></th>
-              <th data-sort="6" class="sortable">힘 <span id="sort-STR"></span></th>
-              <th data-sort="7" class="sortable">지능 <span id="sort-INT"></span></th>
-              <th data-sort="8" class="sortable">수비 <span id="sort-DEF"></span></th>
-              <th data-sort="9" class="sortable">저항 <span id="sort-RES"></span></th>
-              <th data-sort="10" class="sortable">속도 <span id="sort-SPD"></span></th>
-              <th style="border-left: 2px solid darkgrey;">강점</th>
-              <th style="border-right: 2px solid darkgrey;">약점</th>
-              <th>1스킬</th>
-              <th>2스킬</th>
-              <th>3스킬</th>
-              <th style="border-left: 2px solid darkgrey;">필드</th>
+              <th data-sort="6" class="sortable" data-en="STR">힘 <span id="sort-STR"></span></th>
+              <th data-sort="7" class="sortable" data-en="INT">지능 <span id="sort-INT"></span></th>
+              <th data-sort="8" class="sortable" data-en="DEF">수비 <span id="sort-DEF"></span></th>
+              <th data-sort="9" class="sortable" data-en="RES">저항 <span id="sort-RES"></span></th>
+              <th data-sort="10" class="sortable" data-en="SPD">속도 <span id="sort-SPD"></span></th>
+              <th style="border-left: 2px solid darkgrey;" data-en="Strong">강점</th>
+              <th style="border-right: 2px solid darkgrey;" data-en="Weak">약점</th>
+              <th data-en="Skill 1">1스킬</th>
+              <th data-en="Skill 2">2스킬</th>
+              <th data-en="Skill 3">3스킬</th>
+              <th style="border-left: 2px solid darkgrey;" data-en="Field">필드</th>
             </tr>
           </thead>
           <tbody id="characterTable">
@@ -71,6 +71,7 @@ import '../styles/pages/digimon/detail-modal.css';
     import { init } from '../scripts/digimon.js';
     import { initFilter } from '../scripts/digimon-filter.js';
     import { initDetailModal } from '../scripts/digimon-detail-modal.js';
-    onPage('digimon', init, initFilter, initDetailModal);
+    import { applyStatic } from '../scripts/i18n.js';
+    onPage('digimon', () => applyStatic(document, 'Digidex'), init, initFilter, initDetailModal);
   </script>
 </Layout>

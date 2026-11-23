@@ -3,6 +3,8 @@
 // (여러 파일은 기존처럼 같은 범위를 쓰도록 실행 순서대로 이어 붙임)
 // onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
+import { t, tr, loadNames } from './i18n.js';
+
 export function init(signal, onReady) {
 // ===== 기존 app/overflow.js =====
 const buttons = document.querySelectorAll(".stage-btn");
@@ -40,13 +42,9 @@ function setActiveDays(mapName) {
   dayElements.forEach((day) => day.classList.remove("active"));
 
   if (mapDays[mapName]) {
-    mapDays[mapName].forEach((dayName) => {
-      dayElements.forEach((dayElement) => {
-        if (dayElement.textContent === dayName) {
-          dayElement.classList.add("active");
-        }
-      });
-    });
+    // 요일 칸은 월~일 순서 (영어일 때 글자가 바뀌므로 순서로 찾음)
+    const DAYS = ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일"];
+    mapDays[mapName].forEach((dayName) => dayElements[DAYS.indexOf(dayName)]?.classList.add("active"));
   }
 }
 
@@ -61,7 +59,7 @@ const stageButtons = document.querySelectorAll(".stage-btn");
 const mobContainer = document.querySelector(".mob");
 
 async function fetchCSV() {
-  const response = await fetch('https://media.dsrwiki.com/data/csv/overflow.csv');
+  const [response] = await Promise.all([fetch('https://media.dsrwiki.com/data/csv/overflow.csv'), loadNames()]);
   const data = await response.text();
   return parseCSV(data);
 }
@@ -103,7 +101,7 @@ function updateMobImages(map, stage) {
       (row) => row["맵"] === map && row["층"] === stageNumber
     );
 
-    mobContainer.innerHTML = "<p>등장</p>";
+    mobContainer.innerHTML = `<p>${t('등장', 'List')}</p>`;
 
     if (matchingRow) {
       const mobData = [
@@ -145,9 +143,9 @@ function updateMobImages(map, stage) {
           const tooltip = document.createElement("div");
           tooltip.classList.add("mob-tooltip");
           tooltip.innerHTML = `
-            레벨 : ${mob.level}<br><br>
-            이름 : ${mob.name}<br><br>
-            속성 : ${transformedAttribute}<br><br>
+            ${t('레벨', 'Level')} : ${mob.level}<br><br>
+            ${t('이름', 'Name')} : ${tr(mob.name)}<br><br>
+            ${t('속성', 'Type')} : ${transformedAttribute}<br><br>
             HP: ${mob.hp}
           `;
 
@@ -174,7 +172,7 @@ function updateMobImages(map, stage) {
 function updateRepeatRewards(matchingRow) {
   const repeatContainer = document.querySelector(".repeat-item");
 
-  repeatContainer.innerHTML = "<p>반복 클리어 보상</p>";
+  repeatContainer.innerHTML = `<p>${t('반복 클리어 보상', 'Repeat Clear Reward')}</p>`;
 
   const repeatRewards = [
     { name: matchingRow["반복1"], count: matchingRow["반복갯수1"] },
@@ -200,7 +198,7 @@ function updateRepeatRewards(matchingRow) {
 
       const tooltip = document.createElement("div");
       tooltip.classList.add("item-tooltip");
-      tooltip.textContent = reward.name;
+      tooltip.textContent = tr(reward.name);
 
       const count = document.createElement("span");
       count.classList.add("item-count-badge");
@@ -217,7 +215,7 @@ function updateRepeatRewards(matchingRow) {
 function updateFirstClearRewards(matchingRow) {
   const firstContainer = document.querySelector(".first-item");
 
-  firstContainer.innerHTML = "<p>최초 클리어 보상</p>";
+  firstContainer.innerHTML = `<p>${t('최초 클리어 보상', 'First Clear Reward')}</p>`;
 
   const firstRewards = [
     { name: matchingRow["최초1"], count: matchingRow["최초갯수1"] },
@@ -245,7 +243,7 @@ function updateFirstClearRewards(matchingRow) {
 
       const tooltip = document.createElement("div");
       tooltip.classList.add("item-tooltip");
-      tooltip.textContent = reward.name;
+      tooltip.textContent = tr(reward.name);
 
       const count = document.createElement("span");
       count.classList.add("item-count-badge");

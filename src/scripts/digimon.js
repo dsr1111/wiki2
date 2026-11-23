@@ -4,6 +4,7 @@
 // onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
 import { getDigimonData, initAdminLoader } from './page.js';
+import { t, term, isEn, loadNames, digimonName, digimonNameEn, skillName } from './i18n.js';
 export function init(signal, onReady) {
 // ===== 기존 app/digimon.js =====
 (() => {
@@ -216,7 +217,8 @@ export function init(signal, onReady) {
       row,
       // 원래 스탯 글자 (전생 토글을 끌 때 되돌릴 값)
       stats: STAT_CELLS.map((c) => row.cells[c].textContent),
-      name: d.name ? d.name.toLowerCase() : '',
+      // 검색: 한국어 이름과 영어 이름 둘 다
+      name: d.name ? `${d.name} ${digimonNameEn(d.name)}`.toLowerCase() : '',
       evolution: d.evolution,
       type: d.type,
       fields: splitList(d.fields, ';'),
@@ -261,7 +263,7 @@ export function init(signal, onReady) {
       } else if (img.classList.contains('main-skill-icon')) {
         showConvertibleTooltip(e, img.dataset.change || '');
       } else if (img.matches('.digimon-type-img, .digimon-field-img, .bg-strong, .bg-weak')) {
-        showCustomTooltip(e, img.alt);
+        showCustomTooltip(e, term(img.alt));
       }
     };
     table.addEventListener('mouseover', show, { signal });
@@ -315,6 +317,46 @@ export function init(signal, onReady) {
     감염: "* 감염<br>공격 시 30% 확률로 발생합니다.<br>턴마다 지속 피해를 입힙니다.<br>일정 턴 동안 명령이 불가해집니다.<br>피아식별 없이 행동하게 됩니다."
   };
 
+  const DESC_EN = [
+    [/공격 시 ([\d.*]+)% 확률로 발생(?:됩니다|합니다)\./, 'Triggers with a $1% chance on attack.'],
+    [/턴마다 지속 피해를 입힙니다\./, 'Deals damage every turn.'],
+    [/일정 턴 동안 행동 불가해지며, 턴마다 지속 피해를 입힙니다\./, 'Unable to act for some turns and takes damage every turn.'],
+    [/일정 턴 동안 행동 불가(?:해집니다)?\./, 'Unable to act for some turns.'],
+    [/일정 턴 동안 명령(?:이)? 불가(?:해집니다)?\./, 'Cannot be commanded for some turns.'],
+    [/피아식별 없이 행동(?:하게 됩니다)?\./, 'Attacks friend and foe alike.'],
+    [/(\S+?) ?속성에 취약해집니다\./, (m, a) => `Becomes vulnerable to ${term(a)}.`],
+    [/(\S+?) ?속성 피격 시 해제됩니다\./, (m, a) => `Removed when hit by ${term(a)}.`],
+    [/힐 받을 경우 해제됩니다\./, 'Removed when healed.'],
+    [/턴마다 대상의 SP 추가 소모\./, 'Target consumes extra SP every turn.'],
+    [/스킬 레벨에 따라 소모량 증가\./, 'Consumption increases with skill level.'],
+    [/일정 턴 동안 아군 모두에게 DEF x% 증가/, 'All allies DEF +x% for some turns'],
+    [/일정 턴 동안 (DEF|SPD|STR) x% 감소/, '$1 -x% for some turns'],
+    [/일정 턴 동안 (DEF|SPD|STR) x% 증가/, '$1 +x% for some turns'],
+    [/일정 턴 동안 치명타율 x% 증가/, 'Critical Hit Rate +x% for some turns'],
+    [/일정 턴 동안 회피율 x% 증가/, 'Evade Rate +x% for some turns'],
+    [/(\d+)턴 동안 매 턴 HP를 (\d+) 회복합니다\./, 'Restores $2 HP every turn for $1 turns.'],
+  ];
+  /** 효과 설명 → 영어 (첫 줄 "* 효과 이름" + 문장들) */
+  const descEn = (html) => html.split('<br>').map((line, i) => {
+    if (i === 0 && line.startsWith('* ')) return `* ${term(line.slice(2))}`;
+    for (const [re, to] of DESC_EN) if (re.test(line)) return line.replace(re, to);
+    return line;
+  }).join('<br>');
+  // 디지몬 전용 스택 설명 (영어)
+  const stackEn = (who, kind) => {
+    const n = digimonName(who);
+    if (who === '황룡몬') return kind === 'gain'
+      ? `${n} exclusive stack.<br>Each use of this skill adds 1 '${term('음양')}' stack.<br><br>Up to 3 stacks.`
+      : `${n} exclusive stack.<br>With 1/2/3 ${term('음양')} stacks, '${skillName('황회')}' deals 1.4/2.26/3.45x damage.<br><br>Using '${skillName('황회')}' consumes all stacks.`;
+    if (who === '벨페몬:레이지모드') return kind === 'gain'
+      ? `${n} exclusive stack.<br>Each use of this skill adds 2 '${term('나태의 업화')}' stacks.<br><br>Up to 6 stacks.`
+      : `${n} exclusive stack.<br>With 3/5 ${term('나태의 업화')} stacks, '${skillName('기프트 오브 다크네스')}' deals 2.33/3.44x damage.`;
+    if (who === '알파몬:왕룡검') return kind === 'gain'
+      ? `${n} exclusive stack.<br>Each use of this skill adds 1 '${term('용혼')}' stack.<br><br>Up to 2 stacks.`
+      : `${n} exclusive '${term('용혼')}' stack.<br>With 1/2 stacks, '${skillName('디지털라이즈 오브 소울')}' deals 1.72/2.76x damage.<br>Using this skill consumes all ${term('용혼')} stacks.`;
+    return null;
+  };
+
   const effectDescriptionsLower = Object.keys(effectDescriptions).reduce(
     (acc, key) => {
       acc[key.toLowerCase()] = effectDescriptions[key];
@@ -326,7 +368,7 @@ export function init(signal, onReady) {
   function showEffectTooltip(e, effectName, digimonName, skillNumber) {
     if (!effectName) return;
     const normalizedEffect = effectName.trim().toLowerCase();
-    let effectDescription = effectDescriptionsLower[normalizedEffect] || "효과 설명을 찾을 수 없습니다.";
+    let effectDescription = effectDescriptionsLower[normalizedEffect] || t("효과 설명을 찾을 수 없습니다.", "No description for this effect.");
 
     const safeDigimonName = digimonName ? digimonName.replace(/:/g, '_') : '';
 
@@ -353,6 +395,11 @@ export function init(signal, onReady) {
       }
     }
 
+    if (isEn()) {
+      const kind = normalizedEffect === "스택 증가" ? 'gain' : normalizedEffect === "스택 소모" ? 'use' : null;
+      effectDescription = (kind && stackEn(digimonName || '', kind)) || descEn(effectDescription);
+    }
+
     const content = `
       <div class="tooltip-content">
         <img loading="lazy" src="${effectImagePath}" alt="${effectName} 이미지" class="tooltip-inner-img" ${normalizedEffect === "스택 소모" ? 'onerror="this.onerror=null;this.src=\'https://media.dsrwiki.com/dsrwiki/debuff/스택.webp\';"' : ''}>
@@ -369,7 +416,7 @@ export function init(signal, onReady) {
     if (changeAttrs.length > 0) {
       content = `
         <div class="convertible-tooltip-content" style="display: flex; align-items: center; gap: 6px;">
-          <span style="font-weight: bold; font-size: 14px; color: #fff;">변환 가능 속성:</span>
+          <span style="font-weight: bold; font-size: 14px; color: #fff;">${t('변환 가능 속성:', 'Convertible:')}</span>
           <div style="display: flex; gap: 4px; align-items: center;">
             ${changeAttrs.map(attr => `
               <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/${attr}.webp" alt="${attr}" style="width: 26px; height: 26px; object-fit: contain; vertical-align: middle;">
@@ -380,8 +427,8 @@ export function init(signal, onReady) {
     } else {
       content = `
         <div class="convertible-tooltip-content" style="display: flex; align-items: center; gap: 6px;">
-          <span style="font-weight: bold; font-size: 14px; color: #fff;">변환 가능 속성:</span>
-          <span style="font-size: 14px; color: #bbb;">없음</span>
+          <span style="font-weight: bold; font-size: 14px; color: #fff;">${t('변환 가능 속성:', 'Convertible:')}</span>
+          <span style="font-size: 14px; color: #bbb;">${t('없음', 'None')}</span>
         </div>
       `;
     }
@@ -452,7 +499,7 @@ export function init(signal, onReady) {
           >
         </div>
         ${effectTooltipHtml}
-        <span>${skill.hits === '보조' ? skill.hits : `${skill.hits}타`} / ${skill.range}${skill.additionalTurn ? ` <span style="font-size: 0.9em; color: gray;">(${skill.additionalTurn})</span>` : ''}</span>
+        <span>${skill.hits === '보조' ? term(skill.hits) : t(`${skill.hits}타`, `${skill.hits} Hit${skill.hits == 1 ? '' : 's'}`)} / ${term(skill.range)}${skill.additionalTurn ? ` <span style="font-size: 0.9em; color: gray;">(${skill.additionalTurn})</span>` : ''}</span>
       </td>
     `;
   };
@@ -496,7 +543,7 @@ export function init(signal, onReady) {
         this.showLoading();
 
         // fresh: 관리자가 저장한 직후에는 브라우저 캐시를 건너뜀
-        const digimonData = await getDigimonData({ fresh });
+        const [digimonData] = await Promise.all([getDigimonData({ fresh }), loadNames()]);
         if (!digimonData) return;
 
         const tableBody = document.getElementById("characterTable");
@@ -521,13 +568,13 @@ export function init(signal, onReady) {
             const strongHtml = strengths.attribute
               ? `<img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/${strengths.attribute}.webp" alt="${strengths.attribute}"
                   class="digimon-attr-img bg-strong"
-                > <span>${strengths.effect || ""}</span>`
+                > <span>${term(strengths.effect) || ""}</span>`
               : "";
 
             const weakHtml = weaknesses.attribute
               ? `<img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/${weaknesses.attribute}.webp" alt="${weaknesses.attribute}"
                   class="digimon-attr-img bg-weak"
-                > <span>${weaknesses.effect || ""}</span>`
+                > <span>${term(weaknesses.effect) || ""}</span>`
               : "";
 
             const fieldsHtml = fields
@@ -588,10 +635,10 @@ export function init(signal, onReady) {
                 <div class="digimon-icon-container">
                   <img loading="lazy" src="${characterImagePath}" alt="${name}" class="digimon-icon" onerror="this.src='https://media.dsrwiki.com/dsrwiki/digimon/default.webp';">
                 </div>
-                <a href="/detail?name=${encodeURIComponent(name)}" class="digimon-link">${name}</a>
+                <a href="/detail?name=${encodeURIComponent(name)}" class="digimon-link">${digimonName(name)}</a>
               </td>
               <td class="digimon-table-cell">${stats.level}</td>
-              <td class="digimon-table-cell">${evolution}</td>
+              <td class="digimon-table-cell">${term(evolution)}</td>
               <td class="digimon-table-cell">
                 ${typeImgHtml}
               </td>

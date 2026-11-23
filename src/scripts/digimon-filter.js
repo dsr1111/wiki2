@@ -11,6 +11,8 @@
 //  - 모바일: 검색 + [필터 (n)] 버튼만, 누르면 아래에서 올라오는 창
 //  - 기존 위키(dsr/frontend/app/digimon-filter.js)에도 같은 내용이 들어 있음 → 고칠 땐 둘 다
 
+import { t, term } from './i18n.js';
+
 // ---------- 고를 수 있는 항목 ----------
 const IMG = 'https://media.dsrwiki.com/dsrwiki/';
 const EVOLUTIONS = ['성장기', '성숙기', '완전체', '궁극체'];
@@ -21,6 +23,7 @@ const EFFECT_GROUPS = {
   버프: ['공격력 증가', '방어력 증가', '속도 증가', '치명타율 증가', '회피율 증가', '안개 장벽', '만개'],
   디버프: ['방어력 감소', '속도 감소', '연소'],
 };
+const GROUP_EN = { 버프: 'Buff', 디버프: 'Debuff' };
 const FIELDS = ['DA', 'UK', 'DR', 'DS', 'JT', 'ME', 'NSo', 'NSp', 'VB', 'WG'];
 
 export function initFilter(signal) {
@@ -30,7 +33,7 @@ export function initFilter(signal) {
   const F = D.filters;
 
   // 각 항목: key/arg = D.toggle(key, arg) 로 켜고 끄는 조건, on() = 지금 켜져 있는지
-  const item = (key, v, extra) => ({ key, arg: v, label: v, on: () => F[key].includes(v), ...extra });
+  const item = (key, v, extra) => ({ key, arg: v, label: term(v), on: () => F[key].includes(v), ...extra });
   const evolutions = EVOLUTIONS.map((v) => item('evolution', v, { img: `${IMG}${v}.webp` }));
   const types = TYPES.map((v) => item('type', v, { img: `${IMG}${v}.webp` }));
   const attrs = ATTRS;
@@ -59,13 +62,13 @@ export function initFilter(signal) {
   const skillCount = () => F.skillAny.length + F.skill1.length + F.skill2.length + F.skill3.length;
   // 스킬 종류 — 표의 스킬 칸 배경색(전체 공격·캐스팅·HP 소모)과 같은 색 견본을 씀
   const KINDS = [
-    ['aoe', '전체 공격', 'rgb(220, 248, 248)'],
-    ['cast', '캐스팅', 'rgb(255, 234, 234)'],
-    ['hp', 'HP 소모', 'rgb(230, 255, 230)'],
-    ['stack', '스택', null, 'https://media.dsrwiki.com/dsrwiki/debuff/스택.webp'],
-    ['dot', '도트'],
+    ['aoe', t('전체 공격', 'AoE'), 'rgb(220, 248, 248)'],
+    ['cast', t('캐스팅', 'Casting'), 'rgb(255, 234, 234)'],
+    ['hp', t('HP 소모', 'HP Cost'), 'rgb(230, 255, 230)'],
+    ['stack', term('스택'), null, 'https://media.dsrwiki.com/dsrwiki/debuff/스택.webp'],
+    ['dot', t('도트', 'DoT')],
     ['cc', 'CC'],
-    ['heal', '회복'],
+    ['heal', term('회복')],
   ];
   const kindName = (k) => KINDS.find((x) => x[0] === k)?.[1] || k;
   const detailCount = () => skillCount() + F.skillKind.length + F.strong.length + F.weak.length + F.effect.length + F.field.length;
@@ -106,13 +109,13 @@ export function initFilter(signal) {
       ])));
 
   // ---------- 틀 ----------
-  const root = h('section', { class: 'fv', 'aria-label': '도감 필터' });
+  const root = h('section', { class: 'fv', 'aria-label': t('도감 필터', 'Digidex filter') });
   mount.prepend(root);
   const backdrop = h('div', { class: 'fv-backdrop', onclick: () => setOpen(false) });
   document.body.append(backdrop);
   signal.addEventListener('abort', () => { root.remove(); backdrop.remove(); document.documentElement.classList.remove('fv-lock'); });
 
-  const search = h('input', { type: 'search', class: 'fv-search', placeholder: '디지몬 이름 (쉼표로 여러 개)', 'aria-label': '디지몬 이름 검색' });
+  const search = h('input', { type: 'search', class: 'fv-search', placeholder: t('디지몬 이름 (쉼표로 여러 개)', 'Digimon name (comma for several)'), 'aria-label': t('디지몬 이름 검색', 'Search Digimon name') });
   search.addEventListener('input', () => {
     D.searchByName(search.value);
     renderStatus();
@@ -144,12 +147,12 @@ export function initFilter(signal) {
   ]);
 
   function renderBar() {
-    quick.replaceChildren(quickGroup('진화', evolutions), quickGroup('타입', types));
+    quick.replaceChildren(quickGroup(t('진화', 'Evolution'), evolutions), quickGroup(t('타입', 'Type'), types));
     const n = detailCount();
     const nAll = totalCount();
     toggleBtn.replaceChildren(
-      h('span', { class: 'fv-more-pc', text: ui.open ? '상세 필터 접기' : '상세 필터' }),
-      h('span', { class: 'fv-more-mo', text: '필터' }),
+      h('span', { class: 'fv-more-pc', text: ui.open ? t('상세 필터 접기', 'Hide filters') : t('상세 필터', 'More filters') }),
+      h('span', { class: 'fv-more-mo', text: t('필터', 'Filter') }),
       h('span', { class: 'fv-badge fv-more-pc', text: n ? String(n) : '' }),
       h('span', { class: 'fv-badge fv-more-mo', text: nAll ? String(nAll) : '' }),
       h('span', { class: 'fv-chevron', 'aria-hidden': 'true' }),
@@ -168,11 +171,11 @@ export function initFilter(signal) {
     const add = (text, img, remove, kind = 'plain') => chips.push({ text, img, remove, kind });
     evolutions.filter((i) => i.on()).forEach((i) => add(i.label, i.img, () => flip(i)));
     types.filter((i) => i.on()).forEach((i) => add(i.label, i.img, () => flip(i)));
-    F.skillAny.forEach((a) => add(`${a} 스킬`, attrImg('skill', a), () => D.toggle('skillAny', a), 'skill'));
-    [1, 2, 3].forEach((s) => F[`skill${s}`].forEach((a) => add(`${s}스킬 ${a}`, attrImg('skill', a), () => D.toggle(`skill${s}`, a), 'skill')));
-    F.strong.forEach((a) => add(`강점 ${a}`, attrImg('strong', a), () => D.toggle('strong', a), 'strong'));
-    F.weak.forEach((a) => add(`약점 ${a}`, attrImg('weak', a), () => D.toggle('weak', a), 'weak'));
-    F.skillKind.forEach((k) => add(`${kindName(k)} 스킬`, KINDS.find((x) => x[0] === k)?.[3] || null, () => D.toggle('skillKind', k)));
+    F.skillAny.forEach((a) => add(t(`${a} 스킬`, `${term(a)} Skill`), attrImg('skill', a), () => D.toggle('skillAny', a), 'skill'));
+    [1, 2, 3].forEach((s) => F[`skill${s}`].forEach((a) => add(t(`${s}스킬 ${a}`, `Skill ${s} ${term(a)}`), attrImg('skill', a), () => D.toggle(`skill${s}`, a), 'skill')));
+    F.strong.forEach((a) => add(t(`강점 ${a}`, `Strong ${term(a)}`), attrImg('strong', a), () => D.toggle('strong', a), 'strong'));
+    F.weak.forEach((a) => add(t(`약점 ${a}`, `Weak ${term(a)}`), attrImg('weak', a), () => D.toggle('weak', a), 'weak'));
+    F.skillKind.forEach((k) => add(t(`${kindName(k)} 스킬`, `${kindName(k)} Skill`), KINDS.find((x) => x[0] === k)?.[3] || null, () => D.toggle('skillKind', k)));
     effects.filter((e) => e.on()).forEach((e) => add(e.label, e.img, () => flip(e), 'effect'));
     fields.filter((f) => f.on()).forEach((f) => add(f.label, f.img, () => flip(f)));
     return chips;
@@ -183,13 +186,13 @@ export function initFilter(signal) {
     const searching = search.value.trim() !== '';
     status.replaceChildren(
       h('div', { class: 'fv-chips' }, [
-        ...chips.map((c) => h('button', { type: 'button', class: 'fv-chip', onclick: () => { c.remove(); render(); }, 'aria-label': `${c.text} 조건 빼기` }, [
+        ...chips.map((c) => h('button', { type: 'button', class: 'fv-chip', onclick: () => { c.remove(); render(); }, 'aria-label': t(`${c.text} 조건 빼기`, `Remove ${c.text}`) }, [
           c.img ? h('img', { src: c.img, alt: '', class: `fv-k-${c.kind}` }) : h('span', { class: 'fv-chip-dot', 'aria-hidden': 'true' }), c.text, h('span', { class: 'fv-x', 'aria-hidden': 'true', text: '×' }),
         ])),
-        searching && chips.length ? h('span', { class: 'fv-note', text: '이름 검색 중에는 조건이 잠시 꺼집니다' }) : null,
+        searching && chips.length ? h('span', { class: 'fv-note', text: t('이름 검색 중에는 조건이 잠시 꺼집니다', 'Filters are paused while searching by name') }) : null,
       ]),
       h('div', { class: 'fv-count' }, [
-        chips.length || searching ? h('button', { type: 'button', class: 'fv-clear', text: '전체 해제', onclick: () => { search.value = ''; D.reset(); render(); } }) : null,
+        chips.length || searching ? h('button', { type: 'button', class: 'fv-clear', text: t('전체 해제', 'Clear all'), onclick: () => { search.value = ''; D.reset(); render(); } }) : null,
       ]),
     );
     status.hidden = !chips.length && !searching;
@@ -198,8 +201,8 @@ export function initFilter(signal) {
   function renderPanel() {
     // 모바일 아래 창에서는 진화·타입도 이 안에 보여 줌 (위 줄에는 검색과 버튼만)
     const mobileQuick = h('div', { class: 'fv-row fv-only-mo' }, [
-      h('div', { class: 'fv-row-head' }, [h('h4', { text: '진화 · 타입' })]),
-      h('div', { class: 'fv-quick fv-quick-in' }, [quickGroup('진화', evolutions), quickGroup('타입', types)]),
+      h('div', { class: 'fv-row-head' }, [h('h4', { text: t('진화 · 타입', 'Evolution · Type') })]),
+      h('div', { class: 'fv-quick fv-quick-in' }, [quickGroup(t('진화', 'Evolution'), evolutions), quickGroup(t('타입', 'Type'), types)]),
     ]);
 
     // 속성
@@ -207,30 +210,32 @@ export function initFilter(signal) {
     const slotCount = { any: F.skillAny.length, 1: F.skill1.length, 2: F.skill2.length, 3: F.skill3.length };
     const attrRow = h('div', { class: 'fv-row' }, [
       h('div', { class: 'fv-row-head' }, [
-        h('h4', { text: '속성' }),
-        segmented([['skill', '스킬', tabCount.skill], ['strong', '강점', tabCount.strong], ['weak', '약점', tabCount.weak]], ui.attrTab, (v) => { ui.attrTab = v; renderPanel(); }, { label: '속성 종류' }),
+        h('h4', { text: t('속성', 'Attribute') }),
+        segmented([['skill', t('스킬', 'Skill'), tabCount.skill], ['strong', t('강점', 'Strong'), tabCount.strong], ['weak', t('약점', 'Weak'), tabCount.weak]], ui.attrTab, (v) => { ui.attrTab = v; renderPanel(); }, { label: t('속성 종류', 'Attribute kind') }),
         ui.attrTab === 'skill'
-          ? segmented([['any', '아무 스킬', slotCount.any], ['1', '1스킬', slotCount[1]], ['2', '2스킬', slotCount[2]], ['3', '3스킬', slotCount[3]]], ui.slot, (v) => { ui.slot = v; renderPanel(); }, { small: true, label: '스킬 위치' })
+          ? segmented([['any', t('아무 스킬', 'Any skill'), slotCount.any], ['1', t('1스킬', 'Skill 1'), slotCount[1]], ['2', t('2스킬', 'Skill 2'), slotCount[2]], ['3', t('3스킬', 'Skill 3'), slotCount[3]]], ui.slot, (v) => { ui.slot = v; renderPanel(); }, { small: true, label: t('스킬 위치', 'Skill slot') })
           : null,
       ]),
       h('div', { class: `fv-icons fv-attr fv-attr-${ui.attrTab}` }, attrs.map((a) => iconBtn({
-        img: attrImg(ui.attrTab, a), label: a, kind: ui.attrTab, showLabel: true, size: 'sm',
+        img: attrImg(ui.attrTab, a), label: term(a), kind: ui.attrTab, showLabel: true, size: 'sm',
         active: attrSelected(ui.attrTab, ui.slot, a),
         onClick: () => { toggleAttr(ui.attrTab, ui.slot, a); render(); },
       }))),
       h('p', { class: 'fv-hint', text: ui.attrTab === 'skill'
-        ? (ui.slot === 'any' ? '그 속성 스킬이 하나라도 있는 디지몬 (변환 가능한 속성 포함)' : `${ui.slot}번째 스킬이 그 속성인 디지몬 (변환 가능한 속성 포함)`)
-        : ui.attrTab === 'strong' ? '그 속성에 강한 디지몬' : '그 속성에 약한 디지몬' }),
+        ? (ui.slot === 'any'
+          ? t('그 속성 스킬이 하나라도 있는 디지몬 (변환 가능한 속성 포함)', 'Digimon with at least one skill of that attribute (including convertible attributes)')
+          : t(`${ui.slot}번째 스킬이 그 속성인 디지몬 (변환 가능한 속성 포함)`, `Digimon whose skill ${ui.slot} has that attribute (including convertible attributes)`))
+        : ui.attrTab === 'strong' ? t('그 속성에 강한 디지몬', 'Digimon strong against that attribute') : t('그 속성에 약한 디지몬', 'Digimon weak to that attribute') }),
     ]);
 
     // 스킬 종류
     const kindHint = () => {
-      const scope = skillCount() ? ' (위에서 고른 속성 스킬 중에서)' : '';
-      if (F.skillKind.length < 2 || !skillRowPicked) return `그런 스킬이 하나라도 있는 디지몬${scope}`;
+      const scope = skillCount() ? t(' (위에서 고른 속성 스킬 중에서)', ' (among skills of the attributes picked above)') : '';
+      if (F.skillKind.length < 2 || !skillRowPicked) return t(`그런 스킬이 하나라도 있는 디지몬${scope}`, `Digimon with at least one such skill${scope}`);
       const mode = D.getSkillKindMode();
-      if (mode === 'same') return `스킬 하나가 고른 종류를 모두 가진 디지몬${scope}`;
-      if (mode === 'any') return `고른 종류 중 하나라도 있는 디지몬${scope}`;
-      return `고른 종류가 1·2·3스킬에 나눠서라도 모두 있는 디지몬${scope}`;
+      if (mode === 'same') return t(`스킬 하나가 고른 종류를 모두 가진 디지몬${scope}`, `Digimon with one skill that has all picked kinds${scope}`);
+      if (mode === 'any') return t(`고른 종류 중 하나라도 있는 디지몬${scope}`, `Digimon with any of the picked kinds${scope}`);
+      return t(`고른 종류가 1·2·3스킬에 나눠서라도 모두 있는 디지몬${scope}`, `Digimon with all picked kinds, even across skills 1·2·3${scope}`);
     };
     // 조합 방식 앞에 무엇을 골랐는지 이름으로 보여 줌: [전체 공격] + [도트]
     const pickedNames = (names) => h('span', { class: 'fv-picked' }, names.flatMap((n, i) => [
@@ -250,10 +255,10 @@ export function initFilter(signal) {
     const skillRowPicked = F.skillKind.some((k) => !EFFECT_KINDS.includes(k));
     const kindMode = () => F.skillKind.length > 1 ? h('div', { class: 'fv-mode' }, [
       pickedNames(F.skillKind.map(kindName)),
-      segmented([['all', '모두 가진 디지몬'], ['same', '한 스킬이 모두 가진 디지몬'], ['any', '하나라도 있으면']], D.getSkillKindMode(), (v) => { D.setSkillKindMode(v); render(); }, { small: true, label: '스킬 조건 조합 방식' }),
+      segmented([['all', t('모두 가진 디지몬', 'Has all')], ['same', t('한 스킬이 모두 가진 디지몬', 'One skill has all')], ['any', t('하나라도 있으면', 'Has any')]], D.getSkillKindMode(), (v) => { D.setSkillKindMode(v); render(); }, { small: true, label: t('스킬 조건 조합 방식', 'How to combine skill kinds') }),
     ]) : null;
     const kindRow = h('div', { class: 'fv-row' }, [
-      h('div', { class: 'fv-row-head' }, [h('h4', { text: '스킬' })]),
+      h('div', { class: 'fv-row-head' }, [h('h4', { text: t('스킬', 'Skill') })]),
       kindButtons(KINDS.filter(([k]) => !EFFECT_KINDS.includes(k))),
       skillRowPicked ? kindMode() : null,
       h('p', { class: 'fv-hint', text: kindHint() }),
@@ -265,36 +270,36 @@ export function initFilter(signal) {
     const all = D.getEffectMatchAll();
     const effectRow = h('div', { class: 'fv-row' }, [
       h('div', { class: 'fv-row-head' }, [
-        h('h4', { text: '효과' }),
+        h('h4', { text: t('효과', 'Effect') }),
         kindButtons(KINDS.filter(([k]) => EFFECT_KINDS.includes(k))),
       ]),
       skillRowPicked ? null : kindMode(),
       h('div', { class: 'fv-row-head fv-sub-head' }, [
-        segmented(effectGroups.map((g) => [g, g, effCount(g)]), ui.effectTab, (v) => { ui.effectTab = v; renderPanel(); }, { label: '효과 분류' }),
+        segmented(effectGroups.map((g) => [g, t(g, GROUP_EN[g]), effCount(g)]), ui.effectTab, (v) => { ui.effectTab = v; renderPanel(); }, { label: t('효과 분류', 'Effect group') }),
       ]),
       h('div', { class: 'fv-icons fv-effects' }, shownEffects.map((e) => iconBtn({ img: e.img, label: e.label, active: e.on(), showLabel: true, size: 'sm', kind: 'effect', onClick: () => { flip(e); render(); } }))),
       F.effect.length > 1 ? h('div', { class: 'fv-mode' }, [
         pickedNames(effects.filter((e) => e.on()).map((e) => e.label)),
-        segmented([['any', '하나라도 있으면'], ['all', '모두 가진 디지몬만']], all ? 'all' : 'any', (v) => { D.setEffectMatchAll(v === 'all'); render(); }, { small: true, label: '효과 조합 방식' }),
+        segmented([['any', t('하나라도 있으면', 'Has any')], ['all', t('모두 가진 디지몬만', 'Has all')]], all ? 'all' : 'any', (v) => { D.setEffectMatchAll(v === 'all'); render(); }, { small: true, label: t('효과 조합 방식', 'How to combine effects') }),
       ]) : null,
     ]);
 
     // 필드
     const fieldRow = h('div', { class: 'fv-row' }, [
-      h('div', { class: 'fv-row-head' }, [h('h4', { text: '필드' })]),
+      h('div', { class: 'fv-row-head' }, [h('h4', { text: t('필드', 'Field') })]),
       h('div', { class: 'fv-icons' }, fields.map((f) => iconBtn({ img: f.img, label: f.label, active: f.on(), showLabel: true, size: 'sm', onClick: () => { flip(f); render(); } }))),
       F.field.length > 1 ? h('div', { class: 'fv-mode' }, [
         pickedNames(fields.filter((f) => f.on()).map((f) => f.label)),
-        segmented([['any', '하나라도 있으면'], ['all', '모두 가진 디지몬만']], D.getFieldMatchAll() ? 'all' : 'any', (v) => { D.setFieldMatchAll(v === 'all'); render(); }, { small: true, label: '필드 조합 방식' }),
+        segmented([['any', t('하나라도 있으면', 'Has any')], ['all', t('모두 가진 디지몬만', 'Has all')]], D.getFieldMatchAll() ? 'all' : 'any', (v) => { D.setFieldMatchAll(v === 'all'); render(); }, { small: true, label: t('필드 조합 방식', 'How to combine fields') }),
       ]) : null,
     ]);
 
     const sheetHead = h('div', { class: 'fv-sheet-head fv-only-mo' }, [
-      h('h3', { text: '필터' }),
-      h('button', { type: 'button', class: 'fv-sheet-close', 'aria-label': '닫기', text: '×', onclick: () => setOpen(false) }),
+      h('h3', { text: t('필터', 'Filter') }),
+      h('button', { type: 'button', class: 'fv-sheet-close', 'aria-label': t('닫기', 'Close'), text: '×', onclick: () => setOpen(false) }),
     ]);
     const sheetFoot = h('div', { class: 'fv-sheet-foot fv-only-mo' }, [
-      h('button', { type: 'button', class: 'fv-clear', text: '전체 해제', onclick: () => { D.reset(); render(); } }),
+      h('button', { type: 'button', class: 'fv-clear', text: t('전체 해제', 'Clear all'), onclick: () => { D.reset(); render(); } }),
       h('button', { type: 'button', class: 'fv-apply', onclick: () => setOpen(false) }),
     ]);
     panel.replaceChildren(sheetHead, h('div', { class: 'fv-panel-body' }, [mobileQuick, attrRow, kindRow, effectRow, fieldRow]), sheetFoot);
@@ -304,7 +309,7 @@ export function initFilter(signal) {
   /** 모바일 창 아래 "N개 보기" — 표가 늦게 그려져도 맞는 숫자가 되게 따로 갱신 */
   function updateApply() {
     const btn = panel.querySelector('.fv-apply');
-    if (btn) btn.textContent = `${visibleRows().shown}개 보기`;
+    if (btn) btn.textContent = t(`${visibleRows().shown}개 보기`, `Show ${visibleRows().shown}`);
   }
 
   function render() {

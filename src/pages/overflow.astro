@@ -9,7 +9,7 @@ import '../styles/styles1.css';
 
   <div class="container1">
     <div class="main">
-      <p>오버플로우 던전</p>
+      <p data-en="Overflow Dungeon">오버플로우 던전</p>
       <div class="stage">
         <p>Stage</p>
         <div class="scrollable-content">
@@ -45,35 +45,35 @@ import '../styles/styles1.css';
           <button class="stage-btn">30 Stage</button>
         </div>
         <div class="mob">
-          <p>등장</p>
+          <p data-en="List">등장</p>
         </div>
         <div class="repeat-item">
-          <p>반복 클리어 보상</p>
+          <p data-en="Repeat Clear Reward">반복 클리어 보상</p>
         </div>
         <div class="first-item">
-          <p>최초 클리어 보상</p>
+          <p data-en="First Clear Reward">최초 클리어 보상</p>
         </div>
       </div>
       <div class="select-page">
         <div class="map-select">
           <select id="map-dropdown">
-            <option value="무한 산" selected>무한 산</option>
-            <option value="사막 지대">사막 지대</option>
-            <option value="어둠성 계곡">어둠성 계곡</option>
-            <option value="현실 세계">현실 세계</option>
-            <option value="스파이럴 마운틴">스파이럴 마운틴</option>
-            <option value="데이터 세계">데이터 세계</option>
+            <option value="무한 산" data-en="Infinity Mountain" selected>무한 산</option>
+            <option value="사막 지대" data-en="Desert Area">사막 지대</option>
+            <option value="어둠성 계곡" data-en="Dark Castle Valley">어둠성 계곡</option>
+            <option value="현실 세계" data-en="Real World">현실 세계</option>
+            <option value="스파이럴 마운틴" data-en="Spiral Mt.">스파이럴 마운틴</option>
+            <option value="데이터 세계" data-en="Data World">데이터 세계</option>
           </select>
         </div>
       </div>
       <div class="day">
-        <p>월요일</p>
-        <p>화요일</p>
-        <p>수요일</p>
-        <p>목요일</p>
-        <p>금요일</p>
-        <p>토요일</p>
-        <p>일요일</p>
+        <p data-en="Monday">월요일</p>
+        <p data-en="Tuesday">화요일</p>
+        <p data-en="Wednesday">수요일</p>
+        <p data-en="Thursday">목요일</p>
+        <p data-en="Friday">금요일</p>
+        <p data-en="Saturday">토요일</p>
+        <p data-en="Sunday">일요일</p>
       </div>
     </div>
   </div>
@@ -81,6 +81,7 @@ import '../styles/styles1.css';
   <script>
     import { onPage } from '../scripts/page.js';
     import { init } from '../scripts/overflow.js';
-    onPage('overflow', init);
+    import { applyStatic } from '../scripts/i18n.js';
+    onPage('overflow', () => applyStatic(document, 'Overflow'), init);
   </script>
 </Layout>

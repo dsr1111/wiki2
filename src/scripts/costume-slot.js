@@ -3,6 +3,25 @@
 // (여러 파일은 기존처럼 같은 범위를 쓰도록 실행 순서대로 이어 붙임)
 // onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
+import { t, isEn } from './i18n.js';
+
+// 부위·재료·옵션 이름 (게임 영어판 표기)
+const PART_EN = { 머리: 'Head', 얼굴: 'Face', 상의: 'Top', 장갑: 'Gloves', 하의: 'Bottom', 양말: 'Socks', 신발: 'Shoes', 등: 'Back' };
+const EL_EN = { 물리: 'Phys.', 불: 'Fire', 천둥: 'Thun.', 바람: 'Wind', 얼음: 'Ice', 물: 'Water', 흙: 'Earth', 나무: 'Wood', 강철: 'Steel', 빛: 'Light', 어둠: 'Dark' };
+const NAME_EN = { 힘: 'STR', 지능: 'INT', 수비: 'DEF', 저항: 'RES', 속도: 'SPD', 체인스킬: 'Chain', 회피율: 'EVA', '능력치 잠금 방울': 'Stat Lock Bell', '수치 잠금 방울': 'Value Lock Bell', '능력치 각인': 'Stat mod', '수치 각인': 'Value mod' };
+/** 코스튬 슬롯 각인 이름 → 영어 (한국어 모드면 그대로) */
+function cosName(ko) {
+    if (!isEn() || !ko) return ko;
+    if (NAME_EN[ko]) return NAME_EN[ko];
+    let m = ko.match(/^(\S+) 슬롯$/);
+    if (m && PART_EN[m[1]]) return `${PART_EN[m[1]]} Slot`;
+    m = ko.match(/^(\S+) (능력치|수치) 각인 부적$/);
+    if (m && PART_EN[m[1]]) return `${PART_EN[m[1]]} ${m[2] === '능력치' ? 'Stat' : 'Value'} mod Charm`;
+    m = ko.match(/^(\S+) 데미지 (증가|방어)$/);
+    if (m && EL_EN[m[1]]) return `${EL_EN[m[1]]} DMG${m[2] === '방어' ? ' Reduce' : ''}`;
+    return ko;
+}
+
 export function init(signal, onReady) {
 // ===== 기존 app/costume-slot.js =====
 const SLOT_GROUP_1 = ['머리 슬롯', '상의 슬롯', '등 슬롯', '양말 슬롯'];
@@ -161,7 +180,7 @@ onReady(() => {
             }
 
             div.innerHTML = `
-                <span class="ce-stat-name">${row.stat || '<span style="color:#475569;">빈 슬롯</span>'}</span>
+                <span class="ce-stat-name">${cosName(row.stat) || `<span style="color:#475569;">${t('빈 슬롯', 'Empty')}</span>`}</span>
                 <div class="ce-stat-value-wrap">
                     <span class="ce-stat-value">${displayValue}</span>
                     ${row.stat ? `<i class="${row.isLocked ? 'ri-lock-fill' : 'ri-lock-unlock-fill'} ce-stat-lock" data-index="${i}"></i>` : ''}
@@ -179,7 +198,7 @@ onReady(() => {
                 } else {
                     const lockedCount = state[currentSlot].filter(r => r.isLocked).length;
                     if (lockedCount >= 2) {
-                        alert('최대 2개까지만 잠글 수 있습니다.');
+                        alert(t('최대 2개까지만 잠글 수 있습니다.', 'You can lock up to 2.'));
                         return;
                     }
                     rows[idx].isLocked = true;
@@ -209,11 +228,11 @@ onReady(() => {
         if (currentMode === 'stat') {
             mainMatName = `${partName} 능력치 각인 부적`;
             lockMatName = '능력치 잠금 방울';
-            uiEngraveBtn.textContent = '능력치 각인';
+            uiEngraveBtn.textContent = cosName('능력치 각인');
         } else {
             mainMatName = `${partName} 수치 각인 부적`;
             lockMatName = '수치 잠금 방울';
-            uiEngraveBtn.textContent = '수치 각인';
+            uiEngraveBtn.textContent = cosName('수치 각인');
         }
 
         uiCostValue.textContent = (curConsum.cost).toLocaleString();
@@ -221,13 +240,13 @@ onReady(() => {
         uiMatList.innerHTML = `
             <div class="ce-material-item">
                 <div class="ce-mat-icon"><img src="https://media.dsrwiki.com/dsrwiki/item/${mainMatName}.webp" style="width:100%; height:100%; object-fit:contain; border-radius:4px;" alt="amulet"></div>
-                <span class="ce-mat-name">${mainMatName}</span>
-                <span class="ce-mat-count green">${curConsum.main.toLocaleString()} 개</span>
+                <span class="ce-mat-name">${cosName(mainMatName)}</span>
+                <span class="ce-mat-count green">${t(`${curConsum.main.toLocaleString()} 개`, `x${curConsum.main.toLocaleString()}`)}</span>
             </div>
             <div class="ce-material-item">
                 <div class="ce-mat-icon"><img src="https://media.dsrwiki.com/dsrwiki/item/${lockMatName}.webp" style="width:100%; height:100%; object-fit:contain; border-radius:4px;" alt="bell"></div>
-                <span class="ce-mat-name">${lockMatName}</span>
-                <span class="ce-mat-count green">${curConsum.lock.toLocaleString()} 개</span>
+                <span class="ce-mat-name">${cosName(lockMatName)}</span>
+                <span class="ce-mat-count green">${t(`${curConsum.lock.toLocaleString()} 개`, `x${curConsum.lock.toLocaleString()}`)}</span>
             </div>
         `;
     }
@@ -280,12 +299,12 @@ onReady(() => {
         let matHtml = '';
         const matKeys = Object.keys(matCounts).sort();
         if (matKeys.length === 0) {
-            matHtml = '<div style="color:#718096;font-size:12px;text-align:center;padding:10px;">소모된 재료가 없습니다.</div>';
+            matHtml = `<div style="color:#718096;font-size:12px;text-align:center;padding:10px;">${t('소모된 재료가 없습니다.', 'No materials used.')}</div>`;
         } else {
             for (let k of matKeys) {
                 matHtml += `<div class="ce-stats-mat-item">
-                    <span>${k}</span>
-                    <span style="color:#00ea73;font-weight:bold;">${matCounts[k].toLocaleString()} 개</span>
+                    <span>${cosName(k)}</span>
+                    <span style="color:#00ea73;font-weight:bold;">${t(`${matCounts[k].toLocaleString()} 개`, `x${matCounts[k].toLocaleString()}`)}</span>
                 </div>`;
             }
         }
@@ -294,13 +313,13 @@ onReady(() => {
         let optHtml = '';
         const optKeys = Object.keys(statCounts).sort();
         if (optKeys.length === 0) {
-            optHtml = '<div style="color:#718096;font-size:12px;grid-column:span 2;text-align:center;padding:10px;">적용된 옵션이 없습니다.</div>';
+            optHtml = `<div style="color:#718096;font-size:12px;grid-column:span 2;text-align:center;padding:10px;">${t('적용된 옵션이 없습니다.', 'No options applied.')}</div>`;
         } else {
             for (let k of optKeys) {
                 const isFloat = STAT_VALUES[k] ? STAT_VALUES[k].isFloat : false;
                 const valStr = isFloat ? statCounts[k].toFixed(2) + '%' : Math.round(statCounts[k]);
                 optHtml += `<div class="ce-stats-opt-item">
-                    <span class="name">${k}</span>
+                    <span class="name">${cosName(k)}</span>
                     <span class="val">+${valStr}</span>
                 </div>`;
             }
@@ -321,7 +340,7 @@ onReady(() => {
 
             const slotName = btn.dataset.slot;
             currentSlot = slotName;
-            currentSlotNameLabel.textContent = slotName;
+            currentSlotNameLabel.textContent = cosName(slotName);
 
             currentSlotIcon.src = `https://media.dsrwiki.com/dsrwiki/item/${slotName}.webp`;
 

@@ -4,6 +4,20 @@
 // onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
 import { getDigimonData, initAdminLoader } from './page.js';
+import { t, tr, term, isEn, loadNames } from './i18n.js';
+// 패턴 설명 (위키 문장 틀) → 영어. 디지몬 이름·효과는 게임 영어판 표기
+const GIMMICK_EN = [
+    [/첫 피격 시 특정 확률로 (.+?)(?:으로|로) 진화/, (m, d) => `On first hit, has a chance to evolve into ${tr(d)}`],
+    [/동일한 몹 (\d+)마리가 등장/, (m, n) => `${n} of the same mob appear`],
+    [/HP가 (약 )?(.+?) 이하일 때 체력 회복/, (m, a, v) => `Recovers HP when HP is ${a ? 'about ' : ''}${v} or less`],
+    [/HP가 (약 )?(.+?) 이하(?:일 때|로 내려갈 경우) (.+?)(?:으로|로) 진화/, (m, a, v, d) => `Evolves into ${tr(d)} when HP drops to ${a ? 'about ' : ''}${v} or less`],
+    [/HP가 (약 )?(.+?) 이하일 때 아군 전체 (\S+)/, (m, a, v, e) => `Inflicts ${term(e)} on all allies when HP is ${a ? 'about ' : ''}${v} or less`],
+];
+const gimmickEn = (html) => (isEn() ? String(html).split(/(<br\s*\/?>|\n)/).map((line) => {
+    for (const [re, to] of GIMMICK_EN) if (re.test(line)) return line.replace(re, to);
+    return tr(line);
+}).join('') : html);
+
 export function init(signal, onReady) {
 // ===== 기존 app/detector.js =====
 
@@ -24,7 +38,8 @@ const detectorEvolutions = {
 const DETECTOR_JSON_URL = 'https://media.dsrwiki.com/data/csv/detector.json';
 Promise.all([
     fetch(DETECTOR_JSON_URL).then(res => res.json()),
-    getDigimonData()
+    getDigimonData(),
+    loadNames(),
 ]).then(([detector, digimon]) => {
     detectorData = detector;
     digimonGlobalData = digimon;
@@ -74,7 +89,7 @@ function populateDetectorGrid() {
             img.src = imgSrc;
             img.alt = detector;
             const span = document.createElement('span');
-            span.textContent = detector;
+            span.textContent = tr(detector);
             button.appendChild(img);
             button.appendChild(span);
             button.addEventListener('click', () => {
@@ -116,7 +131,7 @@ function populateDigimonGrid(detector) {
             img.alt = digimon;
             imgBg.appendChild(img);
             const span = document.createElement('span');
-            span.textContent = digimon;
+            span.textContent = tr(digimon);
             button.appendChild(imgBg);
             button.appendChild(span);
             button.addEventListener('click', () => {
@@ -233,7 +248,7 @@ function populateDigimonGrid(detector) {
                         venomImg.alt = '크레니엄몬';
                         venomImgBg.appendChild(venomImg);
                         const venomSpan = document.createElement('span');
-                        venomSpan.textContent = '크레니엄몬';
+                        venomSpan.textContent = tr('크레니엄몬');
                         venomButton.appendChild(venomImgBg);
                         venomButton.appendChild(venomSpan);
                         venomButton.addEventListener('click', () => {
@@ -263,7 +278,7 @@ function populateDigimonGrid(detector) {
                         venomImg.alt = '베놈묘티스몬';
                         venomImgBg.appendChild(venomImg);
                         const venomSpan = document.createElement('span');
-                        venomSpan.textContent = '베놈묘티스몬';
+                        venomSpan.textContent = tr('베놈묘티스몬');
                         venomButton.appendChild(venomImgBg);
                         venomButton.appendChild(venomSpan);
                         venomButton.addEventListener('click', () => {
@@ -293,7 +308,7 @@ function populateDigimonGrid(detector) {
                         burstImg.alt = '로제몬:버스트모드';
                         burstImgBg.appendChild(burstImg);
                         const burstSpan = document.createElement('span');
-                        burstSpan.textContent = '로제몬:버스트모드';
+                        burstSpan.textContent = tr('로제몬:버스트모드');
                         burstButton.appendChild(burstImgBg);
                         burstButton.appendChild(burstSpan);
                         burstButton.addEventListener('click', () => {
@@ -323,7 +338,7 @@ function populateDigimonGrid(detector) {
                         mawangImg.alt = '마왕몬';
                         mawangImgBg.appendChild(mawangImg);
                         const mawangSpan = document.createElement('span');
-                        mawangSpan.textContent = '마왕몬';
+                        mawangSpan.textContent = tr('마왕몬');
                         mawangButton.appendChild(mawangImgBg);
                         mawangButton.appendChild(mawangSpan);
                         mawangButton.addEventListener('click', () => {
@@ -353,7 +368,7 @@ function populateDigimonGrid(detector) {
                         mawangImg.alt = '레이브몬:버스트모드';
                         mawangImgBg.appendChild(mawangImg);
                         const mawangSpan = document.createElement('span');
-                        mawangSpan.textContent = '레이브몬:버스트모드';
+                        mawangSpan.textContent = tr('레이브몬:버스트모드');
                         mawangButton.appendChild(mawangImgBg);
                         mawangButton.appendChild(mawangSpan);
                         mawangButton.addEventListener('click', () => {
@@ -383,7 +398,7 @@ function populateDigimonGrid(detector) {
                         mawangImg.alt = '반쵸레오몬:버스트모드';
                         mawangImgBg.appendChild(mawangImg);
                         const mawangSpan = document.createElement('span');
-                        mawangSpan.textContent = '반쵸레오몬:버스트모드';
+                        mawangSpan.textContent = tr('반쵸레오몬:버스트모드');
                         mawangButton.appendChild(mawangImgBg);
                         mawangButton.appendChild(mawangSpan);
                         mawangButton.addEventListener('click', () => {
@@ -413,7 +428,7 @@ function populateDigimonGrid(detector) {
                         mawangImg.alt = '청룡몬';
                         mawangImgBg.appendChild(mawangImg);
                         const mawangSpan = document.createElement('span');
-                        mawangSpan.textContent = '청룡몬';
+                        mawangSpan.textContent = tr('청룡몬');
                         mawangButton.appendChild(mawangImgBg);
                         mawangButton.appendChild(mawangSpan);
                         mawangButton.addEventListener('click', () => {
@@ -443,7 +458,7 @@ function populateDigimonGrid(detector) {
                         mawangImg.alt = '주작몬';
                         mawangImgBg.appendChild(mawangImg);
                         const mawangSpan = document.createElement('span');
-                        mawangSpan.textContent = '주작몬';
+                        mawangSpan.textContent = tr('주작몬');
                         mawangButton.appendChild(mawangImgBg);
                         mawangButton.appendChild(mawangSpan);
                         mawangButton.addEventListener('click', () => {
@@ -473,7 +488,7 @@ function populateDigimonGrid(detector) {
                         loaderImg.alt = '로더레오몬';
                         loaderImgBg.appendChild(loaderImg);
                         const loaderSpan = document.createElement('span');
-                        loaderSpan.textContent = '로더레오몬';
+                        loaderSpan.textContent = tr('로더레오몬');
                         loaderButton.appendChild(loaderImgBg);
                         loaderButton.appendChild(loaderSpan);
                         loaderButton.addEventListener('click', () => {
@@ -502,7 +517,7 @@ function populateDigimonGrid(detector) {
                         baekhoImg.alt = '백호몬';
                         baekhoImgBg.appendChild(baekhoImg);
                         const baekhoSpan = document.createElement('span');
-                        baekhoSpan.textContent = '백호몬';
+                        baekhoSpan.textContent = tr('백호몬');
                         baekhoButton.appendChild(baekhoImgBg);
                         baekhoButton.appendChild(baekhoSpan);
                         baekhoButton.addEventListener('click', () => {
@@ -531,7 +546,7 @@ function populateDigimonGrid(detector) {
                         baekhoImg.alt = '현무몬';
                         baekhoImgBg.appendChild(baekhoImg);
                         const baekhoSpan = document.createElement('span');
-                        baekhoSpan.textContent = '현무몬';
+                        baekhoSpan.textContent = tr('현무몬');
                         baekhoButton.appendChild(baekhoImgBg);
                         baekhoButton.appendChild(baekhoSpan);
                         baekhoButton.addEventListener('click', () => {
@@ -562,7 +577,7 @@ function populateDigimonGrid(detector) {
         venomImg.alt = '베놈묘티스몬';
         venomImgBg.appendChild(venomImg);
         const venomSpan = document.createElement('span');
-        venomSpan.textContent = '베놈묘티스몬';
+        venomSpan.textContent = tr('베놈묘티스몬');
         venomButton.appendChild(venomImgBg);
         venomButton.appendChild(venomSpan);
         venomButton.addEventListener('click', () => {
@@ -586,7 +601,7 @@ function populateDigimonGrid(detector) {
                 vileImg.alt = '베리얼묘티스몬';
                 vileImgBg.appendChild(vileImg);
                 const vileSpan = document.createElement('span');
-                vileSpan.textContent = '베리얼묘티스몬';
+                vileSpan.textContent = tr('베리얼묘티스몬');
                 vileButton.appendChild(vileImgBg);
                 vileButton.appendChild(vileSpan);
                 vileButton.addEventListener('click', () => {
@@ -622,7 +637,7 @@ function appendDetectorEvolutionButton(detector, digimon) {
     img.alt = evolution.to;
     imageBg.appendChild(img);
     const label = document.createElement('span');
-    label.textContent = evolution.to;
+    label.textContent = tr(evolution.to);
     button.append(imageBg, label);
     button.addEventListener('click', () => {
         grid.querySelector('.selected')?.classList.remove('selected');
@@ -713,15 +728,15 @@ async function showDigimonSkills(digimon) {
                 <img loading="lazy" src="${skill.img}" class="skill-image" alt="${skill.name}">
                 <div class="skill-info">
                     <div class="skill-header">
-                        <span class="skill-name">${skill.name}</span>
+                        <span class="skill-name">${tr(skill.name)}</span>
                         <span class="skill-attribute"><img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/${skill.attribute}.webp" alt="${skill.attribute}"></span>
                     </div>
                     <div class="skill-details">
-                        <span class="skill-detail-badge ${skill.detail1 === '원거리' ? 'badge-green' : 'badge-red'}">${skill.detail1 || '정보 없음'}</span>
-                        <span class="skill-detail-badge badge-red">${skill.detail2 || '정보 없음'}</span>
-                        <span class="skill-detail-badge badge-green">${isNaN(skill.hit) ? (skill.hit || '정보 없음') : `${skill.hit}타`}</span>
-                        ${skill.detail3 ? `<span class="skill-detail-badge badge-red">${skill.detail3}</span>` : ''}
-                        ${skill.cooldown ? `<span class="skill-detail-badge badge-grey">추가 시전 턴 : ${skill.cooldown}턴</span>` : ''}
+                        <span class="skill-detail-badge ${skill.detail1 === '원거리' ? 'badge-green' : 'badge-red'}">${term(skill.detail1) || t('정보 없음', 'No info')}</span>
+                        <span class="skill-detail-badge badge-red">${term(skill.detail2) || t('정보 없음', 'No info')}</span>
+                        <span class="skill-detail-badge badge-green">${isNaN(skill.hit) ? (term(skill.hit) || t('정보 없음', 'No info')) : t(`${skill.hit}타`, `${skill.hit} Hit${skill.hit == 1 ? '' : 's'}`)}</span>
+                        ${skill.detail3 ? `<span class="skill-detail-badge badge-red">${tr(skill.detail3)}</span>` : ''}
+                        ${skill.cooldown ? `<span class="skill-detail-badge badge-grey">${t(`추가 시전 턴 : ${skill.cooldown}턴`, `Extra cast turns: ${skill.cooldown}`)}</span>` : ''}
                     </div>
                 </div>
             </div>
@@ -754,7 +769,7 @@ async function showDigimonInfo(detector, digimon) {
                 <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/${value}.webp" alt="${value}" class="attr-badge-inner-img">
             </span>`;
         } else {
-            return `<span class="attr-text-span">${value}</span>`;
+            return `<span class="attr-text-span">${term(value)}</span>`;
         }
     }).join('') : '';
     const weakBadges = weakStr ? weakStr.split(',').map((s, i) => {
@@ -764,7 +779,7 @@ async function showDigimonInfo(detector, digimon) {
                 <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/${value}.webp" alt="${value}" class="attr-badge-inner-img">
             </span>`;
         } else {
-            return `<span class="attr-text-span">${value}</span>`;
+            return `<span class="attr-text-span">${term(value)}</span>`;
         }
     }).join('') : '';
     const skillTable = await showDigimonSkills(digimon);
@@ -775,14 +790,14 @@ async function showDigimonInfo(detector, digimon) {
           <div class="digimon-card-image-box">
             <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/digimon/${digimonImageName}/${digimonImageName}.webp" alt="${digimon}" class="w-16 h-16 object-contain">
           </div>
-          <span class="font-bold text-lg">${digimon}</span>
+          <span class="font-bold text-lg">${tr(digimon)}</span>
         </div>
         <div class="text-sm text-gray-700 space-y-3 mb-4">
-          ${data.level ? `<div class="digimon-info-text"><b>레벨 :</b> ${data.level}</div>` : ''}
+          ${data.level ? `<div class="digimon-info-text"><b>${t('레벨', 'Level')} :</b> ${data.level}</div>` : ''}
           ${data.HP ? `<div class="digimon-info-text"><b>HP :</b> ${data.HP}</div>` : ''}
-          ${type ? `<div class="digimon-info-flex"><b>타입 :</b> ${typeIcon}</div>` : ''}
-          ${strongStr ? `<div class="digimon-info-flex">강점 : ${strongBadges}</div>` : ''}
-          ${weakStr ? `<div class="digimon-info-flex">약점 : ${weakBadges}</div>` : ''}
+          ${type ? `<div class="digimon-info-flex"><b>${t('타입', 'Type')} :</b> ${typeIcon}</div>` : ''}
+          ${strongStr ? `<div class="digimon-info-flex">${t('강점', 'Strength')} : ${strongBadges}</div>` : ''}
+          ${weakStr ? `<div class="digimon-info-flex">${t('약점', 'Weakness')} : ${weakBadges}</div>` : ''}
         </div>
         <div class="flex-1 overflow-y-auto">
           ${skillTable}
@@ -829,11 +844,11 @@ function showDigimonMechanicInfo(detector, digimon) {
             : '';
         // 거래상태 뱃지들
         const tradeBadges = Array.from(info.tradeStatus).map(status =>
-            `<span class="trade-status-badge ${status === '거래가능' ? 'badge-green' : 'badge-red'}">${status}</span>`
+            `<span class="trade-status-badge ${status === '거래가능' ? 'badge-green' : 'badge-red'}">${status === '거래가능' ? t(status, 'Tradable') : t(status, 'Untradable')}</span>`
         ).join('');
         // 드롭타입 뱃지들
         const dropBadges = Array.from(info.dropType).map(type =>
-            `<span class="drop-type-badge ${type === '확률' ? 'badge-green' : 'badge-red'}">${type}</span>`
+            `<span class="drop-type-badge ${type === '확률' ? 'badge-green' : 'badge-red'}">${type === '확률' ? t(type, 'Chance') : t(type, 'Guaranteed')}</span>`
         ).join('');
 
         // 구성품 툴팁 처리
@@ -842,7 +857,7 @@ function showDigimonMechanicInfo(detector, digimon) {
             .map(([itemName, itemData]) => {
                 const cleanName = itemName.replace(/\s*x\s*\d+$/, '').replace(/\s*x\s*\d+/g, '').trim();
                 const imagePath = `https://media.dsrwiki.com/dsrwiki/item/${cleanName}.webp`;
-                const tradeStatusText = itemData.tradeStatus === '거래가능' ? '(거래가능)' : '(거래불가)';
+                const tradeStatusText = itemData.tradeStatus === '거래가능' ? t('(거래가능)', '(Tradable)') : t('(거래불가)', '(Untradable)');
                 const tradeStatusColor = itemData.tradeStatus === '거래가능' ? 'text-green' : 'text-red';
                 return `
                     <div class="item-list-row">
@@ -850,13 +865,13 @@ function showDigimonMechanicInfo(detector, digimon) {
                             class="item-list-img"
                             onerror="this.onerror=null; this.src='https://media.dsrwiki.com/dsrwiki/item/default.webp';">
                         <span class="${tradeStatusColor}">${tradeStatusText}</span>
-                        <span>${itemName}</span>
+                        <span>${tr(itemName)}</span>
                     </div>`;
             })
             .join('');
         const extraInfo = Object.keys(itemsList).length > 0
             ? `<span class="extra-info-badge badge-yellow" onmouseover="showTooltip(this)" onmouseout="hideTooltip(this)">
-                구성품 확인
+                ${t('구성품 확인', 'Contents')}
                 <div class="custom-tooltip custom-tooltip-popup">
                     ${tooltipContent}
                 </div>
@@ -865,41 +880,41 @@ function showDigimonMechanicInfo(detector, digimon) {
         return `
             <div class="mechanic-item-row">
                 <img loading="lazy" src="${imagePath}" alt="${name.trim()}" class="mechanic-item-img">
-                <span class="mechanic-item-name">${name.trim()}${quantityText}</span>
+                <span class="mechanic-item-name">${tr(name.trim())}${quantityText}</span>
                 ${tradeBadges}
                 ${dropBadges}
                 ${probabilityBadge}
                 ${extraInfo}
             </div>`;
-    }).join('') : '<div style="color: black; font-size: 14px;">정보 없음</div>';
+    }).join('') : `<div style="color: black; font-size: 14px;">${t('정보 없음', 'No info')}</div>`;
 
     document.getElementById('digimonMechanicCard').innerHTML = `
         <div class="bg-white rounded-lg shadow p-4 w-full h-full flex flex-col">
             ${detectorInfo.acquisition ? `
                 <div class="mb-4">
-                    <h3 class="mechanic-section-title">획득 방법</h3>
-                    <div class="text-sm text-gray-700">${detectorInfo.acquisition}</div>
+                    <h3 class="mechanic-section-title">${t('획득 방법', 'How to Obtain')}</h3>
+                    <div class="text-sm text-gray-700">${tr(detectorInfo.acquisition)}</div>
                 </div>
             ` : ''}
             ${data.gimmick ? `
                 <div class="mb-4">
                     <h3 class="mechanic-section-title">
                         <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/title.webp" alt="title" class="title-icon">
-                        패턴
+                        ${t('패턴', 'Pattern')}
                     </h3>
                     <div class="text-sm text-gray-700" style="font-weight: bold;">
-                        ${data.gimmick}
+                        ${gimmickEn(data.gimmick)}
                     </div>
                 </div>
             ` : ''}
             <div>
                 <h3 class="mechanic-section-title">
                     <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/title.webp" alt="title" class="title-icon">
-                    드롭 아이템
+                    ${t('드롭 아이템', 'Drop Items')}
                 </h3>
                 ${detectorInfo.rewardNotes?.length ? `
                     <div class="mb-4 text-sm text-gray-700 space-y-1">
-                        ${detectorInfo.rewardNotes.map(note => `<p>${note}</p>`).join('')}
+                        ${detectorInfo.rewardNotes.map(note => `<p>${tr(note)}</p>`).join('')}
                     </div>
                 ` : ''}
                 <div class="overflow-x-auto md:overflow-x-visible space-y-1 whitespace-nowrap">

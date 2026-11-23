@@ -5,6 +5,8 @@
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
 // 가챠 연출용 아이템 등급·아이콘 (게임 파일에서 뽑은 고정 데이터. 보상 이름·개수로 찾음, 줄 순서와 무관)
 import presentationAssets from '../data/gacha-presentation-assets.json';
+import { t, tr, isEn, loadNames } from './i18n.js';
+const isEnLang = isEn();
 export function init(signal, onReady) {
 // ===== 기존 app/gacha.js =====
 
@@ -70,7 +72,7 @@ function addConsoleLine(message, isSystem = false, isRare = false, logNumber = n
     }
 
     if (isSystem) {
-        line.innerHTML = `<span class="timestamp">[시스템]</span><span>${message}</span>`;
+        line.innerHTML = `<span class="timestamp">${t('[시스템]', '[System]')}</span><span>${message}</span>`;
     } else {
         // 개봉 순서 번호 추가 (고정 폭으로 포맷팅)
         let numberHtml = '';
@@ -127,7 +129,7 @@ function selectBox(boxId) {
     gachaItems = box.items;
 
     // UI 업데이트
-    document.getElementById('box-name').textContent = box.name;
+    document.getElementById('box-name').textContent = tr(box.name);
     document.getElementById('box-description').textContent = '';
     const boxOpenContainer = document.getElementById('box-open-container');
     boxOpenContainer.style.opacity = '1';
@@ -160,7 +162,7 @@ function selectBox(boxId) {
 // 가챠 실행 함수 (단일)
 function executeSingleGacha(outputTarget = null) {
     if (!currentBox || gachaItems.length === 0) {
-        addConsoleLine('먼저 상자를 선택해주세요.', true, false, null, outputTarget);
+        addConsoleLine(t('먼저 상자를 선택해주세요.', 'Select a box first.'), true, false, null, outputTarget);
         return null;
     }
 
@@ -194,9 +196,9 @@ function executeSingleGacha(outputTarget = null) {
 
     let tradeStatusHtml = '';
     if (tradeInfo.tradeStatus === 'available') {
-        tradeStatusHtml = ' <span class="trade-available">(거래가능)</span>';
+        tradeStatusHtml = ` <span class="trade-available">${t('(거래가능)', '(Tradable)')}</span>`;
     } else if (tradeInfo.tradeStatus === 'unavailable') {
-        tradeStatusHtml = ' <span class="trade-unavailable">(거래불가)</span>';
+        tradeStatusHtml = ` <span class="trade-unavailable">${t('(거래불가)', '(Untradable)')}</span>`;
     }
 
     // 카운터 증가 (번호는 증가 전 값 사용)
@@ -206,7 +208,9 @@ function executeSingleGacha(outputTarget = null) {
         updateCounter();
     }
 
-    const message = `<span style="color: #9cdcfe;">[${currentBox.name}]</span> <span class="${gradeClass}">[${tradeInfo.displayName}]</span> <span class="item-count">${selectedItem.count}개</span>를 획득했습니다.${tradeStatusHtml}`;
+    const message = t(
+        `<span style="color: #9cdcfe;">[${currentBox.name}]</span> <span class="${gradeClass}">[${tradeInfo.displayName}]</span> <span class="item-count">${selectedItem.count}개</span>를 획득했습니다.${tradeStatusHtml}`,
+        `<span style="color: #9cdcfe;">[${tr(currentBox.name)}]</span> Obtained <span class="${gradeClass}">[${tr(tradeInfo.displayName)}]</span> <span class="item-count">x${selectedItem.count}</span>.${tradeStatusHtml}`);
     addConsoleLine(message, false, isRare, currentLogNumber, outputTarget);
 
     // 통계 업데이트
@@ -255,7 +259,7 @@ function updateStatsModal() {
     const modalBody = document.getElementById('stats-modal-body');
 
     if (logStats.totalOpens === 0) {
-        modalBody.innerHTML = '<div style="text-align: center; color: #9cdcfe; padding: 40px;">아직 개봉한 상자가 없습니다.</div>';
+        modalBody.innerHTML = `<div style="text-align: center; color: #9cdcfe; padding: 40px;">${t('아직 개봉한 상자가 없습니다.', 'No boxes opened yet.')}</div>`;
         return;
     }
 
@@ -263,7 +267,7 @@ function updateStatsModal() {
 
     // 아이템별 상세 통계
     html += '<div class="stats-section">';
-    html += '<div class="stats-section-title">아이템별 획득 통계</div>';
+    html += `<div class="stats-section-title">${t('아이템별 획득 통계', 'Items Obtained')}</div>`;
     html += '<div class="stats-item-list">';
 
     // 획득 횟수 순으로 정렬
@@ -274,8 +278,8 @@ function updateStatsModal() {
         const percentage = logStats.totalOpens > 0 ? ((itemData.count / logStats.totalOpens) * 100).toFixed(2) : 0;
         const gradeClass = `item-grade-${itemData.grade}`;
         html += `<div class="stats-item-row">
-            <span class="stats-item-name ${gradeClass}">${itemData.displayName}</span>
-            <span class="stats-item-count">${itemData.count.toLocaleString()}개</span>
+            <span class="stats-item-name ${gradeClass}">${tr(itemData.displayName)}</span>
+            <span class="stats-item-count">${t(`${itemData.count.toLocaleString()}개`, `x${itemData.count.toLocaleString()}`)}</span>
             <span class="stats-item-percentage">${percentage}%</span>
           </div>`;
     });
@@ -289,12 +293,12 @@ function updateStatsModal() {
 function executeMultipleGacha(count) {
     if (window.GachaPresentation?.busy) return;
     if (!currentBox) {
-        addConsoleLine('먼저 상자를 선택해주세요.', true);
+        addConsoleLine(t('먼저 상자를 선택해주세요.', 'Select a box first.'), true);
         return;
     }
 
     if (count <= 0 || count > 1000) {
-        addConsoleLine('개수는 1~1000 사이여야 합니다.', true);
+        addConsoleLine(t('개수는 1~1000 사이여야 합니다.', 'Count must be between 1 and 1000.'), true);
         return;
     }
 
@@ -323,7 +327,7 @@ function executeMultipleGacha(count) {
 onReady(async function () {
     // JSON 데이터 로드
     try {
-        const response = await fetch('https://media.dsrwiki.com/data/csv/gacha.json');
+        const [response] = await Promise.all([fetch('https://media.dsrwiki.com/data/csv/gacha.json'), loadNames()]);
         gachaData = await response.json();
 
         // 상자 선택 드롭다운 채우기
@@ -331,7 +335,7 @@ onReady(async function () {
         gachaData.boxes.forEach(box => {
             const option = document.createElement('option');
             option.value = box.id;
-            option.textContent = box.name;
+            option.textContent = tr(box.name);
             boxSelect.appendChild(option);
         });
 
@@ -349,7 +353,7 @@ onReady(async function () {
             } else {
                 currentBox = null;
                 gachaItems = [];
-                document.getElementById('box-name').textContent = '상자를 선택하세요';
+                document.getElementById('box-name').textContent = t('상자를 선택하세요', 'Select a box');
                 document.getElementById('box-description').textContent = '';
                 const boxOpenContainer = document.getElementById('box-open-container');
                 boxOpenContainer.style.opacity = '0.5';
@@ -358,7 +362,7 @@ onReady(async function () {
         });
     } catch (error) {
         console.error('가챠 데이터 로드 실패:', error);
-        addConsoleLine('가챠 데이터를 불러오는데 실패했습니다.', true);
+        addConsoleLine(t('가챠 데이터를 불러오는데 실패했습니다.', 'Failed to load gacha data.'), true);
     }
 
     // 개봉 수 조절 버튼
@@ -381,7 +385,7 @@ onReady(async function () {
     // 개봉 버튼
     document.getElementById('open-btn').addEventListener('click', function () {
         if (!currentBox) {
-            addConsoleLine('먼저 상자를 선택해주세요.', true);
+            addConsoleLine(t('먼저 상자를 선택해주세요.', 'Select a box first.'), true);
             return;
         }
         const count = parseInt(document.getElementById('gacha-count').value) || 1;
@@ -441,16 +445,16 @@ onReady(async function () {
   dialog.style.setProperty('--gacha-result-background', 'url("'+new URL('media/result-background.png', assetBase).href+'")');
   dialog.innerHTML = `
     <section class="result-window">
-      <div class="presentation-topbar"><button type="button" id="result-close" aria-label="결과 화면 닫기">닫기 ×</button></div>
+      <div class="presentation-topbar"><button type="button" id="result-close" aria-label="${t('결과 화면 닫기', 'Close results')}">${t('닫기 ×', 'Close ×')}</button></div>
       <div class="result-stage"><div class="hero-rays" aria-hidden="true"></div><button type="button" class="hero-item" id="result-hero"></button></div>
       <h2 class="result-heading" id="result-title"></h2>
       <div class="result-grid-wrap"><div class="result-grid" id="result-grid" aria-label="공지 우선, Box_Grade 높은 순으로 표시한 획득 보상"></div></div>
       <div class="result-detail" id="result-detail" aria-live="polite"><strong></strong></div>
-      <div class="result-actions"><button type="button" class="secondary" id="result-again">다시 개봉</button><button type="button" id="result-receive">확인</button></div>
+      <div class="result-actions"><button type="button" class="secondary" id="result-again">${t('다시 개봉', 'Open Again')}</button><button type="button" id="result-receive">${t('확인', 'OK')}</button></div>
     </section>
     <section class="result-video" aria-label="게임 원본 개봉 영상">
       <video id="result-movie" playsinline preload="none"></video>
-      <div class="video-controls"><button type="button" id="result-skip">건너뛰기</button></div>
+      <div class="video-controls"><button type="button" id="result-skip">${t('건너뛰기', 'Skip')}</button></div>
     </section>`;
   document.body.append(dialog);
   const video = dialog.querySelector("video");
@@ -503,7 +507,7 @@ onReady(async function () {
   }
   function selectDetail(index) {
     const entry = history.entries[index];
-    detail.querySelector("strong").textContent = cleanName(entry.item.name);
+    detail.querySelector("strong").textContent = tr(cleanName(entry.item.name));
   }
   function renderResults() {
     const first = history.entries[0];
@@ -517,11 +521,12 @@ onReady(async function () {
     title.replaceChildren();
     const name = document.createElement("span");
     name.className = "box-name";
-    name.textContent = history.name;
+    name.textContent = tr(history.name);
     const amount = document.createElement("span");
     amount.className = "open-count";
-    amount.textContent = history.drawCount+"개";
-    title.append(name, document.createTextNode(" 아이템을 "), amount, document.createTextNode(" 개봉하여 다음 아이템을 획득했습니다."));
+    amount.textContent = t(history.drawCount+"개", "x"+history.drawCount);
+    if (isEnLang) title.append(document.createTextNode("Opened "), name, document.createTextNode(" "), amount, document.createTextNode(" and obtained the following items."));
+    else title.append(name, document.createTextNode(" 아이템을 "), amount, document.createTextNode(" 개봉하여 다음 아이템을 획득했습니다."));
     const fragment = document.createDocumentFragment();
     history.entries.forEach((entry, index) => {
       if (index === 0) return; // The entire representative stack is displayed above.
@@ -544,7 +549,7 @@ onReady(async function () {
     grid.parentElement.hidden = history.entries.length === 1;
     grid.parentElement.scrollTop = 0;
     selectDetail(0);
-    document.getElementById("result-again").textContent = history.drawCount+"개 다시 개봉";
+    document.getElementById("result-again").textContent = t(history.drawCount+"개 다시 개봉", "Open "+history.drawCount+" Again");
   }
   function reveal(instant = false, fallback = "") {
     if (phase === "closed") return;

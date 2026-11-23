@@ -4,6 +4,7 @@
 // onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
 import { getDigimonData } from './page.js';
+import { t, tr, term, loadNames, applyStatic } from './i18n.js';
 export function init(signal, onReady) {
 // ===== 기존 app/detail.js =====
 function getQueryParam(param) {
@@ -11,11 +12,13 @@ function getQueryParam(param) {
   return urlParams.get(param);
 }
 
-onReady(() => {
+onReady(async () => {
+  applyStatic(document);
+  await loadNames();
   const requestedName = decodeURIComponent(getQueryParam("name"));
   const characterName = requestedName === "포무몬" ? "폼몬" : requestedName;
   if (!characterName) {
-    document.getElementById("character-name").textContent = "캐릭터 정보를 찾을 수 없습니다.";
+    document.getElementById("character-name").textContent = t("캐릭터 정보를 찾을 수 없습니다.", "Digimon not found.");
     return;
   }
 
@@ -63,8 +66,8 @@ onReady(() => {
     });
   }
 
-  document.getElementById("character-name").textContent = characterName;
-  document.title = `${characterName} | DSRWIKI`;
+  document.getElementById("character-name").textContent = tr(characterName);
+  document.title = `${tr(characterName)} | DSRWIKI`;
   // 이름 변경 전 공유 링크와 CDN 이미지도 계속 사용할 수 있게 한다.
   const sanitizedCharacterName = (characterName === "폼몬" ? "포무몬" : characterName).replace(/:/g, "_");
 
@@ -85,7 +88,7 @@ onReady(() => {
           if (fields[i - 1]) {
             fieldImgElement.src = `https://media.dsrwiki.com/dsrwiki/field/${fields[i - 1]}.webp`;
             fieldImgElement.alt = `${fields[i - 1]} 이미지`;
-            addTooltipToElement(fieldImgElement, fields[i - 1]);
+            addTooltipToElement(fieldImgElement, tr(fields[i - 1]));
             fieldImgElement.style.display = "inline";
           } else {
             fieldImgElement.style.display = "none";
@@ -95,15 +98,15 @@ onReady(() => {
         // 기본 정보 설정
         const characterImg = document.getElementById("character-img");
         characterImg.src = characterImgPath;
-        addTooltipToElement(characterImg, characterName);
+        addTooltipToElement(characterImg, tr(characterName));
 
         const evolutionImg = document.getElementById("evolution-img");
         evolutionImg.src = `https://media.dsrwiki.com/dsrwiki/${evolutionStage}.webp`;
-        addTooltipToElement(evolutionImg, evolutionStage);
+        addTooltipToElement(evolutionImg, term(evolutionStage));
 
         const typeImg = document.getElementById("type-img");
         typeImg.src = `https://media.dsrwiki.com/dsrwiki/${type}.webp`;
-        addTooltipToElement(typeImg, type);
+        addTooltipToElement(typeImg, term(type));
 
         // 디지코어화 정보 가져오기
         fetch("https://media.dsrwiki.com/data/csv/digicore.json")
@@ -231,38 +234,38 @@ onReady(() => {
                           <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/${item.name}.webp" alt="${item.name}" title="${item.name}">
                         </div>
                         <div class="digicore-item-info">
-                          <div class="digicore-item-name">${item.name}${item.count ? ` <span class=\"item-count\">x${item.count}</span>` : ''}</div>
+                          <div class="digicore-item-name">${tr(item.name)}${item.count ? ` <span class=\"item-count\">x${item.count}</span>` : ''}</div>
                           <div class="digicore-item-badges">
-                            <div class="digicore-item-probability ${(item.probability === '확정' || item.probability === '100%') ? 'guaranteed' : 'probability'}">${item.probability}</div>
+                            <div class="digicore-item-probability ${(item.probability === '확정' || item.probability === '100%') ? 'guaranteed' : 'probability'}">${tr(item.probability)}</div>
                             ${item.tradeable !== undefined ? `
-                              <div class="digicore-item-tradeable ${item.tradeable ? 'tradeable' : 'untradeable'}">${item.tradeable ? '거래가능' : '거래불가'}</div>
+                              <div class="digicore-item-tradeable ${item.tradeable ? 'tradeable' : 'untradeable'}">${item.tradeable ? t('거래가능', 'Tradable') : t('거래불가', 'Untradable')}</div>
                             ` : ''}
                             ${(item.mutant || item.isMutant) ? `
-                              <div class="digicore-item-mutant">돌연변이</div>
+                              <div class="digicore-item-mutant">${t('돌연변이', 'Mutant')}</div>
                             ` : ''}
                           </div>
                         </div>
                       </div>
                       ${item.possible_items ? `
                         <div class="digicore-item-expanded">
-                          <div class="digicore-item-description">${item.description}</div>
-                          <div class="possible-items-title">획득 가능한 아이템</div>
+                          <div class="digicore-item-description">${tr(item.description)}</div>
+                          <div class="possible-items-title">${t('획득 가능한 아이템', 'Obtainable Items')}</div>
                           <div class="possible-items-list">
                             ${item.possible_items.map(possibleItem => `
                               <div class="possible-item">
                                 <div class="possible-item-row">
                                   <div class="possible-item-image">
-                                    <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/${possibleItem.name}.webp" alt="${possibleItem.name}" title="${possibleItem.name}">
+                                    <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/${possibleItem.name}.webp" alt="${possibleItem.name}" title="${tr(possibleItem.name)}">
                                   </div>
                                   <div class="possible-item-info">
-                                    <div class="possible-item-name">${possibleItem.name}${possibleItem.count ? ` <span class=\"item-count\">x${possibleItem.count}</span>` : ''}</div>
+                                    <div class="possible-item-name">${tr(possibleItem.name)}${possibleItem.count ? ` <span class=\"item-count\">x${possibleItem.count}</span>` : ''}</div>
                                     <div class="digicore-item-badges">
-                                      <div class="possible-item-probability ${(possibleItem.probability === '확정' || possibleItem.probability === '100%') ? 'guaranteed' : 'probability'}">${possibleItem.probability}</div>
+                                      <div class="possible-item-probability ${(possibleItem.probability === '확정' || possibleItem.probability === '100%') ? 'guaranteed' : 'probability'}">${tr(possibleItem.probability)}</div>
                                       ${possibleItem.tradeable !== undefined ? `
-                                        <div class="digicore-item-tradeable ${possibleItem.tradeable ? 'tradeable' : 'untradeable'}">${possibleItem.tradeable ? '거래가능' : '거래불가'}</div>
+                                        <div class="digicore-item-tradeable ${possibleItem.tradeable ? 'tradeable' : 'untradeable'}">${possibleItem.tradeable ? t('거래가능', 'Tradable') : t('거래불가', 'Untradable')}</div>
                                       ` : ''}
                                       ${(possibleItem.mutant || possibleItem.isMutant) ? `
-                                        <div class="digicore-item-mutant">돌연변이</div>
+                                        <div class="digicore-item-mutant">${t('돌연변이', 'Mutant')}</div>
                                       ` : ''}
                                     </div>
                                   </div>
@@ -270,23 +273,23 @@ onReady(() => {
                                 ${possibleItem.possible_items ? `
                                   <div class="digicore-item-expanded">
                                     <div class="digicore-item-description">${possibleItem.description}</div>
-                                    <div class="possible-items-title">획득 가능한 아이템</div>
+                                    <div class="possible-items-title">${t('획득 가능한 아이템', 'Obtainable Items')}</div>
                                     <div class="possible-items-list">
                                       ${possibleItem.possible_items.map(subItem => `
                                         <div class="possible-item">
                                           <div class="possible-item-row">
                                             <div class="possible-item-image">
-                                              <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/${subItem.name}.webp" alt="${subItem.name}" title="${subItem.name}">
+                                              <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/${subItem.name}.webp" alt="${subItem.name}" title="${tr(subItem.name)}">
                                             </div>
                                             <div class="possible-item-info">
-                                              <div class="possible-item-name">${subItem.name}${subItem.count ? ` <span class=\"item-count\">x${subItem.count}</span>` : ''}</div>
+                                              <div class="possible-item-name">${tr(subItem.name)}${subItem.count ? ` <span class=\"item-count\">x${subItem.count}</span>` : ''}</div>
                                               <div class="digicore-item-badges">
-                                                <div class="possible-item-probability ${(subItem.probability === '확정' || subItem.probability === '100%') ? 'guaranteed' : 'probability'}">${subItem.probability}</div>
+                                                <div class="possible-item-probability ${(subItem.probability === '확정' || subItem.probability === '100%') ? 'guaranteed' : 'probability'}">${tr(subItem.probability)}</div>
                                                 ${subItem.tradeable !== undefined ? `
-                                                  <div class="digicore-item-tradeable ${subItem.tradeable ? 'tradeable' : 'untradeable'}">${subItem.tradeable ? '거래가능' : '거래불가'}</div>
+                                                  <div class="digicore-item-tradeable ${subItem.tradeable ? 'tradeable' : 'untradeable'}">${subItem.tradeable ? t('거래가능', 'Tradable') : t('거래불가', 'Untradable')}</div>
                                                 ` : ''}
                                                 ${(subItem.mutant || subItem.isMutant) ? `
-                                                  <div class="digicore-item-mutant">돌연변이</div>
+                                                  <div class="digicore-item-mutant">${t('돌연변이', 'Mutant')}</div>
                                                 ` : ''}
                                               </div>
                                             </div>
@@ -307,13 +310,13 @@ onReady(() => {
               `;
               digicoreContainer.innerHTML = itemsHTML;
             } else {
-              digicoreContainer.innerHTML = '<p class="no-digicore-message">이 디지몬의 디지코어화 정보가 없습니다.</p>';
+              digicoreContainer.innerHTML = `<p class="no-digicore-message">${t('이 디지몬의 디지코어화 정보가 없습니다.', 'No Digicore info for this Digimon.')}</p>`;
             }
           })
           .catch(error => {
             console.error("디지코어화 데이터를 불러오는 중 오류가 발생했습니다:", error);
             document.getElementById("digicore-container").innerHTML =
-              '<p class="error-message">디지코어화 정보를 불러오는 중 오류가 발생했습니다.</p>';
+              `<p class="error-message">${t('디지코어화 정보를 불러오는 중 오류가 발생했습니다.', 'Failed to load Digicore info.')}</p>`;
           });
 
         // 스탯 설정
@@ -340,23 +343,23 @@ onReady(() => {
         if (strengthAttr) {
           let additionalText = "";
           if (strengthEff === "반사") {
-            additionalText = '해당 속성의 공격을 받으면 <span class="highlight">피해량의 25%</span>를 되돌려 줍니다.';
+            additionalText = t('해당 속성의 공격을 받으면 <span class="highlight">피해량의 25%</span>를 되돌려 줍니다.', 'Returns <span class="highlight">25% of the damage</span> when hit by this attribute.');
           } else if (strengthEff === "회피") {
-            additionalText = '해당 속성 공격에 대해 <span class="highlight">회피율이 2배</span>로 적용됩니다.';
+            additionalText = t('해당 속성 공격에 대해 <span class="highlight">회피율이 2배</span>로 적용됩니다.', '<span class="highlight">Evasion rate is doubled</span> against this attribute.');
           } else if (strengthEff === "내성") {
-            additionalText = '해당 속성의 공격으로 받는 데미지는 <span class="highlight">25% 감소</span>합니다.';
+            additionalText = t('해당 속성의 공격으로 받는 데미지는 <span class="highlight">25% 감소</span>합니다.', 'Damage taken from this attribute is <span class="highlight">reduced by 25%</span>.');
           } else if (strengthEff === "효과확률") {
-            additionalText = '해당 속성의 공격에 효과가 있을 경우, <span class="highlight">효과에 걸릴 확률</span>이 증가합니다.';
+            additionalText = t('해당 속성의 공격에 효과가 있을 경우, <span class="highlight">효과에 걸릴 확률</span>이 증가합니다.', 'If an attack of this attribute has an effect, <span class="highlight">the chance to be affected</span> increases.');
           }
 
           swTableBody.innerHTML += `
             <tr>
               <td class=\"sw-icon\">
                 <div class=\"sw-icon-container\" style=\"background-image: url('https://media.dsrwiki.com/dsrwiki/strongbackground.webp');\">
-                  <img loading="lazy" src=\"https://media.dsrwiki.com/dsrwiki/${strengthAttr}.webp\" alt=\"${strengthAttr} 이미지\" title=\"${strengthAttr}\">
+                  <img loading="lazy" src=\"https://media.dsrwiki.com/dsrwiki/${strengthAttr}.webp\" alt=\"${strengthAttr} 이미지\" title=\"${term(strengthAttr)}\">
                 </div>
               </td>
-              <td class=\"sw-description\">${strengthEff}</td>
+              <td class=\"sw-description\">${term(strengthEff)}</td>
               <td class=\"sw-description-detail\">${additionalText}</td>
             </tr>
           `;
@@ -366,21 +369,21 @@ onReady(() => {
         if (weaknessAttr) {
           let additionalText = "";
           if (weaknessEff === "약점") {
-            additionalText = '해당 속성의 공격으로 <span class="highlight">25% 증가된 데미지</span>를 입습니다.';
+            additionalText = t('해당 속성의 공격으로 <span class="highlight">25% 증가된 데미지</span>를 입습니다.', 'Takes <span class="highlight">25% more damage</span> from this attribute.');
           } else if (weaknessEff === "회피불가") {
-            additionalText = '해당 속성의 공격은 <span class="highlight">회피가 불가</span>합니다.';
+            additionalText = t('해당 속성의 공격은 <span class="highlight">회피가 불가</span>합니다.', 'Attacks of this attribute <span class="highlight">cannot be evaded</span>.');
           } else if (weaknessEff === "효과확률") {
-            additionalText = '해당 속성의 공격에 효과가 있을 경우, <span class="highlight">효과에 걸릴 확률</span>이 증가합니다.';
+            additionalText = t('해당 속성의 공격에 효과가 있을 경우, <span class="highlight">효과에 걸릴 확률</span>이 증가합니다.', 'If an attack of this attribute has an effect, <span class="highlight">the chance to be affected</span> increases.');
           }
 
           swTableBody.innerHTML += `
             <tr>
               <td class=\"sw-icon\">
                 <div class=\"sw-icon-container\" style=\"background-image: url('https://media.dsrwiki.com/dsrwiki/weakbackground.webp');\">
-                  <img loading="lazy" src=\"https://media.dsrwiki.com/dsrwiki/${weaknessAttr}.webp\" alt=\"${weaknessAttr} 이미지\" title=\"${weaknessAttr}\">
+                  <img loading="lazy" src=\"https://media.dsrwiki.com/dsrwiki/${weaknessAttr}.webp\" alt=\"${weaknessAttr} 이미지\" title=\"${term(weaknessAttr)}\">
                 </div>
               </td>
-              <td class=\"sw-description\">${weaknessEff}</td>
+              <td class=\"sw-description\">${term(weaknessEff)}</td>
               <td class=\"sw-description-detail\">${additionalText}</td>
             </tr>
           `;
@@ -413,7 +416,7 @@ onReady(() => {
                   </td>
                   <td class="skill-name-cell">
                     <div class="skill-name-container">
-                      <span class="skill-name">${skillData.name}</span>
+                      <span class="skill-name">${tr(skillData.name)}</span>
                       <img loading="lazy" src="${skill1ImgPath}" alt="속성" class="skill-attribute skill-main-attribute-img" data-tooltip="${skillData.attribute}">
                     </div>
                   </td>
@@ -421,14 +424,14 @@ onReady(() => {
                 <tr>
                   <td class="skill-tags-cell">
                     <div class="skill-tags">
-                      <span class="skill-tag tag-range ${skillData.range === '원거리' ? 'long-range' : ''}">${skillData.range}</span>
-                      <span class="skill-tag tag-target"> ${skillData.target_count}</span>
-                      <span class="skill-tag tag-hit">${isNaN(skillData.hits) ? skillData.hits : `${skillData.hits}타`}</span>
-                      ${skillData.effect ? `<span class="skill-tag tag-effect">${skillData.effect}</span>` : ''}
-                      ${skillData.additionalTurn ? `<span class="skill-tag tag-cast">추가 시전 턴 : ${skillData.additionalTurn}턴</span>` : ''}
+                      <span class="skill-tag tag-range ${skillData.range === '원거리' ? 'long-range' : ''}">${term(skillData.range)}</span>
+                      <span class="skill-tag tag-target"> ${term(skillData.target_count)}</span>
+                      <span class="skill-tag tag-hit">${isNaN(skillData.hits) ? term(skillData.hits) : t(`${skillData.hits}타`, `${skillData.hits} Hit${skillData.hits == 1 ? '' : 's'}`)}</span>
+                      ${skillData.effect ? `<span class="skill-tag tag-effect">${tr(skillData.effect)}</span>` : ''}
+                      ${skillData.additionalTurn ? `<span class="skill-tag tag-cast">${t(`추가 시전 턴 : ${skillData.additionalTurn}턴`, `Extra cast turns: ${skillData.additionalTurn}`)}</span>` : ''}
                       ${skillData.change && Array.isArray(skillData.change) && skillData.change.length > 0 ? `
                         <div class="skill-change-inline">
-                          <span class="skill-change-inline-label">변경 가능 속성 </span>
+                          <span class="skill-change-inline-label">${t('변경 가능 속성 ', 'Convertible ')}</span>
                           ${skillData.change.map(attr => `
                             <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/${attr}.webp" alt="${attr}" class="skill-attribute skill-change-img" data-tooltip="${attr}">
                           `).join('')}
@@ -442,16 +445,16 @@ onReady(() => {
               <div class="level-table-container">
                 <table class="level-table">
                   <tr>
-                    <th>1레벨</th>
-                    <th>2레벨</th>
-                    <th>3레벨</th>
-                    <th>4레벨</th>
-                    <th>5레벨</th>
-                    <th>6레벨</th>
-                    <th>7레벨</th>
-                    <th>8레벨</th>
-                    <th>9레벨</th>
-                    <th>10레벨</th>
+                    <th>${t('1레벨', 'Lv1')}</th>
+                    <th>${t('2레벨', 'Lv2')}</th>
+                    <th>${t('3레벨', 'Lv3')}</th>
+                    <th>${t('4레벨', 'Lv4')}</th>
+                    <th>${t('5레벨', 'Lv5')}</th>
+                    <th>${t('6레벨', 'Lv6')}</th>
+                    <th>${t('7레벨', 'Lv7')}</th>
+                    <th>${t('8레벨', 'Lv8')}</th>
+                    <th>${t('9레벨', 'Lv9')}</th>
+                    <th>${t('10레벨', 'Lv10')}</th>
                   </tr>
                   <tr>
                     ${levelData.map(level => `<td title="${level}">${level}</td>`).join('')}
@@ -464,25 +467,25 @@ onReady(() => {
           if (skillData.change && Array.isArray(skillData.change)) {
             skillCell.querySelectorAll('.skill-change-img').forEach(img => {
               const attrText = img.getAttribute('data-tooltip');
-              addTooltipToElement(img, attrText);
+              addTooltipToElement(img, term(attrText));
             });
           }
 
           const mainAttrImg = skillCell.querySelector('.skill-main-attribute-img');
           if (mainAttrImg) {
-            addTooltipToElement(mainAttrImg, skillData.attribute);
+            addTooltipToElement(mainAttrImg, term(skillData.attribute));
           }
 
           skillRow.appendChild(skillCell);
           skillDetailsTable.appendChild(skillRow);
         });
       } else {
-        document.getElementById("character-name").textContent = "캐릭터 정보를 찾을 수 없습니다.";
+        document.getElementById("character-name").textContent = t("캐릭터 정보를 찾을 수 없습니다.", "Digimon not found.");
       }
     })
     .catch(error => {
       console.error("데이터를 불러오는 중 오류가 발생했습니다:", error);
-      document.getElementById("character-name").textContent = "데이터를 불러오는 중 오류가 발생했습니다.";
+      document.getElementById("character-name").textContent = t("데이터를 불러오는 중 오류가 발생했습니다.", "Failed to load data.");
     });
 
   // 덱 정보 가져오기
@@ -505,8 +508,8 @@ onReady(() => {
           // 덱 카드 HTML 생성
           deckCard.innerHTML = `
             <div class="deck-header">
-              <h3 class="deck-title">${deckName}</h3>
-              <p class="deck-description">${deck.description}</p>
+              <h3 class="deck-title">${tr(deckName)}</h3>
+              <p class="deck-description">${tr(deck.description)}</p>
             </div>
             <div class="deck-content">
               <div class="digimon-container">
@@ -515,14 +518,14 @@ onReady(() => {
                     <img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/digimon/${d.name.replace(/:/g, '_')}/${d.name.replace(/:/g, '_')}.webp" 
                          alt="${d.name}" 
                          onerror="this.src='https://media.dsrwiki.com/dsrwiki/digimon/default.webp'">
-                    <div class="digimon-tooltip">Lv.${d.level} ${d.name}</div>
+                    <div class="digimon-tooltip">Lv.${d.level} ${tr(d.name)}</div>
                   </div>
                 `).join('')}
               </div>
               <div class="effects-container">
                 ${deck.effects.map(effect => {
             // 숫자 강조
-            const html = effect.replace(/(\+\s*[\d\.]+%?)/g, '<span class=\"effect-value\">$1</span>');
+            const html = tr(effect).replace(/(\+\s*[\d\.]+%?)/g, '<span class=\"effect-value\">$1</span>');
             return html;
           }).join(' / ')}
               </div>
@@ -564,13 +567,13 @@ onReady(() => {
           });
         });
       } else {
-        deckContainer.innerHTML = '<p class="no-deck-message">이 디지몬이 포함된 덱이 없습니다.</p>';
+        deckContainer.innerHTML = `<p class="no-deck-message">${t('이 디지몬이 포함된 덱이 없습니다.', 'No decks include this Digimon.')}</p>`;
       }
     })
     .catch(error => {
       console.error("덱 데이터를 불러오는 중 오류가 발생했습니다:", error);
       document.getElementById("deck-container").innerHTML =
-        '<p class="error-message">덱 정보를 불러오는 중 오류가 발생했습니다.</p>';
+        `<p class="error-message">${t('덱 정보를 불러오는 중 오류가 발생했습니다.', 'Failed to load deck info.')}</p>`;
     });
 });
 }

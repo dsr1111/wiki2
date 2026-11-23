@@ -4,6 +4,7 @@
 // onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
 import { getDigimonData } from './page.js';
+import { t, tr, term, loadNames } from './i18n.js';
 export function init(signal, onReady) {
 // ===== 기존 app/calculator-math.js =====
 // Damage and probability calculation, preserving the existing wiki formula.
@@ -122,7 +123,7 @@ async function calculateProbability(value) {
 
     if (!mobName || !selectedMap) {
       console.log("Missing mob name or selected map");
-      document.getElementById("needstr").textContent = "계산 불가";
+      document.getElementById("needstr").textContent = t("계산 불가", "N/A");
       return;
     }
 
@@ -139,7 +140,7 @@ async function calculateProbability(value) {
     );
 
     if (!mobRow) {
-      document.getElementById("needstr").textContent = "계산 불가";
+      document.getElementById("needstr").textContent = t("계산 불가", "N/A");
       return;
     }
 
@@ -177,7 +178,7 @@ async function calculateProbability(value) {
 
       if (!digimon) {
         console.log("Digimon data not found:", characterName);
-        document.getElementById("needstr").textContent = "계산 불가";
+        document.getElementById("needstr").textContent = t("계산 불가", "N/A");
         return;
       }
 
@@ -408,7 +409,7 @@ async function calculateProbability(value) {
   } catch (error) {
     if (!context.isCurrent()) return;
     console.error("Error in calculateProbability:", error);
-    document.getElementById("needstr").textContent = "계산 불가";
+    document.getElementById("needstr").textContent = t("계산 불가", "N/A");
   }
 }
 
@@ -425,7 +426,8 @@ let digimonOverride = null;
 const effectiveDigimonData = () => digimonOverride ? {...digimonData, ...digimonOverride} : digimonData;
 
 function options(id, values, selected) {
-  const nodes = values.map(entry => {const [value, label] = Array.isArray(entry) ? entry : [entry,entry]; return new Option(label, value);});
+  // 값은 한국어 그대로, 보이는 글자만 영어 (이름·속성 등)
+  const nodes = values.map(entry => {const [value, label] = Array.isArray(entry) ? entry : [entry,term(entry)]; return new Option(label, value);});
   $(id).replaceChildren(...nodes);
   if (selected !== undefined && nodes.some(node => node.value === String(selected))) $(id).value = selected;
 }
@@ -435,10 +437,10 @@ function icon(name, accessibleName = '') {
 function portrait(id, name) {
   const safeName = name.replace(/:/g,'_'); const img = document.createElement('img');
   img.src = `${imageBase}digimon/${encodeURIComponent(safeName)}/${encodeURIComponent(safeName)}.webp`; img.alt = name;
-  img.addEventListener('error', () => { const fallback = document.createElement('span'); fallback.textContent = '이미지 없음'; $(id).replaceChildren(fallback); }, {once:true});
+  img.addEventListener('error', () => { const fallback = document.createElement('span'); fallback.textContent = t('이미지 없음', 'No image'); $(id).replaceChildren(fallback); }, {once:true});
   $(id).replaceChildren(img);
 }
-function attribute(id, name) { $(id).replaceChildren(...(name ? [icon(name), document.createTextNode(name)] : [document.createTextNode('없음')])); }
+function attribute(id, name) { $(id).replaceChildren(...(name ? [icon(name), document.createTextNode(term(name))] : [document.createTextNode(t('없음', 'None'))])); }
 function currentDigimon() { const name = $('character-select').value; return digimonOverride?.[name] || digimonData[name]; }
 function currentSkill() { return currentDigimon()?.skills?.[Number($('skill-select').value.replace('skill',''))-1]; }
 function currentMob() {return mobData.find(row => row[0] === $('map1-select').value && row[1] === $('map2-select').value && row[2] === $('mob-select').value);}
@@ -448,21 +450,21 @@ function populateCharacters(preferred) {
 }
 function populateSkills() {
   const d = currentDigimon();
-  $('character-name').textContent = $('character-select').value;
+  $('character-name').textContent = tr($('character-select').value);
   $('character-name').title = d.note || '';
   $('character-meta').replaceChildren(icon(d.type, d.type), document.createTextNode(`Lv.${d.stats.level}`));
   $('힘-cell').textContent = format(d.stats.STR);
   // 힘 값에 붙는 설명(계산식)이 있으면 '힘 값' 아래 줄에 작게 표시하고, 앞 글자를 '기본 힘' → '힘' 으로
-  $('힘-cell').previousSibling.textContent = d.strNote ? '힘 ' : '기본 힘 ';
+  $('힘-cell').previousSibling.textContent = d.strNote ? t('힘 ', 'STR ') : t('기본 힘 ', 'Base STR ');
   if (d.strNote) { const note = document.createElement('small'); note.textContent = `(${d.strNote})`; note.style.cssText = 'display:block;font-weight:normal;white-space:nowrap'; $('힘-cell').append(note); }
   portrait('character-image-cell', $('character-select').value);
-  options('skill-select', (d.skills || []).map((skill, i) => [`skill${i+1}`, `${i+1}. ${skill.name}`]));
+  options('skill-select', (d.skills || []).map((skill, i) => [`skill${i+1}`, `${i+1}. ${tr(skill.name)}`]));
   populateSkillLevels('1레벨'); populateElements();
 }
 // 스킬 레벨 수 = 계수 개수 (기본 10, 전생 디지몬은 13)
 function populateSkillLevels(selected) {
   const count = Math.max(10, currentSkill()?.multipliers?.length || 0);
-  options('skilllevel-select', Array.from({length:count},(_,i)=>`${i+1}레벨`), selected);
+  options('skilllevel-select', Array.from({length:count},(_,i)=>[`${i+1}레벨`, t(`${i+1}레벨`, `Lv${i+1}`)]), selected);
 }
 function populateElements() {
   const skill = currentSkill();
@@ -471,7 +473,7 @@ function populateElements() {
   $('element-options').replaceChildren(...convertible.map(element => {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'element-button';
     button.dataset.element = element; button.setAttribute('aria-pressed', String(element === skill.attribute));
-    button.append(icon(element), document.createTextNode(element));
+    button.append(icon(element), document.createTextNode(term(element)));
     button.addEventListener('click', () => {$('skill-element').value = element; refresh();});
     return button;
   }));
@@ -484,7 +486,7 @@ function populateMobs() {
 }
 function showMob() {
   const mob = currentMob(); if (!mob) return;
-  $('mob-name').textContent = mob[2]; $('mob-meta').replaceChildren(icon(mob[4], mob[4]), document.createTextNode(`Lv.${mob[3]}`));
+  $('mob-name').textContent = tr(mob[2]); $('mob-meta').replaceChildren(icon(mob[4], mob[4]), document.createTextNode(`Lv.${mob[3]}`));
   portrait('mob-image-cell', mob[9] || mob[2]); $('mob-hp').textContent = format(mob[5]); $('mob-def').textContent = format(mob[6]); attribute('mob-weak',mob[7]); attribute('mob-strong',mob[8]);
 }
 function getCalculationContext(context) { return context; }
@@ -501,16 +503,16 @@ async function refresh() {
   const skill = currentSkill(), mob = currentMob();
   const selectedElement = manual ? $('manual-skill-element').value : $('skill-element').value;
   document.querySelectorAll('.element-button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.element === selectedElement)));
-  $('result-element').textContent = selectedElement || '없음';
+  $('result-element').textContent = term(selectedElement) || t('없음', 'None');
   $('result-caption').textContent = '';
   $('result-caption').hidden = true;
   const targetType = manual ? $('manual-target-type').value : skill?.target_count;
   $('mob-count').disabled = targetType !== '전체';
-  $('dmg-max').setCustomValidity(number('dmg-min',95) > number('dmg-max',105) ? '최대값은 최소값 이상이어야 합니다.' : '');
+  $('dmg-max').setCustomValidity(number('dmg-min',95) > number('dmg-max',105) ? t('최대값은 최소값 이상이어야 합니다.', 'Max must be at least min.') : '');
   const invalid = [...$('calculator-form').querySelectorAll('input,select')].find(input => !input.disabled && !input.validity.valid);
-  if (invalid) {clearResults('입력 범위를 확인해 주세요. 최소 데미지는 최대값 이하이어야 합니다.'); return;}
+  if (invalid) {clearResults(t('입력 범위를 확인해 주세요. 최소 데미지는 최대값 이하이어야 합니다.', 'Check the input range. Min damage must not exceed max.')); return;}
   if (!mob || (!manual && (!skill || !(Number(currentDigimon().stats.level)>0) || !(Number(currentDigimon().stats.STR)>0)))) {
-    clearResults('선택한 디지몬의 계산용 스탯 또는 스킬 데이터가 없습니다. 수동 입력을 이용해 주세요.'); return;
+    clearResults(t('선택한 디지몬의 계산용 스탯 또는 스킬 데이터가 없습니다. 수동 입력을 이용해 주세요.', 'No stat or skill data for this Digimon. Please use manual input.')); return;
   }
   await calculateProbability(contextFor(version));
   if (version !== calculationVersion) return;
@@ -542,7 +544,7 @@ function setDefaults() {
 }
 async function load() {
   try {
-    const [json,csv] = await Promise.all([getDigimonData(),fetch('https://media.dsrwiki.com/data/csv/mob.csv')]);
+    const [json,csv] = await Promise.all([getDigimonData(),fetch('https://media.dsrwiki.com/data/csv/mob.csv'),loadNames()]);
     if (!csv.ok) throw new Error('데이터 파일을 찾을 수 없습니다.');
     digimonData = json;
     mobData = (await csv.text()).trim().split(/\r?\n/).slice(1).map(row=>row.split(',').map(cell=>cell.trim())).filter(row=>row.length>=9 && row[2]);
@@ -584,13 +586,13 @@ async function load() {
         }
       }
     }
-    options('skilllevel-select', Array.from({length:10},(_,i)=>`${i+1}레벨`));
+    options('skilllevel-select', Array.from({length:10},(_,i)=>[`${i+1}레벨`, t(`${i+1}레벨`, `Lv${i+1}`)]));
     options('manual-skill-element', elements, '물리');
     options('map1-select', [...new Set(mobData.map(row=>row[0]))]);
     setDefaults(); $('status').hidden=true; $('calculator-form').hidden=false; await refresh();
   } catch(error) {
-    console.error(error); $('status').replaceChildren(document.createTextNode('데이터를 불러오지 못했습니다. '));
-    const retry = document.createElement('button'); retry.type='button';retry.className='quiet-button';retry.textContent='다시 시도';retry.addEventListener('click',load);$('status').append(retry);
+    console.error(error); $('status').replaceChildren(document.createTextNode(t('데이터를 불러오지 못했습니다. ', 'Failed to load data. ')));
+    const retry = document.createElement('button'); retry.type='button';retry.className='quiet-button';retry.textContent=t('다시 시도', 'Retry');retry.addEventListener('click',load);$('status').append(retry);
   }
 }
 // Suppress incidental viewport overflow only while the complete card group is

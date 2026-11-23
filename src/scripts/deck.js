@@ -3,6 +3,8 @@
 // (여러 파일은 기존처럼 같은 범위를 쓰도록 실행 순서대로 이어 붙임)
 // onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
+import { t, tr, isEn, loadNames } from './i18n.js';
+
 export function init(signal, onReady) {
 // ===== 기존 app/deck.js =====
 
@@ -11,19 +13,28 @@ let deckData = {};
 
 // DOMContentLoaded 에서 JSON 로드 후 초기화
 onReady(() => {
-  fetch('https://media.dsrwiki.com/data/csv/deck.json')
+  Promise.all([fetch('https://media.dsrwiki.com/data/csv/deck.json')
     .then(res => {
       if (!res.ok) throw new Error('deck.json 로드 실패');
       return res.json();
-    })
-    .then(json => {
+    }), loadNames()])
+    .then(([json]) => {
       deckData = json;
+      // 영어: 보여 줄 글자만 바꿈 (디지몬 이름 d.name 은 이미지 주소에 쓰니 그대로, 영어 이름은 d.en)
+      if (isEn()) {
+        deckData = Object.fromEntries(Object.entries(json).map(([name, info]) => [tr(name), {
+          ...info,
+          description: tr(info.description),
+          effects: info.effects.map((e) => tr(e)),
+          digimon: info.digimon.map((d) => ({ ...d, en: tr(d.name) })),
+        }]));
+      }
       renderAllDecks();
       setupEventListeners();
     })
     .catch(err => {
       console.error(err);
-      document.getElementById('deck-container').textContent = '덱 데이터를 불러올 수 없습니다.';
+      document.getElementById('deck-container').textContent = t('덱 데이터를 불러올 수 없습니다.', 'Could not load deck data.');
     });
 });
 
@@ -43,7 +54,7 @@ function renderAllDecks() {
   });
   noResults = document.createElement('div');
   noResults.className = 'no-results';
-  noResults.textContent = '검색 결과가 없습니다.';
+  noResults.textContent = t('검색 결과가 없습니다.', 'No results.');
 }
 
 // 조건에 맞는 덱만 보이고, 검색어를 강조 (matches 가 없으면 전부 보임)
@@ -86,19 +97,19 @@ function createDeckCard(deckName, deckInfo, highlightTerms = []) {
   deckInfo.digimon.forEach(d => {
     const avatar = document.createElement('div');
     avatar.className = 'digimon-avatar-box';
-    avatar.dataset.name = d.name.toLowerCase();
+    avatar.dataset.name = `${d.name} ${d.en ?? ''}`.toLowerCase();
     const img = document.createElement('img');
     img.loading = 'lazy'; // 화면에 가까워질 때 받음 (목록이 길어서 처음에 전부 받지 않게)
     img.decoding = 'async';
     img.className = 'digimon-avatar-img';
     const safeName = d.name.replace(/:/g, '_');
     img.src = `https://media.dsrwiki.com/dsrwiki/digimon/${safeName}/${safeName}.webp`;
-    img.alt = d.name;
-    img.onerror = () => { avatar.textContent = d.name.charAt(0); };
+    img.alt = d.en ?? d.name;
+    img.onerror = () => { avatar.textContent = (d.en ?? d.name).charAt(0); };
     avatar.appendChild(img);
 
     // 툴팁
-    const tip = `Lv.${d.level} ${d.name} `;
+    const tip = `Lv.${d.level} ${d.en ?? d.name} `;
     avatar.addEventListener('mouseover', () => {
       document.querySelectorAll('.digimon-tooltip-box').forEach(t => t.remove());
       const tt = document.createElement('div');
@@ -163,7 +174,7 @@ function setupEventListeners() {
     // 디지몬 목록 중 하나라도 키워드를 포함하면 매칭
     effectSearch.value = '';
     showDecks(info => info.digimon.some(d =>
-      terms.some(term => d.name.toLowerCase().includes(term))
+      terms.some(term => d.name.toLowerCase().includes(term) || (d.en ?? '').toLowerCase().includes(term))
     ), terms);
   });
 

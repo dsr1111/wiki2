@@ -1,3 +1,4 @@
+import { t, tr, isEn, loadNames } from '../i18n.js';
 // 메인 페이지: 쿠폰 목록 (위키 Supabase, 실패하면 coupon.json) + 관리자 도구 불러오기
 // (메인 페이지에 들어올 때마다 init(signal, onReady) 가 실행됨 — page.js 의 onPage)
 import { initAdminLoader } from '../page.js';
@@ -46,7 +47,7 @@ function isCouponActive(coupon, now = window.DSRTime.now()) {
 
 /** 한국 시간 기준 "~2026.11.05 10:00" */
 function formatCouponPeriod(endsAt) {
-  if (!endsAt) return "~기한 미정";
+  if (!endsAt) return t("~기한 미정", "~No end date");
   const p = Object.fromEntries(
     new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
@@ -89,7 +90,7 @@ function renderCoupons(coupons, options = {}) {
 
   if (!coupons.length) {
     const empty = document.createElement("p");
-    empty.textContent = options.emptyText || "현재 사용 가능한 쿠폰이 없습니다.";
+    empty.textContent = options.emptyText || t("현재 사용 가능한 쿠폰이 없습니다.", "No coupons available right now.");
     empty.style.fontSize = "13px";
     container.appendChild(empty);
     return;
@@ -115,13 +116,13 @@ async function initCouponSystem() {
   initAdminLoader(signal, 'site-admin', 'DSRSiteAdmin');
 
   try {
-    const coupons = await fetchPublicCoupons();
+    const [coupons] = await Promise.all([fetchPublicCoupons(), loadNames()]);
     if (window.DSRCoupons.adminActive) return; // 관리자 모드가 이미 목록을 그림
     renderCoupons(coupons);
   } catch (error) {
     if (window.DSRCoupons.adminActive) return;
     console.error("Error loading coupon data:", error);
-    showCouponMessage("쿠폰 정보를 불러올 수 없습니다.");
+    showCouponMessage(t("쿠폰 정보를 불러올 수 없습니다.", "Could not load coupons."));
   }
 }
 
@@ -157,7 +158,7 @@ function createCouponElement(coupon, container) {
 
   const showItemsText = document.createElement("span");
   showItemsText.classList.add("show-items");
-  showItemsText.textContent = "구성품 확인";
+  showItemsText.textContent = t("구성품 확인", "Contents");
 
   const numberEl = document.createElement("div");
   numberEl.classList.add("coupon-number");
@@ -180,7 +181,7 @@ function createCouponElement(coupon, container) {
   numberEl.addEventListener("click", function () {
     navigator.clipboard
       .writeText(coupon.code)
-      .then(() => alert(`쿠폰 번호가 복사되었습니다.`))
+      .then(() => alert(t(`쿠폰 번호가 복사되었습니다.`, `Coupon code copied.`)))
       .catch((err) => console.error("복사 실패:", err));
   });
   return couponEl;
@@ -218,7 +219,7 @@ function createTooltip(items) {
     icon.appendChild(qty);
 
     const label = document.createElement("span");
-    label.textContent = item.name;
+    label.textContent = tr(item.name);
 
     itemElement.appendChild(icon);
     itemElement.appendChild(label);

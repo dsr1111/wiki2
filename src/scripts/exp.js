@@ -3,6 +3,8 @@
 // (여러 파일은 기존처럼 같은 범위를 쓰도록 실행 순서대로 이어 붙임)
 // onReady: 기존 DOMContentLoaded / load 자리 — 원래처럼 나머지 코드가 다 실행된 뒤에 돔
 // signal: 페이지를 떠날 때 abort 됨 — document/window 이벤트나 타이머 정리에 사용
+import { t } from './i18n.js';
+
 export function init(signal, onReady) {
 // ===== 기존 app/exp.js =====
 // 레벨별 필요 경험치 데이터
@@ -145,12 +147,12 @@ onReady(function () {
         const checkboxText = document.getElementById('evolution-checkbox-text');
         if (initialLevel >= 1 && initialLevel <= 15) {
             checkboxContainer.classList.remove('hidden');
-            checkboxText.textContent = '성숙기 진화 여부';
+            checkboxText.textContent = t('성숙기 진화 여부', 'Evolve to Champion');
             isMatureEvolution = document.getElementById('evolution-checkbox').checked;
             isPerfectEvolution = false;
         } else if (initialLevel >= 50 && initialLevel <= 60) {
             checkboxContainer.classList.remove('hidden');
-            checkboxText.textContent = '완전체 진화 여부';
+            checkboxText.textContent = t('완전체 진화 여부', 'Evolve to Ultimate');
             isPerfectEvolution = document.getElementById('evolution-checkbox').checked;
             isMatureEvolution = false;
         } else {
@@ -251,12 +253,12 @@ function calculateNeededExp() {
 
     // 입력값 검증
     if (currentLevel < 1 || currentLevel >= 100) {
-        alert('현재 레벨은 1~99 사이여야 합니다.');
+        alert(t('현재 레벨은 1~99 사이여야 합니다.', 'Current level must be between 1 and 99.'));
         return;
     }
 
     if (targetLevel <= currentLevel || targetLevel > 100) {
-        alert('목표 레벨은 현재 레벨보다 높고 100 이하여야 합니다.');
+        alert(t('목표 레벨은 현재 레벨보다 높고 100 이하여야 합니다.', 'Target level must be above the current level and at most 100.'));
         return;
     }
 
@@ -432,7 +434,7 @@ function updateResultTable(potionCounts) {
         .sort((a, b) => a - b);
 
     if (sortedPotions.length === 0) {
-        resultBody.innerHTML = `<tr><td colspan="3" class="text-center">선택된 물약이 없습니다</td></tr>`;
+        resultBody.innerHTML = `<tr><td colspan="3" class="text-center">${t('선택된 물약이 없습니다', 'No potions selected')}</td></tr>`;
         return;
     }
 
@@ -446,7 +448,7 @@ function updateResultTable(potionCounts) {
         const row = document.createElement('tr');
         const imageFileName = `${potion} EXP 물약.webp`;
         row.innerHTML = `
-            <td class="potion-name"><img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/${imageFileName}" alt="${potion} EXP 물약" class="potion-img">${potion} EXP 물약</td>
+            <td class="potion-name"><img loading="lazy" src="https://media.dsrwiki.com/dsrwiki/item/${imageFileName}" alt="${potion} EXP 물약" class="potion-img">${potion} ${t('EXP 물약', 'EXP Potion')}</td>
             <td>${count}</td>
             <td>${expTotal.toLocaleString()}</td>
           `;
@@ -457,7 +459,7 @@ function updateResultTable(potionCounts) {
     const totalRow = document.createElement('tr');
     totalRow.className = 'font-bold';
     totalRow.innerHTML = `
-          <td>합계</td>
+          <td>${t('합계', 'Total')}</td>
           <td>${totalCount}</td>
           <td>${totalExp.toLocaleString()}</td>
         `;

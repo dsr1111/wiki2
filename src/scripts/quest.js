@@ -1,12 +1,16 @@
 // 퀘스트 페이지 (pages/quest.astro)
 // 왼쪽: 메인/서브 탭, 맵 선택, 목록(메인은 진행 순서 또는 맵별 묶음, 묶음은 펴고 접기)
 // 오른쪽: 고른 퀘스트의 진행률, 시작 NPC·위치, 선행 퀘스트, 보상, 단계별 목표·위치·대사
+import { t as L, tr, loadNames } from './i18n.js';
+
 const MEDIA = 'https://media.dsrwiki.com/dsrwiki';
 const DATA_URL = 'https://media.dsrwiki.com/data/csv/quest.json';
-const KIND = { main: '메인', sub: '서브' };
-const HOW = { AutoStart: '이전 퀘스트 완료 시 자동 시작', UseItem: '아이템 사용으로 시작', NONE: 'NPC에게 받기' };
+const KIND = { main: L('메인', 'Main'), sub: L('서브', 'Sub') };
+const HOW = { AutoStart: L('이전 퀘스트 완료 시 자동 시작', 'Starts automatically after the previous quest'), UseItem: L('아이템 사용으로 시작', 'Starts by using an item'), NONE: L('NPC에게 받기', 'Get from an NPC') };
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// 게임 문구(이름·대사·목표): 영어면 게임 영어판 문구로 바꾼 뒤 escape
+const E = (s) => esc(tr(s));
 
 // 맵 이미지 주소: 층이 나뉜 맵·이름이 다른 맵은 데이터의 img, 아니면 맵 이름(공백 제거).webp
 const mapUrl = (p) => `${MEDIA}/map/${encodeURIComponent(p.img || p.map.replace(/\s+/g, '') + '.webp')}`;
@@ -16,13 +20,13 @@ const pin = (pos) => (pos ? `<i style="left:${pos[0] * 100}%;top:${pos[1] * 100}
 const mini = (p) => {
   if (!p || !p.map) return '';
   const url = mapUrl(p);
-  return `<div class="qp-mini" title="크게 보기" data-url="${esc(url)}" data-name="${esc(p.map)}" data-pos="${p.pos ? p.pos.join(',') : ''}" style="background-image:url('${url}')">${pin(p.pos)}</div>`;
+  return `<div class="qp-mini" title="${L('크게 보기', 'Enlarge')}" data-url="${esc(url)}" data-name="${E(p.map)}" data-pos="${p.pos ? p.pos.join(',') : ''}" style="background-image:url('${url}')">${pin(p.pos)}</div>`;
 };
 
 // 맵 크게 보기 (화면 아무 곳이나 누르거나 Esc 로 닫기)
 // 확대한 맵에는 맵 페이지와 같은 포탈·워프·상점·오버플로우·던전 아이콘도 얹음 (map.json, 맵 이미지 700px 기준 좌표)
 const MAP_URL = 'https://media.dsrwiki.com/data/csv/map.json';
-const MARKS = { portals: '포탈', warps: '워프', shops: '상점', overflows: '오버플로우', dungeon: '던전' };
+const MARKS = { portals: L('포탈', 'Portal'), warps: L('워프', 'Warp'), shops: L('상점', 'Shop'), overflows: L('오버플로우', 'Overflow'), dungeon: L('던전', 'Dungeon') };
 let mapData = null;
 const loadMaps = () => (mapData ||= fetch(MAP_URL, { cache: 'no-cache' }).then((r) => r.json()).catch(() => ({})));
 const fileOf = (u) => decodeURIComponent(String(u).split('/').pop());
@@ -31,7 +35,7 @@ async function addMarks(boxEl, url) {
   const m = Object.values(maps).find((x) => x.backgroundImage && fileOf(x.backgroundImage) === fileOf(url));
   if (!m) return;
   const html = Object.keys(MARKS).flatMap((k) => (m[k] || []).map((it) => {
-    const tip = String(it.tooltip || MARKS[k]).replace(/<br\s*\/?>/gi, ' · ').replace(/<[^>]+>/g, '');
+    const tip = String(it.tooltip ? tr(it.tooltip) : MARKS[k]).replace(/<br\s*\/?>/gi, ' · ').replace(/<[^>]+>/g, '');
     return `<img class="mk mk-${k}" src="${esc(it.src)}" alt="" title="${esc(tip)}" style="left:${((it.left + 20.5) / 700) * 100}%;top:${((it.top + 41) / 700) * 100}%">`;
   })).join('');
   boxEl.querySelector('.bg')?.insertAdjacentHTML('afterend', html);
@@ -63,12 +67,12 @@ const chips = (rw) => {
   const out = [];
   if (rw.exp) out.push(`<span class="qp-chip plain">EXP ${rw.exp.toLocaleString()}</span>`);
   if (rw.bit) out.push(`<span class="qp-chip plain">${rw.bit.toLocaleString()} BIT</span>`);
-  for (const it of rw.items || []) out.push(`<span class="qp-chip">${itemImg(it)}${esc(it.name)} ×${it.count}</span>`);
+  for (const it of rw.items || []) out.push(`<span class="qp-chip">${itemImg(it)}${E(it.name)} ×${it.count}</span>`);
   return out.length ? `<div class="qp-rw">${out.join('')}</div>` : '';
 };
 
 // 단계 목표: 잡을 몹·모을 아이템·이길 전투 (초상화/아이템 그림 + 이름 + 개수)
-const GOAL = { mob: '처치', item: '획득', use: '사용', battle: '전투' };
+const GOAL = { mob: L('처치', 'Defeat'), item: L('획득', 'Obtain'), use: L('사용', 'Use'), battle: L('전투', 'Battle') };
 const face = (name) => {
   // [돌연변이]가지몬 처럼 앞에 [..] 가 붙은 몹은 원래 디지몬(가지몬) 그림을 씀
   const f = encodeURIComponent(name.replace(/^\s*\[[^\]]*\]\s*/, '').replace(/:/g, '_'));
@@ -77,8 +81,8 @@ const face = (name) => {
 const goal = (g) => {
   if (!g) return '';
   const isItem = g.kind === 'item' || g.kind === 'use';
-  const list = g.list.map((x) => `<span class="qp-chip">${isItem ? itemImg(x) : face(x.name)}${esc(x.name)}${x.level ? `<small>Lv.${x.level}</small>` : ''}${x.count > 1 || g.kind !== 'battle' ? ` ×${x.count}` : ''}</span>`).join('');
-  const extra = [g.from ? `${esc(g.from)}에게서` : '', g.times > 1 ? `${g.times}회` : ''].filter(Boolean).join(' · ');
+  const list = g.list.map((x) => `<span class="qp-chip">${isItem ? itemImg(x) : face(x.name)}${E(x.name)}${x.level ? `<small>Lv.${x.level}</small>` : ''}${x.count > 1 || g.kind !== 'battle' ? ` ×${x.count}` : ''}</span>`).join('');
+  const extra = [g.from ? L(`${esc(g.from)}에게서`, `from ${E(g.from)}`) : '', g.times > 1 ? L(`${g.times}회`, `${g.times} times`) : ''].filter(Boolean).join(' · ');
   return `<div class="qp-goal"><b>${GOAL[g.kind]}</b>${list}${extra ? `<span class="ex">${extra}</span>` : ''}</div>`;
 };
 
@@ -87,36 +91,36 @@ const goal = (g) => {
 const startSteps = (q) => {
   const sb = q.startBy;
   if (!sb?.item?.name) return [];
-  const it = esc(sb.item.name);
+  const it = E(sb.item.name);
   const out = [];
   const src = sb.from || [];
   src.forEach((s, i) => {
-    const alt = src.length > 1 ? `<span class="qp-alt">택1 · ${i + 1}/${src.length}</span>` : '';
+    const alt = src.length > 1 ? `<span class="qp-alt">${L('택1', 'Choose 1')} · ${i + 1}/${src.length}</span>` : '';
     if (s.kind === 'prop') {
       out.push({
-        text: `「${esc(s.name)}」 조사해서 「${it}」 얻기${alt}`,
-        sub: `${s.place?.map ? `<span>📍 ${esc(s.place.map)}</span>` : ''}${s.after ? `<span>「${esc(s.after.title)}」의 「${esc(s.after.task)}」 단계를 마치면 나타남</span>` : ''}`,
+        text: L(`「${esc(s.name)}」 조사해서 「${it}」 얻기${alt}`, (/[가-힣]/.test(E(s.name)) ? `Investigate to get "${it}"${alt}` : `Investigate "${E(s.name)}" to get "${it}"${alt}`)),
+        sub: `${s.place?.map ? `<span>📍 ${E(s.place.map)}</span>` : ''}${s.after ? `<span>${L(`「${esc(s.after.title)}」의 「${esc(s.after.task)}」 단계를 마치면 나타남`, `Appears after the "${E(s.after.task)}" step of "${E(s.after.title)}"`)}</span>` : ''}`,
         goal: { kind: 'item', list: [{ ...sb.item, count: 1 }] },
         place: s.place,
       });
     } else if (s.kind === 'mob') {
       out.push({
-        text: `「${esc(s.name)}」 처치해서 「${it}」 얻기${alt}`,
-        sub: s.place?.map ? `<span>📍 ${esc(s.place.map)}</span>` : '',
+        text: L(`「${esc(s.name)}」 처치해서 「${it}」 얻기${alt}`, `Defeat "${E(s.name)}" to get "${it}"${alt}`),
+        sub: s.place?.map ? `<span>📍 ${E(s.place.map)}</span>` : '',
         goal: { kind: 'item', list: [{ ...sb.item, count: 1 }], from: s.name },
         place: s.place,
       });
     } else if (s.kind === 'quest') {
-      out.push({ text: `「${esc(s.title)}」 퀘스트에서 「${it}」 받기${alt}`, sub: s.task ? `<span>「${esc(s.task)}」 단계 보상</span>` : '', goal: { kind: 'item', list: [{ ...sb.item, count: 1 }] } });
+      out.push({ text: L(`「${esc(s.title)}」 퀘스트에서 「${it}」 받기${alt}`, `Get "${it}" from the quest "${E(s.title)}"${alt}`), sub: s.task ? `<span>${L(`「${esc(s.task)}」 단계 보상`, `Reward of the "${E(s.task)}" step`)}</span>` : '', goal: { kind: 'item', list: [{ ...sb.item, count: 1 }] } });
     }
   });
-  out.push({ text: `「${it}」 사용하기`, goal: { kind: 'use', list: [{ ...sb.item, count: 1 }] } });
+  out.push({ text: L(`「${it}」 사용하기`, `Use "${it}"`), goal: { kind: 'use', list: [{ ...sb.item, count: 1 }] } });
   return out;
 };
 
 // 대사: NPC 대사 + 플레이어 선택지, 안내 문구
-const lines = (arr) => arr.map((l) => `<div class="qp-line${l.guide ? ' guide' : ''}"><span class="who">${esc(l.who || '???')}</span>${esc(l.text)}${
-  l.choices ? `<div class="qp-choices">${l.choices.map((c) => `<span>${esc(c)}</span>`).join('')}</div>` : ''}</div>`).join('');
+const lines = (arr) => arr.map((l) => `<div class="qp-line${l.guide ? ' guide' : ''}"><span class="who">${E(l.who || '???')}</span>${E(l.text)}${
+  l.choices ? `<div class="qp-choices">${l.choices.map((c) => `<span>${E(c)}</span>`).join('')}</div>` : ''}</div>`).join('');
 
 export async function init(signal) {
   const list = document.getElementById('qp-list');
@@ -126,7 +130,7 @@ export async function init(signal) {
   const tabs = document.querySelectorAll('.qp-tabs button');
 
   const url = import.meta.env.DEV ? '/__local/quest.json' : DATA_URL;
-  const data = await fetch(url, { cache: 'no-cache', signal }).then((r) => r.json());
+  const [data] = await Promise.all([fetch(url, { cache: 'no-cache', signal }).then((r) => r.json()), loadNames({ quest: true })]);
   const byId = new Map(data.quests.map((q) => [q.id, q]));
 
   let kind = 'main';
@@ -141,8 +145,8 @@ export async function init(signal) {
     const cnt = {};
     qs.forEach((q) => (cnt[q.mapName] = (cnt[q.mapName] || 0) + 1));
     if (mapFilter && !cnt[mapFilter]) mapFilter = '';
-    mapSel.innerHTML = `<option value="">전체 맵 (${qs.length})</option>` + data.maps.filter((m) => cnt[m])
-      .map((m) => `<option value="${esc(m)}"${m === mapFilter ? ' selected' : ''}>${esc(m)} (${cnt[m]})</option>`).join('');
+    mapSel.innerHTML = `<option value="">${L('전체 맵', 'All Maps')} (${qs.length})</option>` + data.maps.filter((m) => cnt[m])
+      .map((m) => `<option value="${esc(m)}"${m === mapFilter ? ' selected' : ''}>${E(m)} (${cnt[m]})</option>`).join('');
   }
 
   function renderList() {
@@ -153,8 +157,8 @@ export async function init(signal) {
       if (!qs.some((q) => q.id === current) && qs[0]) current = qs[0].id;
       list.innerHTML = qs.map((q) => `<li data-id="${q.id}" class="${current === q.id ? 'on' : ''}">
         <span class="qp-num">${q.order}</span>
-        <span class="t">${esc(q.title)}</span>
-        <span class="m">진행률 ${q.progress}% · ${esc(q.mapName)}<div class="qp-bar"><i style="width:${q.progress}%"></i></div></span></li>`).join('');
+        <span class="t">${E(q.title)}</span>
+        <span class="m">${L('진행률', 'Progress')} ${q.progress}% · ${E(q.mapName)}<div class="qp-bar"><i style="width:${q.progress}%"></i></div></span></li>`).join('');
       if (current) select(current);
       return;
     }
@@ -167,10 +171,10 @@ export async function init(signal) {
     const isOpen = (m) => opened[kind].has(m) || mapFilter === m || (!opened[kind].size && cur?.mapName === m && cur.kind === kind);
     const item = (q, m) => `<li data-id="${q.id}" data-map="${esc(m)}" class="${current === q.id ? 'on' : ''}${q.kind === 'main' ? '' : ' nonum'}${isOpen(m) ? '' : ' hide'}">
       ${q.kind === 'main' ? `<span class="qp-num">${q.order}</span>` : ''}
-      <span class="t">${esc(q.title)}</span>
-      <span class="m">${q.kind === 'main' ? `진행률 ${q.progress}%<div class="qp-bar"><i style="width:${q.progress}%"></i></div>` : esc(q.start.npc?.name || '')}</span></li>`;
+      <span class="t">${E(q.title)}</span>
+      <span class="m">${q.kind === 'main' ? `${L('진행률', 'Progress')} ${q.progress}%<div class="qp-bar"><i style="width:${q.progress}%"></i></div>` : E(q.start.npc?.name || '')}</span></li>`;
     list.innerHTML = [...groups].filter(([, a]) => a.length).map(([m, a]) =>
-      `<li class="qp-group${isOpen(m) ? '' : ' closed'}" data-group="${esc(m)}"><span class="arr">▼</span>${esc(m)} · ${a.length}</li>` + a.map((q) => item(q, m)).join('')).join('');
+      `<li class="qp-group${isOpen(m) ? '' : ' closed'}" data-group="${esc(m)}"><span class="arr">▼</span>${E(m)} · ${a.length}</li>` + a.map((q) => item(q, m)).join('')).join('');
     if (current) select(current);
   }
 
@@ -183,30 +187,30 @@ export async function init(signal) {
     const startPlace = q.start.npc?.place || q.start.place;
     const pre = startSteps(q);
     detail.innerHTML = `
-      <div class="qp-badges"><span class="qp-badge ${q.kind}">${KIND[q.kind]}</span><span class="qp-badge">📍 ${esc(q.mapName)}</span>${q.level > 1 ? `<span class="qp-badge">Lv.${q.level} 이상</span>` : ''}${q.repeat ? `<span class="qp-badge">반복 ${esc(q.repeat)}</span>` : ''}</div>
-      <div class="qp-title">${q.kind === 'main' ? q.order + '. ' : ''}${esc(q.title)}</div>
-      ${q.kind === 'main' ? `<div class="qp-prog"><div class="qp-bar"><i style="width:${q.progress}%"></i></div><span>메인 퀘스트 ${q.order} / ${data.mainTotal} · 진행률 ${q.progress}%</span></div>` : ''}
+      <div class="qp-badges"><span class="qp-badge ${q.kind}">${KIND[q.kind]}</span><span class="qp-badge">📍 ${E(q.mapName)}</span>${q.level > 1 ? `<span class="qp-badge">${L(`Lv.${q.level} 이상`, `Lv.${q.level}+`)}</span>` : ''}${q.repeat ? `<span class="qp-badge">${L('반복', 'Repeat')} ${E(q.repeat)}</span>` : ''}</div>
+      <div class="qp-title">${q.kind === 'main' ? q.order + '. ' : ''}${E(q.title)}</div>
+      ${q.kind === 'main' ? `<div class="qp-prog"><div class="qp-bar"><i style="width:${q.progress}%"></i></div><span>${L('메인 퀘스트', 'Main Quest')} ${q.order} / ${data.mainTotal} · ${L('진행률', 'Progress')} ${q.progress}%</span></div>` : ''}
       <div class="qp-meta">
-        <div class="qp-box"><b>시작</b>${q.start.npc ? esc(q.start.npc.name) : esc(HOW[q.startEvent] || '')}${startPlace?.map ? `<div class="qp-place">${esc(startPlace.map)}</div>` : ''}</div>
-        <div class="qp-box"><b>선행 퀘스트</b>${q.requires ? esc(q.requires.title) : '없음'}</div>
-        <div class="qp-box"><b>총 보상</b>${chips({ ...q.total, items: q.totalItems }) || '없음'}</div>
+        <div class="qp-box"><b>${L('시작', 'Start')}</b>${q.start.npc ? E(q.start.npc.name) : esc(HOW[q.startEvent] || '')}${startPlace?.map ? `<div class="qp-place">${E(startPlace.map)}</div>` : ''}</div>
+        <div class="qp-box"><b>${L('선행 퀘스트', 'Prerequisite')}</b>${q.requires ? E(q.requires.title) : L('없음', 'None')}</div>
+        <div class="qp-box"><b>${L('총 보상', 'Total Rewards')}</b>${chips({ ...q.total, items: q.totalItems }) || L('없음', 'None')}</div>
       </div>
       ${startPlace?.pos ? `<div class="qp-loc">${mini(startPlace)}</div>` : ''}
-      <div class="qp-h2">진행 단계</div>
+      <div class="qp-h2">${L('진행 단계', 'Steps')}</div>
       <ol class="qp-steps">${pre.map((p, i) => `
         <li class="qp-step pre" data-n="${i + 1}">
-          <div class="obj">${p.text}<span class="qp-alt pre">시작 전</span></div>
+          <div class="obj">${p.text}<span class="qp-alt pre">${L('시작 전', 'Before start')}</span></div>
           ${p.sub ? `<div class="sub">${p.sub}</div>` : ''}
           ${p.goal ? goal(p.goal) : ''}
           ${p.place?.pos ? mini(p.place) : ''}
         </li>`).join('')}${q.tasks.map((t, i) => `
         <li class="qp-step${t.branch > 1 ? ' alt' : ''}" data-n="${pre.length + i + 1}">
-          <div class="obj">${esc(t.text)}${t.count ? ` (${t.count})` : ''}${t.branchOf ? `<span class="qp-alt">택1 · ${t.branch}/${t.branchOf}</span>` : ''}</div>
-          <div class="sub">${t.place?.map ? `<span>📍 ${esc(t.place.map)}</span>` : ''}${t.npc ? `<span>💬 ${esc(t.npc.name)}</span>` : ''}</div>
+          <div class="obj">${E(t.text)}${t.count ? ` (${t.count})` : ''}${t.branchOf ? `<span class="qp-alt">${L('택1', 'Choose 1')} · ${t.branch}/${t.branchOf}</span>` : ''}</div>
+          <div class="sub">${t.place?.map ? `<span>📍 ${E(t.place.map)}</span>` : ''}${t.npc ? `<span>💬 ${E(t.npc.name)}</span>` : ''}</div>
           ${goal(t.goal)}
           ${t.place?.pos ? mini(t.place) : ''}
           ${chips(t.rewards)}
-          ${t.start || t.end ? `<details class="qp-dlg"><summary>대사 보기</summary><div class="qp-lines">${t.start ? lines(t.start) : ''}${t.end ? lines(t.end) : ''}</div></details>` : ''}
+          ${t.start || t.end ? `<details class="qp-dlg"><summary>${L('대사 보기', 'View Dialogue')}</summary><div class="qp-lines">${t.start ? lines(t.start) : ''}${t.end ? lines(t.end) : ''}</div></details>` : ''}
         </li>`).join('')}</ol>`;
   }
 
