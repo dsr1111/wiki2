@@ -67,6 +67,7 @@
     .cpa-suggest .cpa-suggest-thumb { width: 26px; height: 26px; flex: none; }
     .cpa-suggest-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .cpa-suggest-grade { flex: none; font-size: 11px; color: #888; }
+    .cpa-suggest-more { flex: none; font-size: 11px; color: #2980b9; }
     .cpa-item-note .cpa-btn { padding: 2px 7px; font-size: 11px; }
     .cpa-modal .cpa-item select, .cpa-modal .cpa-item input { padding: 6px; }
     .cpa-slot { display: grid; grid-template-columns: 90px 1fr 28px; gap: 6px; align-items: center; }
@@ -228,17 +229,35 @@
   /** 등급표 키: (N시간)/(N일) 꼬리, [기간제] 머리, 띄어쓰기를 뺀 이름 */
   const gradeKey = (name) => squash(String(name).trim()
     .replace(/\s*\(\d+\s*(일|시간|분)\)\s*$/, "").replace(/^\[기간제\]\s*/, ""));
-  /** 이름 일부 → 추천 이름 (앞부분이 같은 것 먼저, 짧은 것 먼저) */
-  function suggestItems(table, text, max = 8) {
+  /**
+   * 이름 일부 → 추천 이름. 순서: 예전 쿠폰에 넣은 적 있는 것 → 앞부분이 같은 것 → 중간에 들어간 것, 같으면 짧은 것.
+   * 끝의 숫자·알파벳만 다른 시리즈(포텐셜 4~9, 원념 A~D)는 한 줄로 묶음 → { ...대표, more: 묶인 나머지 수 }.
+   * 시리즈 이름까지 다 치면(예: "궁극체 포텐셜") 묶지 않고 다 보여줌
+   */
+  function suggestItems(table, text, max = 30) {
     const q = squash(text);
     if (!q) return [];
+    const used = new Set(coupons.flatMap((c) => (c.items || []).map((i) => gradeKey(i.name))));
     const hits = [];
     for (const it of table.list) {
       const at = it.s.indexOf(q);
-      if (at >= 0 && it.s !== q) hits.push([at === 0 ? 0 : 1, it.s.length, it]);
+      if (at < 0 || it.s === q) continue;
+      const tier = used.has(gradeKey(it.name)) ? 0 : at === 0 ? 1 : 2;
+      hits.push([tier, it.s.length, it]);
     }
-    hits.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-    return hits.slice(0, max).map((h) => h[2]);
+    hits.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2].name.localeCompare(b[2].name, "ko", { numeric: true }));
+    const out = [];
+    const family = new Map();
+    for (const [tier, , it] of hits) {
+      const base = it.s.replace(/(\d+|[a-z])$/, "");
+      const key = tier + "|" + base;
+      if (base !== it.s && base.length > q.length && family.has(key)) { family.get(key).more++; continue; }
+      const row = { ...it, more: 0 };
+      family.set(key, row);
+      out.push(row);
+      if (out.length >= max) break;
+    }
+    return out;
   }
 
   // ---------- 시간 ----------
@@ -494,6 +513,7 @@
         }, [
           el("span", { class: "cpa-thumb cpa-suggest-thumb", style: { backgroundImage: `url("${C.itemFrameUrl(it.grade)}"), url("${C.itemImageUrl(it.name)}")` } }),
           el("span", { class: "cpa-suggest-name", text: it.name }),
+          it.more ? el("span", { class: "cpa-suggest-more", text: `외 ${it.more}개` }) : null,
           el("span", { class: "cpa-suggest-grade", text: `${it.grade}등급` }),
         ])));
         sugBox.hidden = !sugItems.length;
