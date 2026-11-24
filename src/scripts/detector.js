@@ -870,7 +870,7 @@ function showDigimonMechanicInfo(detector, digimon) {
             })
             .join('');
         const extraInfo = Object.keys(itemsList).length > 0
-            ? `<span class="extra-info-badge badge-yellow" onmouseover="showTooltip(this)" onmouseout="hideTooltip(this)">
+            ? `<span class="extra-info-badge badge-yellow">
                 ${t('구성품 확인', 'Contents')}
                 <div class="custom-tooltip custom-tooltip-popup">
                     ${tooltipContent}
@@ -924,7 +924,13 @@ function showDigimonMechanicInfo(detector, digimon) {
             </div>
         </div>
     `;
-    document.getElementById('digimonMechanicCard').classList.remove('hidden');
+    const card = document.getElementById('digimonMechanicCard');
+    // 구성품 확인: 마우스를 올리면 툴팁 (모듈 안 함수라 onmouseover="..." 로는 못 부름)
+    card.querySelectorAll('.extra-info-badge').forEach((badge) => {
+        badge.addEventListener('mouseenter', () => showTooltip(badge));
+        badge.addEventListener('mouseleave', () => hideTooltip(badge));
+    });
+    card.classList.remove('hidden');
 }
 
 // 툴팁 표시 함수
@@ -940,10 +946,19 @@ function showTooltip(element) {
         tooltip.style.position = 'absolute';
         tooltip.style.top = '50%';
         tooltip.style.left = '100%';
+        tooltip.style.right = 'auto';
         tooltip.style.transform = 'translateY(-50%)';
         tooltip.style.marginLeft = '10px';
+        tooltip.style.marginRight = '0';
     }
     tooltip.style.display = 'block';
+    // 오른쪽에 자리가 없으면 배지 왼쪽에 엶
+    if (window.innerWidth > 768 && tooltip.getBoundingClientRect().right > document.documentElement.clientWidth - 8) {
+        tooltip.style.left = 'auto';
+        tooltip.style.right = '100%';
+        tooltip.style.marginLeft = '0';
+        tooltip.style.marginRight = '10px';
+    }
 }
 
 // 툴팁 숨김 함수
