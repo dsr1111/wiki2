@@ -69,6 +69,8 @@ const TERMS = {
   '방어력 감소': 'Defense Power Decrease', '방어력 증가': 'Defense Increase', '공격력 증가': 'Attack Power Increase',
   '속도 감소': 'Speed Decrease', '속도 증가': 'Speed Increase', '치명타율 증가': 'Critical Hit Rate Increase',
   '회피율 증가': 'Evade Rate Increase', '스택 증가': 'Stack Gain', '스택 소모': 'Stack Use', 스택: 'Stack',
+  // 지역·맵 (이름 사전에 없는 것)
+  파일섬: 'File Island', '개굴몬 성 1F': "Gekomon's Castle 1F", '개굴몬 성 2F': "Gekomon's Castle 2F",
   // 스택 이름
   음양: 'Yin-Yang', '나태의 업화': 'Hellfire of Sloth', 용혼: 'Dragon Soul',
 };

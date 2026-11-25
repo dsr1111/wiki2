@@ -35,11 +35,11 @@ const localOnlyData = () => ({
       const dir = new URL('./local/', import.meta.url);
       server.middlewares.use('/__local/', async (req, res, next) => {
         const name = decodeURIComponent((req.url || '').split('?')[0].replace(/^\/+/, ''));
-        // json·webp 만, 하위 폴더 허용 (상위 폴더로 나가는 '..' 는 막음)
-        if (!/^[\w-]+(\/[\w-]+)*(\.[\w-]+)*\.(json|webp)$/.test(name)) return next();
+        // json·webp·csv 만, 하위 폴더 허용 (상위 폴더로 나가는 '..' 는 막음)
+        if (!/^[\w-]+(\/[\w-]+)*(\.[\w-]+)*\.(json|webp|csv)$/.test(name)) return next();
         try {
           const body = await readFile(new URL(name, dir));
-          res.setHeader('Content-Type', name.endsWith('.webp') ? 'image/webp' : 'application/json; charset=utf-8');
+          res.setHeader('Content-Type', name.endsWith('.webp') ? 'image/webp' : name.endsWith('.csv') ? 'text/csv; charset=utf-8' : 'application/json; charset=utf-8');
           res.setHeader('Cache-Control', 'no-store');
           res.end(body);
         } catch {
