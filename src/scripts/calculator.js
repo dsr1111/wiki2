@@ -546,7 +546,7 @@ async function load() {
   try {
     // 로컬 미리보기(개발 서버에서만): R2 에 올리기 전 생성본 local/mob.csv 가 있으면 그걸로 봄. 빌드에서는 빠짐
     const localCsv = import.meta.env.DEV ? await fetch('/__local/mob.csv', {cache:'no-store'}).then(r => r.ok ? r : null).catch(() => null) : null;
-    const [json,csv] = await Promise.all([getDigimonData(),localCsv || fetch('https://media.dsrwiki.com/data/csv/mob.csv'),loadNames()]);
+    const [json,csv] = await Promise.all([getDigimonData(),localCsv || fetch('https://media.dsrwiki.com/data/csv/mob.csv', {cache:'no-cache'}),loadNames()]);
     if (!csv.ok) throw new Error('데이터 파일을 찾을 수 없습니다.');
     digimonData = json;
     mobData = (await csv.text()).trim().split(/\r?\n/).slice(1).map(row=>row.split(',').map(cell=>cell.trim())).filter(row=>row.length>=9 && row[2]);
