@@ -456,7 +456,7 @@ function populateSkills() {
   $('힘-cell').textContent = format(d.stats.STR);
   // 힘 값에 붙는 설명(계산식)이 있으면 '힘 값' 아래 줄에 작게 표시하고, 앞 글자를 '기본 힘' → '힘' 으로
   $('힘-cell').previousSibling.textContent = d.strNote ? t('힘 ', 'STR ') : t('기본 힘 ', 'Base STR ');
-  if (d.strNote) { const note = document.createElement('small'); note.textContent = `(${d.strNote})`; note.style.cssText = 'display:block;font-weight:normal;white-space:nowrap'; $('힘-cell').append(note); }
+  if (d.strNote) { const note = document.createElement('small'); note.textContent = `(${t(d.strNote, d.strNote.replace('기본 힘', 'Base STR'))})`; note.style.cssText = 'display:block;font-weight:normal;white-space:nowrap'; $('힘-cell').append(note); }
   portrait('character-image-cell', $('character-select').value);
   options('skill-select', (d.skills || []).map((skill, i) => [`skill${i+1}`, `${i+1}. ${tr(skill.name)}`]));
   populateSkillLevels('1레벨'); populateElements();
@@ -552,20 +552,19 @@ async function load() {
     digimonData = json;
     mobData = (await csv.text()).trim().split(/\r?\n/).slice(1).map(row=>row.split(',').map(cell=>cell.trim())).filter(row=>row.length>=9 && row[2]);
     if (!Object.keys(digimonData).length || !mobData.length) throw new Error('계산 데이터가 비어 있습니다.');
-    // 개발 서버에서만: local/calculator.json (git 제외 파일) 의 몹을 더하고, 일반/전생 토글을 만듦.
-    // 배포 빌드에서는 이 부분이 통째로 빠짐 (토글도 화면에 없음)
-    if (import.meta.env.DEV) {
-      const extra = await fetch('/__local/calculator.json', {cache:'no-store'}).then(r => r.ok ? r.json() : null).catch(() => null);
-      if (extra) {
-        mobData = [...mobData, ...(extra.mob || [])];
+    // 전생 토글: 성숙기·완전체를 전생 1회 Lv50 값으로 바꿔 계산 (rebirth.json: 디지몬 이름 → 전생 값)
+    // 개발 서버에서는 R2 에 올리기 전 생성본 local/rebirth.json 이 있으면 그걸로 봄 (빌드에서는 빠짐)
+    const localRebirth = import.meta.env.DEV ? await fetch('/__local/rebirth.json', {cache:'no-store'}).then(r => r.ok ? r.json() : null).catch(() => null) : null;
+    const rebirthData = localRebirth || await fetch('https://media.dsrwiki.com/data/csv/rebirth.json', {cache:'no-cache'}).then(r => r.ok ? r.json() : null).catch(() => null);
+    {
         // 전생은 최대 레벨(위키 레벨)이 100 인 디지몬만 가능 → 90·60 에서 멈추거나 레벨 정보가 없는(0) 디지몬은 뺌 (도감 전생 토글과 같은 기준)
-        const rebirth = Object.fromEntries(Object.entries(extra.rebirth || {}).filter(([name]) => String(digimonData[name]?.stats?.level) === '100'));
+        const rebirth = Object.fromEntries(Object.entries(rebirthData || {}).filter(([name]) => String(digimonData[name]?.stats?.level) === '100'));
         const level = Object.values(rebirth)[0]?.stats?.level;
         if (Object.keys(rebirth).length && !$('rebirth-mode')) {
           const label = document.createElement('label'); label.className = 'toggle';
           const input = document.createElement('input'); input.type = 'checkbox'; input.id = 'rebirth-mode';
-          label.append(input, document.createTextNode(`전생 Lv${level}`));
-          label.title = '로컬 전용: 성숙기·완전체를 전생 1회 Lv' + level + ' 값으로 계산';
+          label.append(input, document.createTextNode(t(`전생 Lv${level}`, `Reincarnation Lv${level}`)));
+          label.title = t(`성숙기·완전체를 전생 1회 Lv${level} 값으로 계산`, `Champion/Ultimate at Lv${level} after one Reincarnation`);
           label.style.marginLeft = 'auto'; label.style.marginRight = '14px'; // 수동 입력 옆(오른쪽)에 붙임
           $('manual-mode').closest('label').before(label);
           const rebirthStages = new Set(Object.values(rebirth).map(d => d.evolution_stage));
@@ -587,7 +586,6 @@ async function load() {
           // 입력 초기화를 누르면 토글이 꺼지므로 일반으로 되돌림 (reset 이벤트는 값이 초기화되기 전에 옴)
           $('calculator-form').addEventListener('reset', () => { input.checked = false; digimonOverride = null; for (const o of $('stage-select').options) o.disabled = false; }, { signal });
         }
-      }
     }
     options('skilllevel-select', Array.from({length:10},(_,i)=>[`${i+1}레벨`, t(`${i+1}레벨`, `Lv${i+1}`)]));
     options('manual-skill-element', elements, '물리');
